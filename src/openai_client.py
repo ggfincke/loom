@@ -3,6 +3,7 @@ import json
 import re
 from dotenv import load_dotenv
 from openai import OpenAI
+from .settings import settings_manager
 
 # strip markdown code blocks
 def strip_markdown_code_blocks(text: str) -> str:
@@ -16,12 +17,18 @@ def strip_markdown_code_blocks(text: str) -> str:
 
 
 # validate JSON response from OpenAI API
-def openai_json(prompt: str, model: str = "gpt-4o-mini") -> dict:
+def openai_json(prompt: str, model: str = "gpt-5-mini") -> dict:
     load_dotenv()
     if not os.getenv("OPENAI_API_KEY"):
         raise RuntimeError("Missing OPENAI_API_KEY in environment or .env")
     client = OpenAI()
-    resp = client.responses.create(model=model, input=prompt, temperature=0.2)
+    
+    # GPT-5 models don't support temperature parameter
+    if model.startswith("gpt-5"):
+        resp = client.responses.create(model=model, input=prompt)
+    else:
+        settings = settings_manager.load()
+        resp = client.responses.create(model=model, input=prompt, temperature=settings.temperature)
     
     # raw response text
     raw_text = resp.output_text
