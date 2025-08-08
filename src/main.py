@@ -10,21 +10,102 @@ from openai import OpenAI
 app = typer.Typer(help="Tailor resumes using the OpenAI Responses API")
 
 # read docx file & return text content
-def read_docx(path: Path) -> str:
+def read_docx(path: Path) -> dict[int, str]:
     doc = Document(str(path))
-    lines = []
+    lines = {}
+    line_number = 1
+
     for p in doc.paragraphs:
         text = p.text.strip()
         if text:
-            lines.append(text)
-    return "\n".join(lines)
+            lines[line_number] = text
+            line_number += 1
 
-# write text to docx
-def write_docx(text: str, output_path: Path) -> None:
+    return lines
+
+# write text to docx file
+def write_docx(lines: dict[int, str], output_path: Path) -> None:
     doc = Document()
-    for line in text.splitlines():
-        doc.add_paragraph(line)
+    for line_num in sorted(lines.keys()):
+        doc.add_paragraph(lines[line_num])
     doc.save(str(output_path))
+
+# build sectionizer prompt for LLM
+def build_sectionizer_prompt(resume_with_line_numbers: str) -> str:
+    return (
+        "You are a resume section parser. Your task is to analyze a resume provided as "
+        "numbered lines and return a strict JSON object describing sections and their line ranges.\n\n"
+        "Rules:\n"
+        "1) Use 1-based line numbers that exactly match the provided numbering.\n"
+        "2) Detect common headings and variants (e.g., 'PROFESSIONAL SUMMARY', 'ABOUT ME' → SUMMARY; "
+        "'TECHNOLOGIES', 'TOOLS' → SKILLS; 'WORK EXPERIENCE', 'EMPLOYMENT' → EXPERIENCE; "
+        "'PERSONAL PROJECTS' → PROJECTS; 'EDUCATION'/'ACADEMICS' → EDUCATION).\n"
+        "3) For each section, return start_line and end_line inclusive. Headings belong to their section.\n"
+        "4) Include a 'confidence' score in [0,1] for each section.\n"
+        "5) If you can identify repeated substructures (like individual experience entries), include them under 'subsections' with start/end lines and basic metadata if visible (company/title/date_range/location). Omit fields you cannot infer.\n"
+        "6) Output ONLY JSON. No prose.\n\n"
+        "JSON schema to follow exactly:\n"
+        "{\n"
+        "  \"sections\": [\n"
+        "    {\n"
+        "      \"name\": \"SUMMARY|SKILLS|EXPERIENCE|PROJECTS|EDUCATION|OTHER\",\n"
+        "      \"heading_text\": \"<exact heading line text>\",\n"
+        "      \"start_line\": <int>,\n"
+        "      \"end_line\": <int>,\n"
+        "      \"confidence\": <float>,\n"
+        "      \"subsections\": [\n"
+        "        {\n"
+        "          \"name\": \"EXPERIENCE_ITEM|PROJECT_ITEM|EDUCATION_ITEM\",\n"
+        "          \"start_line\": <int>,\n"
+        "          \"end_line\": <int>,\n"
+        "          \"meta\": {\"company\"?: \"string\", \"title\"?: \"string\", \"date_range\"?: \"string\", \"location\"?: \"string\"}\n"
+        "        }\n"
+        "      ]\n"
+        "    }\n"
+        "  ],\n"
+        "  \"normalized_order\": [\"...\"],\n"
+        "  \"notes\": \"string\"\n"
+        "}\n\n"
+        "Resume (numbered lines start at 1):\n"
+        f"{resume_with_line_numbers}\n"
+    )
+
+# build tailoring prompt for LLM
+def build_tailor_prompt(job_info: str,
+                        resume_with_line_numbers: str,
+                        sections_json: str | None = None) -> str:
+    return (
+        "You are a resume editor tasked with tailoring a resume (provided as numbered lines) "
+        "to a specific job description. Return a STRICT JSON object with surgical edits by line number.\n\n"
+        "Objectives:\n"
+        "- Prioritize relevance to the job description.\n"
+        "- Keep truthful content only; do not invent experience.\n"
+        "- Prefer quantified impact and concise bullets.\n"
+        "- Keep the existing visual style (single column, headings, bullets). Only change text.\n\n"
+        "Line-numbering rules:\n"
+        "1) Use the exact 1-based line numbers provided.\n"
+        "2) For small tweaks, use 'replace_line'. For multi-line rewrites, use 'replace_range'.\n"
+        "3) To add a new bullet directly after a line, use 'insert_after'.\n"
+        "4) To remove irrelevant content, use 'delete_range'.\n"
+        "5) Never output lines that don't exist; validate with current_snippet to avoid drift.\n\n"
+        "Output ONLY JSON matching this schema:\n"
+        "{\n"
+        "  \"edits\": [\n"
+        "    {\"op\": \"replace_line\", \"line\": <int>, \"current_snippet\": \"string\", \"replacement\": \"string\"},\n"
+        "    {\"op\": \"replace_range\", \"start_line\": <int>, \"end_line\": <int>, \"current_snippet\": \"string\", \"replacement_lines\": [\"string\", \"...\"]},\n"
+        "    {\"op\": \"insert_after\", \"line\": <int>, \"new_lines\": [\"string\", \"...\"]},\n"
+        "    {\"op\": \"delete_range\", \"start_line\": <int>, \"end_line\": <int>, \"reason\": \"string\"}\n"
+        "  ],\n"
+        "  \"rationale\": \"string\"\n"
+        "}\n\n"
+        "Job Description:\n"
+        f"{job_info}\n\n"
+        + (
+            f"Known Sections (JSON):\n{sections_json}\n\n" if sections_json else ""
+        ) +
+        "Resume (numbered lines start at 1):\n"
+        f"{resume_with_line_numbers}\n"
+    )
 
 
 if __name__ == "__main__":
