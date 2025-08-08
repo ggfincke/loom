@@ -110,18 +110,41 @@ def tailor(
 
 
 # * Config management commands
-config_app = typer.Typer(help="Manage Loom configuration settings", invoke_without_command=True)
+config_app = typer.Typer(
+    help="""Manage Loom configuration settings.
+
+Configuration allows you to set default values for commonly used options,
+reducing the need to specify them repeatedly. Settings are stored in
+~/.loom/config.json and persist across sessions.
+
+Available settings:
+  - model: OpenAI model to use (default: gpt-4o-mini)  
+  - data_dir: Default directory for input files (default: current directory)
+  - output_dir: Default directory for output files (default: current directory)
+  - resume_filename: Default resume filename (default: resume.docx)
+  - job_filename: Default job description filename (default: job.txt)
+
+Examples:
+  loom config                    # Show current settings
+  loom config set model gpt-4o   # Set OpenAI model
+  loom config get data_dir       # Get specific setting
+  loom config reset              # Reset all to defaults""",
+    invoke_without_command=True
+)
 app.add_typer(config_app, name="config")
 
+# manage Loom config settings
 @config_app.callback()
 def config_callback(ctx: typer.Context):
-    """Manage Loom configuration settings"""
     if ctx.invoked_subcommand is None:
-        # Show help when no subcommand is provided
-        typer.echo(ctx.get_help())
+        # show current settings when no subcommand is provided
+        settings = settings_manager.list_settings()
+        typer.echo("Current Loom settings:")
+        for key, value in settings.items():
+            typer.echo(f"  {key}: {value}")
 
 # * List - list all current settings
-@config_app.command("list", help="Show all current configuration settings")
+@config_app.command("list", help="Display all current configuration settings with their values")
 def config_list():
     settings = settings_manager.list_settings()
     typer.echo("Current Loom settings:")
@@ -129,8 +152,8 @@ def config_list():
         typer.echo(f"  {key}: {value}")
 
 # * Get - get a specific setting value
-@config_app.command("get", help="Get the value of a specific setting")
-def config_get(key: str = typer.Argument(..., help="Setting name to retrieve (e.g., model, data_dir, resume_filename)")):
+@config_app.command("get", help="Retrieve the current value of a specific configuration setting")
+def config_get(key: str = typer.Argument(..., help="Configuration setting name to retrieve. Valid options: model, data_dir, output_dir, resume_filename, job_filename")):
     try:
         value = settings_manager.get(key)
         if value is None:
@@ -142,10 +165,10 @@ def config_get(key: str = typer.Argument(..., help="Setting name to retrieve (e.
         raise typer.Exit(1)
 
 # * Set - set a specific setting value
-@config_app.command("set", help="Set a configuration value")
+@config_app.command("set", help="Set or update a configuration setting with a new value")
 def config_set(
-    key: str = typer.Argument(..., help="Setting name (model, data_dir, output_dir, resume_filename, job_filename)"),
-    value: str = typer.Argument(..., help="New value for the setting")
+    key: str = typer.Argument(..., help="Configuration setting name. Valid options: model, data_dir, output_dir, resume_filename, job_filename"),
+    value: str = typer.Argument(..., help="New value to assign to the setting. For directories, use absolute or relative paths")
 ):
     try:
         settings_manager.set(key, value)
@@ -158,7 +181,7 @@ def config_set(
         raise typer.Exit(1)
 
 # * Reset - reset all settings to defaults
-@config_app.command("reset", help="Reset all settings to their default values")
+@config_app.command("reset", help="Reset all configuration settings to their factory default values (requires confirmation)")
 def config_reset():
     if typer.confirm("Reset all settings to defaults?"):
         settings_manager.reset()
@@ -167,6 +190,6 @@ def config_reset():
         typer.echo("Reset cancelled")
 
 # * Path - show config file path
-@config_app.command("path", help="Show the path to the configuration file")
+@config_app.command("path", help="Display the filesystem path to the configuration file (~/.loom/config.json)")
 def config_path():
     typer.echo(f"Config file: {settings_manager.config_path}")
