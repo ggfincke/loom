@@ -13,7 +13,7 @@ app = typer.Typer(help="Tailor resumes using the OpenAI Responses API")
 @app.command()
 def sectionize(
     resume_path: Path = typer.Argument(Path("data/resume.docx"), help="Path to source resume .docx"),
-    out_json: Path = typer.Option(Path("data/sections.json"), help="Where to write the sections JSON"),
+    out_json: Path = typer.Option(Path("output/sections.json"), help="Where to write the sections JSON"),
     model: str = typer.Option("gpt-4o-mini", help="OpenAI model name"),
 ):
     '''
@@ -27,11 +27,11 @@ def sectionize(
     typer.echo(f"Wrote {out_json}")
 
 @app.command()
-def tailer(
+def tailor(
     job_info: Path = typer.Argument(Path("data/job.txt"), help="Job description text to tailor resume for"),
     resume_path: Path = typer.Argument(Path("data/resume.docx"), help="Path to source resume .docx"),
-    sections_path: Optional[Path] = typer.Option(Path("data/sections.json"), help="Optional sections.json from the 'sections' command"),
-    out_json: Path = typer.Option(Path("data/edits.json"), help="Where to write the edits JSON"),
+    sections_path: Optional[Path] = typer.Option(Path("output/sections.json"), help="Optional sections.json from the 'sections' command"),
+    out_json: Path = typer.Option(Path("output/edits.json"), help="Where to write the edits JSON"),
     model: str = typer.Option("gpt-4o-mini", help="OpenAI model name"),
 ):
     '''

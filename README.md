@@ -47,7 +47,7 @@ This command:
 Generate targeted edits for your resume based on a job description:
 
 ```bash
-loom tailer job_description.txt path/to/resume.docx --sections-path sections.json --out-json edits.json
+loom tailor job_description.txt path/to/resume.docx --sections-path sections.json --out-json edits.json
 ```
 
 This command:
