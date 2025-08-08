@@ -2,12 +2,16 @@ from pathlib import Path
 import typer
 import json
 
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
+from rich.console import Console
+
 from .document import read_docx, number_lines, read_text
 from .prompts import build_sectionizer_prompt, build_tailor_prompt
 from .openai_client import openai_json
 from .settings import settings_manager
 
 app = typer.Typer(help="Tailor resumes using the OpenAI Responses API")
+console = Console()
 
 # load once 
 SETTINGS = settings_manager.load()
@@ -42,13 +46,34 @@ def sectionize(
         show_default=True,
     ),
 ):
-
-    lines = read_docx(resume_path)
-    numbered = number_lines(lines)
-    prompt = build_sectionizer_prompt(numbered)
-    data = openai_json(prompt, model=model)
-    out_json.write_text(json.dumps(data, indent=2), encoding="utf-8")
-    typer.echo(f"Wrote {out_json}")
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TimeElapsedColumn(),
+        console=console
+    ) as progress:
+        
+        task = progress.add_task("Processing resume...", total=4)
+        
+        progress.update(task, description="Reading resume document...")
+        lines = read_docx(resume_path)
+        progress.advance(task)
+        
+        progress.update(task, description="Numbering lines...")
+        numbered = number_lines(lines)
+        progress.advance(task)
+        
+        progress.update(task, description="Building prompt and calling OpenAI...")
+        prompt = build_sectionizer_prompt(numbered)
+        data = openai_json(prompt, model=model)
+        progress.advance(task)
+        
+        progress.update(task, description="Writing sections JSON...")
+        out_json.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        progress.advance(task)
+    
+    console.print(f"✅ Wrote sections to {out_json}", style="green")
 
 # * Tailor - tailor resume to job description
 # uses OpenAI Responses API to tailor a resume to a job description; generates a JSON object with edits by line number
@@ -96,17 +121,53 @@ def tailor(
         show_default=True,
     ),
 ):
-    job_text = read_text(job_info)
-    lines = read_docx(resume_path)
-    numbered = number_lines(lines)
-    sections_json_str = None
-    if sections_path and sections_path.exists():
-        sections_json_str = sections_path.read_text(encoding="utf-8")
-
-    prompt = build_tailor_prompt(job_text, numbered, sections_json_str)
-    data = openai_json(prompt, model=model)
-    out_json.write_text(json.dumps(data, indent=2), encoding="utf-8")
-    typer.echo(f"Wrote {out_json}")
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TimeElapsedColumn(),
+        console=console
+    ) as progress:
+        
+        task = progress.add_task("Tailoring resume...", total=8)
+        
+        progress.update(task, description="Reading job description...")
+        job_text = read_text(job_info)
+        progress.advance(task)
+        
+        progress.update(task, description="Reading resume document...")
+        lines = read_docx(resume_path)
+        progress.advance(task)
+        
+        progress.update(task, description="Numbering lines...")
+        numbered = number_lines(lines)
+        progress.advance(task)
+        
+        progress.update(task, description="Loading sections data...")
+        sections_json_str = None
+        if sections_path and sections_path.exists():
+            sections_json_str = sections_path.read_text(encoding="utf-8")
+        progress.advance(task)
+        
+        progress.update(task, description="Building tailoring prompt...")
+        prompt = build_tailor_prompt(job_text, numbered, sections_json_str)
+        progress.advance(task)
+        
+        progress.update(task, description="Calling OpenAI API (this may take a while)...")
+        # includes API initialization, request, response processing
+        console.print("  → Sending request to OpenAI...", style="dim")
+        data = openai_json(prompt, model=model)
+        progress.advance(task)
+        
+        progress.update(task, description="Validating response format...")
+        # response validation is handled inside openai_json
+        progress.advance(task)
+        
+        progress.update(task, description="Writing edits JSON...")
+        out_json.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        progress.advance(task)
+    
+    console.print(f"✅ Wrote tailored edits to {out_json}", style="green")
 
 
 # * Config management commands

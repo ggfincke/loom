@@ -10,6 +10,7 @@ setup(
         "python-docx",
         "openai",
         "python-dotenv",
+        "rich",
     ],
     entry_points={
         "console_scripts": [
