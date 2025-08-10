@@ -1,6 +1,6 @@
 from pathlib import Path
 from docx import Document
-
+import json
 
 # read docx file & return text content
 def read_docx(path: Path) -> dict[int, str]:
@@ -27,5 +27,10 @@ def write_docx(lines: dict[int, str], output_path: Path) -> None:
 def number_lines(resume: dict[int, str]) -> str:
     return "\n".join(f"{i:>4} {text}" for i, text in sorted(resume.items()))
 
+# read text from file
 def read_text(path: Path) -> str:
     return Path(path).read_text(encoding="utf-8")
+
+# write text to JSON file 
+def write_json(obj: dict, path: Path) -> None:
+    path.write_text(json.dumps(obj, indent=2), encoding="utf-8")

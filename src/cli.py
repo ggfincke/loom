@@ -5,10 +5,11 @@ import json
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
 from rich.console import Console
 
-from .document import read_docx, number_lines, read_text
-from .prompts import build_sectionizer_prompt, build_tailor_prompt
-from .openai_client import openai_json
+from .document import read_docx, number_lines, read_text, write_json, write_docx
+from .prompts import build_sectionizer_prompt, build_generate_prompt
+from .openai_client import run_generate
 from .settings import settings_manager
+from . import pipeline
 
 app = typer.Typer(help="Tailor resumes using the OpenAI Responses API")
 console = Console()
@@ -66,7 +67,7 @@ def sectionize(
         
         progress.update(task, description="Building prompt and calling OpenAI...")
         prompt = build_sectionizer_prompt(numbered)
-        data = openai_json(prompt, model=model)
+        data = run_generate(prompt, model=model)
         progress.advance(task)
         
         progress.update(task, description="Writing sections JSON...")
@@ -150,17 +151,17 @@ def tailor(
         progress.advance(task)
         
         progress.update(task, description="Building tailoring prompt...")
-        prompt = build_tailor_prompt(job_text, numbered, sections_json_str)
+        prompt = build_generate_prompt(job_text, numbered, sections_json_str)
         progress.advance(task)
         
         progress.update(task, description="Calling OpenAI API (this may take a while)...")
-        # includes API initialization, request, response processing
+        # includes API init, request, response processing
         console.print("  → Sending request to OpenAI...", style="dim")
-        data = openai_json(prompt, model=model)
+        data = run_generate(prompt, model=model)
         progress.advance(task)
         
         progress.update(task, description="Validating response format...")
-        # response validation is handled inside openai_json
+        # response validation is handled inside run_generate
         progress.advance(task)
         
         progress.update(task, description="Writing edits JSON...")
@@ -168,6 +169,148 @@ def tailor(
         progress.advance(task)
     
     console.print(f"✅ Wrote tailored edits to {out_json}", style="green")
+
+# * Generate - create edits.json from job description and resume
+@app.command()
+def generate(
+    resume: Path = typer.Argument(
+        SETTINGS.resume_path,
+        help="Path to resume .docx",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        resolve_path=True,
+    ),
+    job: Path = typer.Argument(
+        SETTINGS.job_path,
+        help="Path to job description text file",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        resolve_path=True,
+    ),
+    out: Path = typer.Option(
+        Path(".loom/edits.json"),
+        "--out",
+        "-o",
+        help="Output path for edits JSON",
+        resolve_path=True,
+        show_default=True,
+    ),
+    sections_path: Path = typer.Option(
+        SETTINGS.sections_path,
+        "--sections-path",
+        "-s",
+        help="Optional sections.json from sectionize command",
+        resolve_path=True,
+        show_default=True,
+    ),
+    model: str = typer.Option(
+        SETTINGS.model,
+        "--model",
+        "-m",
+        help="OpenAI model name",
+        show_default=True,
+    ),
+):
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TimeElapsedColumn(),
+        console=console
+    ) as progress:
+        
+        task = progress.add_task("Generating edits...", total=5)
+        
+        progress.update(task, description="Reading resume document...")
+        lines = read_docx(resume)
+        progress.advance(task)
+        
+        progress.update(task, description="Reading job description...")
+        job_text = read_text(job)
+        progress.advance(task)
+        
+        progress.update(task, description="Loading sections data...")
+        sections_json_str = None
+        if sections_path and sections_path.exists():
+            sections_json_str = sections_path.read_text(encoding="utf-8")
+        progress.advance(task)
+        
+        progress.update(task, description="Generating edits with AI...")
+        edits = pipeline.generate_edits(lines, job_text, sections_json_str, model)
+        progress.advance(task)
+        
+        progress.update(task, description="Writing edits JSON...")
+        out.parent.mkdir(parents=True, exist_ok=True)
+        write_json(edits, out)
+        progress.advance(task)
+    
+    console.print(f"✅ Wrote edits → {out}", style="green")
+
+# * Apply - apply edits.json to resume and generate output
+@app.command()
+def apply(
+    resume: Path = typer.Argument(
+        SETTINGS.resume_path,
+        help="Path to source resume .docx",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        resolve_path=True,
+    ),
+    edits: Path = typer.Argument(
+        Path(".loom/edits.json"),
+        help="Path to edits JSON file",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        resolve_path=True,
+    ),
+    out: Path = typer.Argument(
+        Path(SETTINGS.output_dir) / "tailored_resume.docx",
+        help="Output path for tailored resume .docx",
+        resolve_path=True,
+    ),
+):
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TimeElapsedColumn(),
+        console=console
+    ) as progress:
+        
+        task = progress.add_task("Applying edits...", total=5)
+        
+        progress.update(task, description="Reading resume document...")
+        lines = read_docx(resume)
+        progress.advance(task)
+        
+        progress.update(task, description="Loading edits JSON...")
+        edits_obj = json.loads(edits.read_text(encoding="utf-8"))
+        progress.advance(task)
+        
+        progress.update(task, description="Applying edits...")
+        new_lines = pipeline.apply_edits(lines, edits_obj)
+        progress.advance(task)
+        
+        progress.update(task, description="Generating diff...")
+        diff = pipeline.diff_lines(lines, new_lines)
+        Path(".loom").mkdir(exist_ok=True)
+        (Path(".loom") / "diff.patch").write_text(diff, encoding="utf-8")
+        progress.advance(task)
+        
+        progress.update(task, description="Writing tailored resume...")
+        write_docx(new_lines, out)
+        progress.advance(task)
+    
+    console.print(f"✅ Wrote DOCX → {out}", style="green")
+    console.print(f"✅ Diff → .loom/diff.patch", style="dim")
 
 
 # * Config management commands
@@ -199,10 +342,7 @@ app.add_typer(config_app, name="config")
 def config_callback(ctx: typer.Context):
     if ctx.invoked_subcommand is None:
         # show current settings when no subcommand is provided
-        settings = settings_manager.list_settings()
-        typer.echo("Current Loom settings:")
-        for key, value in settings.items():
-            typer.echo(f"  {key}: {value}")
+        config_list()
 
 # * List - list all current settings
 @config_app.command("list", help="Display all current configuration settings with their values")
