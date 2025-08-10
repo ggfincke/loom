@@ -38,10 +38,10 @@ def build_sectionizer_prompt(resume_with_line_numbers: str) -> str:
         f"{resume_with_line_numbers}\n"
     )
 
-# build tailoring prompt for LLM
-def build_tailor_prompt(job_info: str,
-                        resume_with_line_numbers: str,
-                        sections_json: str | None = None) -> str:
+# build generate prompt for LLM
+def build_generate_prompt(job_info: str,
+                         resume_with_line_numbers: str,
+                         sections_json: str | None = None) -> str:
     return (
         "You are a resume editor tasked with tailoring a resume (provided as numbered lines) "
         "to a specific job description. Return a STRICT JSON object with surgical edits by line number.\n\n"
@@ -76,20 +76,24 @@ def build_tailor_prompt(job_info: str,
         "5) Never output lines that don't exist; validate with 'current_snippet' to avoid drift.\n"
         "6) Keep proper tech casing (TypeScript, JavaScript, PostgreSQL) and only correct if wrong.\n\n"
 
-        "Output ONLY JSON matching this schema (note: every edit has its own rationale):\n"
+        "Output ONLY JSON matching this schema exactly:\n"
         "{\n"
-        "  \"edits\": [\n"
-        "    {\"op\": \"replace_line\", \"line\": <int>, \"current_snippet\": \"string\", \"replacement\": \"string\", \"rationale\": \"string (why this edit, which job phrase it targets, and how it stays truthful)\"},\n"
-        "    {\"op\": \"replace_range\", \"start_line\": <int>, \"end_line\": <int>, \"current_snippet\": \"string\", \"replacement_lines\": [\"string\", \"...\"], \"rationale\": \"string\"},\n"
-        "    {\"op\": \"insert_after\", \"line\": <int>, \"new_lines\": [\"string\", \"...\"], \"rationale\": \"string\"},\n"
-        "    {\"op\": \"delete_range\", \"start_line\": <int>, \"end_line\": <int>, \"reason\": \"string\", \"rationale\": \"string\"}\n"
+        "  \"version\": 1,\n"
+        "  \"meta\": { \"strategy\": \"rule\", \"model\": \"<model_name>\", \"created_at\": \"<ISO8601_timestamp>\" },\n"
+        "  \"ops\": [\n"
+        "    { \"op\": \"replace_line\", \"line\": <int>, \"text\": \"string\", \"why\": \"string (optional)\" },\n"
+        "    { \"op\": \"replace_range\", \"start\": <int>, \"end\": <int>, \"text\": \"string\", \"why\": \"string (optional)\" },\n"
+        "    { \"op\": \"insert_after\", \"line\": <int>, \"text\": \"string\", \"why\": \"string (optional)\" },\n"
+        "    { \"op\": \"delete_range\", \"start\": <int>, \"end\": <int>, \"why\": \"string (optional)\" }\n"
         "  ]\n"
         "}\n\n"
 
-        "Rationale requirements (per edit):\n"
-        "- Name the exact job phrase(s) this edit addresses.\n"
-        "- State why the change improves alignment (minimal diff preferred).\n"
-        "- State the truthfulness check (e.g., references to resume line numbers or the existing wording that justifies the embellishment).\n\n"
+        "Requirements:\n"
+        "- Include version: 1 and meta object with strategy, model, and ISO8601 timestamp\n"
+        "- For 'why' field (optional): Name the job phrase this targets and why it improves alignment\n"
+        "- For replace_range: 'text' should be multi-line content (use \\n for line breaks)\n"
+        "- For insert_after: 'text' should be the content to insert (use \\n for multiple lines)\n"
+        "- Use exact line numbers from the numbered resume provided\n\n"
 
         "Job Description:\n"
         f"{job_info}\n\n"
@@ -97,3 +101,4 @@ def build_tailor_prompt(job_info: str,
         "Resume (numbered lines start at 1):\n"
         f"{resume_with_line_numbers}\n"
     )
+

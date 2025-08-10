@@ -15,9 +15,8 @@ def strip_markdown_code_blocks(text: str) -> str:
     else:
         return text.strip()
 
-
-# validate JSON response from OpenAI API
-def openai_json(prompt: str, model: str = "gpt-5-mini") -> dict:
+# generate JSON response using OpenAI API
+def run_generate(prompt: str, model: str = "gpt-5-mini") -> dict:
     load_dotenv()
     if not os.getenv("OPENAI_API_KEY"):
         raise RuntimeError("Missing OPENAI_API_KEY in environment or .env")
