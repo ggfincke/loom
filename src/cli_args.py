@@ -1,3 +1,6 @@
+# src/cli_args.py
+# Type annotations and argument definitions for CLI commands
+
 from pathlib import Path
 from typing import Annotated, Optional
 import typer
@@ -24,7 +27,7 @@ RiskOpt = Annotated[
 
 OnErrorOpt = Annotated[
     str,
-    typer.Option("--on-error", help="ask|fail|soft|hard|retry|manual", show_default=True),
+    typer.Option("--on-error", help="ask|fail|fail:soft|fail:hard|manual|retry", show_default=True),
 ]
 
 EditsArg = Annotated[

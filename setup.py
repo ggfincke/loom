@@ -1,3 +1,6 @@
+# setup.py
+# Package configuration and entry points for Loom CLI tool
+
 from setuptools import setup, find_packages
 
 setup(

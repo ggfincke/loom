@@ -1,3 +1,6 @@
+# src/settings.py
+# Configuration management for Loom CLI including default paths and OpenAI settings
+
 import json
 from pathlib import Path
 from typing import Dict, Any, Optional
@@ -19,10 +22,19 @@ class LoomSettings:
     sections_filename: str = "sections.json"
     edits_filename: str = "edits.json"
     
+    # loom internal paths
+    base_dir: str = ".loom"
+    warnings_filename: str = "edits.warnings.txt"
+    diff_filename: str = "diff.patch"
+    plan_filename: str = "plan.txt"
+    
     # OpenAI model setting
     model: str = "gpt-5-mini"
     # temp setting (note: GPT-5 models don't support temperature parameter)
     temperature: float = 0.2
+    
+    # risk management setting
+    risk: str = "ask"
     
     @property
     def resume_path(self) -> Path:
@@ -39,6 +51,27 @@ class LoomSettings:
     @property
     def edits_path(self) -> Path:
         return Path(self.output_dir) / self.edits_filename
+    
+    # loom internal paths
+    @property
+    def loom_dir(self) -> Path:
+        return Path(self.base_dir)
+    
+    @property
+    def edits_json_path(self) -> Path:
+        return self.loom_dir / self.edits_filename
+    
+    @property
+    def warnings_path(self) -> Path:
+        return self.loom_dir / self.warnings_filename
+    
+    @property
+    def diff_path(self) -> Path:
+        return self.loom_dir / self.diff_filename
+    
+    @property
+    def plan_path(self) -> Path:
+        return self.loom_dir / self.plan_filename
 
 
 # * Settings management
