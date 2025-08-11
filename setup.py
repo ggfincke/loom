@@ -17,7 +17,7 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            "loom=src.main_cli:app",
+            "loom=src.cli:app",
         ],
     },
     python_requires=">=3.12",

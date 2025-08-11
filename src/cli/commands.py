@@ -1,4 +1,4 @@
-# src/main_cli.py
+# src/cli/commands.py
 # Main CLI interface for Loom with all command definitions and user interaction
 
 from pathlib import Path
@@ -8,18 +8,18 @@ import json
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
 from rich.console import Console
 
-from .loom_io import read_docx, number_lines, read_text, write_docx
-from .prompts import build_sectionizer_prompt, build_generate_prompt
-from .openai_client import run_generate
-from .settings import settings_manager
-from .loom_io import write_json_safe, read_json_safe, ensure_parent
-from . import pipeline
-from .cli_args import (
+from ..loom_io import read_docx, number_lines, read_text, write_docx
+from ..prompts import build_sectionizer_prompt, build_generate_prompt
+from ..openai_client import run_generate
+from ..settings import settings_manager
+from ..loom_io import write_json_safe, read_json_safe, ensure_parent
+from .. import pipeline
+from .args import (
     ResumeArg, JobArg, EditsArg, OutputArg, ConfigKeyArg, ConfigValueArg,
     ModelOpt, RiskOpt, OnErrorOpt, OutOpt, EditsJsonOpt, ResumeDocxOpt, 
     NoEditsJsonOpt, NoResumeDocxOpt, SectionsPathOpt, PlanOpt
 )
-from .cli.art import show_loom_art
+from .art import show_loom_art
 
 app = typer.Typer()
 console = Console()
