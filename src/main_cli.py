@@ -1,4 +1,4 @@
-# src/cli.py
+# src/main_cli.py
 # Main CLI interface for Loom with all command definitions and user interaction
 
 from pathlib import Path
@@ -19,9 +19,18 @@ from .cli_args import (
     ModelOpt, RiskOpt, OnErrorOpt, OutOpt, EditsJsonOpt, ResumeDocxOpt, 
     NoEditsJsonOpt, NoResumeDocxOpt, SectionsPathOpt, PlanOpt
 )
+from .cli.art import show_loom_art
 
-app = typer.Typer(help="Tailor resumes using the OpenAI Responses API")
+app = typer.Typer()
 console = Console()
+
+# main callback when no subcommand is provided
+@app.callback(invoke_without_command=True)
+def main_callback(ctx: typer.Context):
+    if ctx.invoked_subcommand is None:
+        show_loom_art()
+        print(ctx.get_help())
+        ctx.exit()
 
 # load once 
 SETTINGS = settings_manager.load()
