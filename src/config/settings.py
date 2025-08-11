@@ -1,4 +1,4 @@
-# src/settings.py
+# src/config/settings.py
 # Configuration management for Loom CLI including default paths and OpenAI settings
 
 import json

@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 import json
 
-from ..settings import settings_manager
+from ..config.settings import settings_manager
 
 # ensure .loom directory exists at import time
 def ensure_parent(path: Path) -> None:

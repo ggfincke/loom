@@ -9,11 +9,11 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeEl
 from rich.console import Console
 
 from ..loom_io import read_docx, number_lines, read_text, write_docx
-from ..prompts import build_sectionizer_prompt, build_generate_prompt
-from ..openai_client import run_generate
-from ..settings import settings_manager
+from ..ai.prompts import build_sectionizer_prompt, build_generate_prompt
+from ..ai.clients.openai_client import run_generate
+from ..config.settings import settings_manager
 from ..loom_io import write_json_safe, read_json_safe, ensure_parent
-from .. import pipeline
+from ..core import pipeline
 from .args import (
     ResumeArg, JobArg, EditsArg, OutputArg, ConfigKeyArg, ConfigValueArg,
     ModelOpt, RiskOpt, OnErrorOpt, OutOpt, EditsJsonOpt, ResumeDocxOpt, 
