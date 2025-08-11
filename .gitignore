@@ -1,18 +1,45 @@
-# Environments
+# ========================
+# Python Environment
+# ========================
 venv/
 .env
 .conda/
 conda_env/
 
-# Python cache
+# ========================
+# Python Cache / Bytecode
+# ========================
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
 
-# Docs / outputs
+# ========================
+# Build & Packaging Artifacts
+# ========================
+*.egg-info/
+build/
+dist/
+.eggs/
+
+# ========================
+# Documentation / Outputs
+# ========================
 *.docx
 *.pdf
 *.txt
 output/
 
+# ========================
+# Temporary & Editor Files
+# ========================
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+# ========================
+# Claude
+# ========================
 claude.md
+.claude/
