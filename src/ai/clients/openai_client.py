@@ -1,4 +1,4 @@
-# src/openai_client.py
+# src/ai/clients/openai_client.py
 # OpenAI API client functions for generating JSON responses using the Responses API
 
 import os
@@ -6,7 +6,7 @@ import json
 import re
 from dotenv import load_dotenv
 from openai import OpenAI
-from .settings import settings_manager
+from ...config.settings import settings_manager
 
 # strip markdown code blocks
 def strip_markdown_code_blocks(text: str) -> str:

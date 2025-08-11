@@ -1,0 +1,333 @@
+# Loom Usage Instructions
+
+This document provides comprehensive usage instructions for the Loom resume tailoring tool.
+
+## Quick Start
+
+### Installation & Setup
+
+1. **Environment Setup**:
+   ```bash
+   conda create -n loom python=3.12
+   conda activate loom
+   pip install -r requirements.txt
+   ```
+
+2. **API Configuration**:
+   ```bash
+   # Set your OpenAI API key
+   export OPENAI_API_KEY="your-api-key-here"
+   
+   # Or create a .env file in the project root
+   echo "OPENAI_API_KEY=your-api-key-here" > .env
+   ```
+
+3. **Verify Installation**:
+   ```bash
+   loom --help
+   ```
+
+## Configuration Management
+
+Loom supports persistent configuration to streamline your workflow. All settings are stored in `~/.loom/config.json`.
+
+### Initial Configuration
+
+Set up your default working directories:
+```bash
+# Set data directory (where you keep resumes and job descriptions)
+loom config set data_dir /path/to/your/data
+
+# Set output directory (where tailored resumes will be saved)
+loom config set output_dir /path/to/your/output
+
+# Set default model (optional)
+loom config set model gpt-4o
+```
+
+Set default filenames to avoid repetitive typing:
+```bash
+loom config set resume_filename my_resume.docx
+loom config set job_filename job_posting.txt
+```
+
+### Configuration Commands
+
+```bash
+# View all current settings
+loom config list
+
+# Get a specific setting
+loom config get model
+
+# Reset all settings to defaults
+loom config reset
+
+# Show config file location
+loom config path
+```
+
+## Core Workflows
+
+### Workflow 1: Full Pipeline (Recommended)
+
+For most users, the `tailor` command provides the complete workflow:
+
+```bash
+# With explicit paths
+loom tailor job_description.txt resume.docx --out-docx tailored_resume.docx
+
+# With configured defaults (recommended)
+loom tailor
+```
+
+This single command:
+1. Parses your resume into sections
+2. Analyzes the job description
+3. Generates targeted edits
+4. Applies edits to create a tailored resume
+
+### Workflow 2: Step-by-Step Process
+
+For more control, you can break the process into steps:
+
+#### Step 1: Parse Resume Sections
+```bash
+# Create sections JSON file
+loom sectionize resume.docx --out-json sections.json
+
+# With defaults configured
+loom sectionize
+```
+
+#### Step 2: Generate Edits
+```bash
+# Generate edit operations
+loom generate job_description.txt resume.docx --sections-path sections.json --out-json edits.json
+
+# With defaults configured
+loom generate
+```
+
+#### Step 3: Apply Edits
+```bash
+# Apply edits to create tailored resume
+loom apply resume.docx edits.json --out-docx tailored_resume.docx
+
+# With defaults configured
+loom apply
+```
+
+## Command Reference
+
+### `loom sectionize`
+
+Parses a resume into structured sections for better AI understanding.
+
+**Usage:**
+```bash
+loom sectionize [RESUME_PATH] [OPTIONS]
+```
+
+**Options:**
+- `--out-json PATH`: Output path for sections JSON file
+- `--model TEXT`: OpenAI model to use
+- `--help`: Show command help
+
+**Example Output:** Creates a JSON file with identified resume sections, subsections, and confidence scores.
+
+### `loom tailor`
+
+Complete resume tailoring workflow in one command.
+
+**Usage:**
+```bash
+loom tailor [JOB_PATH] [RESUME_PATH] [OPTIONS]
+```
+
+**Options:**
+- `--sections-path PATH`: Path to existing sections JSON
+- `--out-docx PATH`: Output path for tailored resume
+- `--out-json PATH`: Save generated edits as JSON
+- `--model TEXT`: OpenAI model to use
+- `--policy TEXT`: Error handling policy (ask|fail|retry|manual)
+- `--risk TEXT`: Validation risk level (low|med|high|strict)
+- `--help`: Show command help
+
+### `loom generate`
+
+Generate edit operations without applying them.
+
+**Usage:**
+```bash
+loom generate [JOB_PATH] [RESUME_PATH] [OPTIONS]
+```
+
+**Options:**
+- `--sections-path PATH`: Path to sections JSON file
+- `--out-json PATH`: Output path for edits JSON
+- `--model TEXT`: OpenAI model to use
+- `--policy TEXT`: Error handling policy
+- `--risk TEXT`: Validation risk level
+
+### `loom apply`
+
+Apply previously generated edits to a resume.
+
+**Usage:**
+```bash
+loom apply [RESUME_PATH] [EDITS_PATH] [OPTIONS]
+```
+
+**Options:**
+- `--out-docx PATH`: Output path for tailored resume
+- `--policy TEXT`: Error handling policy
+- `--risk TEXT`: Validation risk level
+
+### `loom config`
+
+Manage configuration settings.
+
+**Subcommands:**
+- `loom config list`: Show all settings
+- `loom config get KEY`: Get specific setting
+- `loom config set KEY VALUE`: Set a setting
+- `loom config reset`: Reset to defaults
+- `loom config path`: Show config file location
+
+## Advanced Usage
+
+### Error Handling Policies
+
+Control how Loom handles validation errors:
+
+- `ask` (default): Prompt user for action when errors occur
+- `fail`: Stop execution on any error
+- `retry`: Automatically retry failed operations
+- `manual`: Allow manual intervention and continuation
+
+```bash
+loom tailor job.txt resume.docx --policy retry
+```
+
+### Risk Levels
+
+Control validation strictness:
+
+- `low`: Minimal validation, faster processing
+- `med` (default): Balanced validation and performance
+- `high`: Strict validation, slower but safer
+- `strict`: Maximum validation, may catch edge cases
+
+```bash
+loom tailor job.txt resume.docx --risk high
+```
+
+### Model Selection
+
+Choose different OpenAI models:
+
+```bash
+# Use GPT-4 Omni (recommended for quality)
+loom tailor job.txt resume.docx --model gpt-4o
+
+# Use GPT-4 Omni Mini (faster, cheaper)
+loom tailor job.txt resume.docx --model gpt-4o-mini
+
+# Use GPT-3.5 Turbo (legacy)
+loom tailor job.txt resume.docx --model gpt-3.5-turbo
+```
+
+## File Organization
+
+### Recommended Directory Structure
+
+```
+~/loom-work/
+├── data/
+│   ├── master_resume.docx
+│   ├── software_engineer_job.txt
+│   ├── product_manager_job.txt
+│   └── sections.json
+├── output/
+│   ├── tailored_software_engineer.docx
+│   ├── tailored_product_manager.docx
+│   └── edits_software_engineer.json
+└── .env
+```
+
+### File Naming Conventions
+
+- **Resumes**: Use descriptive names like `john_doe_resume.docx`
+- **Job Descriptions**: Include company/role like `google_swe_job.txt`
+- **Output Files**: Use format like `tailored_google_swe.docx`
+- **Edit Files**: Match job description like `edits_google_swe.json`
+
+## Tips & Best Practices
+
+### Resume Preparation
+
+1. **Use Standard Sections**: Ensure your resume has clear section headers (Summary, Experience, Education, Skills, etc.)
+2. **Consistent Formatting**: Use consistent bullet points and formatting throughout
+3. **Save as DOCX**: Loom works best with .docx files (not .doc or PDF)
+
+### Job Description Preparation
+
+1. **Complete Text**: Copy the full job description, including requirements and nice-to-haves
+2. **Clean Formatting**: Remove excessive formatting, but keep structure
+3. **Save as TXT**: Plain text files work best for job descriptions
+
+### Configuration Strategy
+
+1. **Set Defaults Early**: Configure your directories and filenames once
+2. **Use Descriptive Paths**: Choose clear, consistent directory structures
+3. **Keep Backups**: Always keep your original resume safe
+
+### Quality Control
+
+1. **Review Sections**: Check the sections.json output to ensure proper parsing
+2. **Validate Edits**: Review generated edits.json before applying
+3. **Test Different Models**: Try different models for quality/speed trade-offs
+4. **Use Higher Risk Levels**: For important applications, use `--risk high`
+
+## Troubleshooting
+
+### Common Issues
+
+**"File not found" errors:**
+- Check file paths are correct
+- Ensure files have proper extensions (.docx, .txt)
+- Use absolute paths if relative paths fail
+
+**OpenAI API errors:**
+- Verify your API key is set correctly
+- Check your OpenAI account has credits
+- Try a different model if one is experiencing issues
+
+**Validation errors:**
+- Try a lower risk level (`--risk low`)
+- Use `--policy ask` to handle errors interactively
+- Check that your resume has clear section structure
+
+**Poor edit quality:**
+- Use a more powerful model (`gpt-4o` instead of `gpt-4o-mini`)
+- Ensure your job description is complete and detailed
+- Try generating sections first with `loom sectionize`
+
+### Getting Help
+
+- Use `loom --help` for general help
+- Use `loom [command] --help` for command-specific help
+- Check the configuration with `loom config list`
+- Review generated files (sections.json, edits.json) to debug issues
+
+## Next Steps
+
+Once you're comfortable with basic usage:
+
+1. Set up your configuration for streamlined workflows
+2. Experiment with different models and risk levels
+3. Create templates for common job types
+4. Build a library of tailored resumes for different roles
+
+For advanced usage and extending Loom's capabilities, see the architecture documentation.

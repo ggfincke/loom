@@ -1,18 +1,18 @@
-# src/pipeline.py
+# src/core/pipeline.py
 # Core processing pipeline for edit generation, validation, and application
 
 from typing import Dict, List, Callable, Optional, Any
-from .loom_io import number_lines
+from ..loom_io import number_lines
 import difflib
 import sys
 import json
 from pathlib import Path
-from .settings import settings_manager
+from ..config.settings import settings_manager
 
 # load settings once
 SETTINGS = settings_manager.load()
 
-from .loom_io.types import Lines
+from ..loom_io.types import Lines
 
 # handle validation errors based on policy
 def handle_validation_error(validate_fn: Callable[[], List[str]], 
@@ -104,8 +104,8 @@ def handle_validation_error(validate_fn: Callable[[], List[str]],
 
 # generate edits.json for a resume based on job description & optional sections JSON
 def generate_edits(resume_lines: Lines, job_text: str, sections_json: str | None, model: str, risk: str = "med", on_error: str = "ask") -> dict:
-    from .prompts import build_generate_prompt
-    from .openai_client import run_generate
+    from ..ai.prompts import build_generate_prompt
+    from ..ai.clients.openai_client import run_generate
     
     # edits
     edits: Optional[dict] = None

@@ -1,4 +1,4 @@
-# src/cli.py
+# src/cli/commands.py
 # Main CLI interface for Loom with all command definitions and user interaction
 
 from pathlib import Path
@@ -8,20 +8,29 @@ import json
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
 from rich.console import Console
 
-from .loom_io import read_docx, number_lines, read_text, write_docx
-from .prompts import build_sectionizer_prompt, build_generate_prompt
-from .openai_client import run_generate
-from .settings import settings_manager
-from .loom_io import write_json_safe, read_json_safe, ensure_parent
-from . import pipeline
-from .cli_args import (
+from ..loom_io import read_docx, number_lines, read_text, write_docx
+from ..ai.prompts import build_sectionizer_prompt, build_generate_prompt
+from ..ai.clients.openai_client import run_generate
+from ..config.settings import settings_manager
+from ..loom_io import write_json_safe, read_json_safe, ensure_parent
+from ..core import pipeline
+from .args import (
     ResumeArg, JobArg, EditsArg, OutputArg, ConfigKeyArg, ConfigValueArg,
     ModelOpt, RiskOpt, OnErrorOpt, OutOpt, EditsJsonOpt, ResumeDocxOpt, 
     NoEditsJsonOpt, NoResumeDocxOpt, SectionsPathOpt, PlanOpt
 )
+from .art import show_loom_art
 
-app = typer.Typer(help="Tailor resumes using the OpenAI Responses API")
+app = typer.Typer()
 console = Console()
+
+# main callback when no subcommand is provided
+@app.callback(invoke_without_command=True)
+def main_callback(ctx: typer.Context):
+    if ctx.invoked_subcommand is None:
+        show_loom_art()
+        print(ctx.get_help())
+        ctx.exit()
 
 # load once 
 SETTINGS = settings_manager.load()

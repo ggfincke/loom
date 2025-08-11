@@ -1,4 +1,4 @@
-# src/cli_args.py
+# src/cli/args.py
 # Type annotations and argument definitions for CLI commands
 
 from pathlib import Path
