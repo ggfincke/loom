@@ -10,12 +10,31 @@ from .prompts import build_sectionizer_prompt, build_generate_prompt
 from .openai_client import run_generate
 from .settings import settings_manager
 from . import pipeline
+from .cli_args import (
+    ResumeArg, JobArg, EditsArg, OutputArg, ConfigKeyArg, ConfigValueArg,
+    ModelOpt, RiskOpt, OnErrorOpt, OutOpt, EditsJsonOpt, ResumeDocxOpt, 
+    NoEditsJsonOpt, NoResumeDocxOpt, SectionsPathOpt, PlanOpt
+)
 
 app = typer.Typer(help="Tailor resumes using the OpenAI Responses API")
 console = Console()
 
 # load once 
 SETTINGS = settings_manager.load()
+
+# shows validation warnings
+def _show_validation_warnings(console: Console) -> bool:
+    warnings_file = Path(".loom/edits.warnings.txt")
+    if not warnings_file.exists():
+        return False
+    text = warnings_file.read_text(encoding="utf-8").strip()
+    if not text:
+        return False
+    console.print("⚠️  Validation warnings:", style="yellow")
+    for line in text.splitlines():
+        console.print(f"   {line}", style="yellow")
+    console.print(f"   Full warnings → {warnings_file}", style="dim")
+    return True
 
 # ** CLI commands
 
@@ -80,47 +99,12 @@ def sectionize(
 # uses OpenAI Responses API to tailor a resume to a job description; generates a JSON object with edits by line number
 @app.command()
 def tailor(
-    job_info: Path = typer.Argument(
-        SETTINGS.job_path,
-        help="Job description text to tailor resume for",
-        exists=True,
-        file_okay=True,
-        dir_okay=False,
-        readable=True,
-        resolve_path=True,
-    ),
-    resume_path: Path = typer.Argument(
-        SETTINGS.resume_path,
-        help="Path to source resume .docx",
-        exists=True,
-        file_okay=True,
-        dir_okay=False,
-        readable=True,
-        resolve_path=True,
-    ),
-    sections_path: Path = typer.Option(
-        SETTINGS.sections_path,
-        "--sections-path",
-        "-s",
-        help="Optional sections.json from the 'sections' command",
-        resolve_path=True,
-        show_default=True,
-    ),
-    out_json: Path = typer.Option(
-        SETTINGS.edits_path,
-        "--out-json",
-        "-o",
-        help="Where to write the edits JSON",
-        resolve_path=True,
-        show_default=True,
-    ),
-    model: str = typer.Option(
-        SETTINGS.model,
-        "--model",
-        "-m",
-        help="OpenAI model name",
-        show_default=True,
-    ),
+    job: JobArg,
+    resume: ResumeArg,
+    sections_path: SectionsPathOpt = SETTINGS.sections_path,
+    out: OutOpt = SETTINGS.edits_path,
+    model: ModelOpt = SETTINGS.model,
+    on_error: OnErrorOpt = "ask",
 ):
     with Progress(
         SpinnerColumn(),
@@ -130,14 +114,14 @@ def tailor(
         console=console
     ) as progress:
         
-        task = progress.add_task("Tailoring resume...", total=8)
+        task = progress.add_task("Tailoring resume...", total=7)
         
         progress.update(task, description="Reading job description...")
-        job_text = read_text(job_info)
+        job_text = read_text(job)
         progress.advance(task)
         
         progress.update(task, description="Reading resume document...")
-        lines = read_docx(resume_path)
+        lines = read_docx(resume)
         progress.advance(task)
         
         progress.update(task, description="Numbering lines...")
@@ -150,70 +134,30 @@ def tailor(
             sections_json_str = sections_path.read_text(encoding="utf-8")
         progress.advance(task)
         
-        progress.update(task, description="Building tailoring prompt...")
-        prompt = build_generate_prompt(job_text, numbered, sections_json_str)
+        progress.update(task, description="Generating edits with AI...")
+        edits = pipeline.generate_edits(lines, job_text, sections_json_str, model, "med")
         progress.advance(task)
         
-        progress.update(task, description="Calling OpenAI API (this may take a while)...")
-        # includes API init, request, response processing
-        console.print("  → Sending request to OpenAI...", style="dim")
-        data = run_generate(prompt, model=model)
-        progress.advance(task)
-        
-        progress.update(task, description="Validating response format...")
-        # response validation is handled inside run_generate
+        progress.update(task, description="Validating edits...")
+        _show_validation_warnings(console)
         progress.advance(task)
         
         progress.update(task, description="Writing edits JSON...")
-        out_json.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        out.write_text(json.dumps(edits, indent=2), encoding="utf-8")
         progress.advance(task)
     
-    console.print(f"✅ Wrote tailored edits to {out_json}", style="green")
+    console.print(f"✅ Wrote tailored edits to {out}", style="green")
 
 # * Generate - create edits.json from job description and resume
 @app.command()
 def generate(
-    resume: Path = typer.Argument(
-        SETTINGS.resume_path,
-        help="Path to resume .docx",
-        exists=True,
-        file_okay=True,
-        dir_okay=False,
-        readable=True,
-        resolve_path=True,
-    ),
-    job: Path = typer.Argument(
-        SETTINGS.job_path,
-        help="Path to job description text file",
-        exists=True,
-        file_okay=True,
-        dir_okay=False,
-        readable=True,
-        resolve_path=True,
-    ),
-    out: Path = typer.Option(
-        Path(".loom/edits.json"),
-        "--out",
-        "-o",
-        help="Output path for edits JSON",
-        resolve_path=True,
-        show_default=True,
-    ),
-    sections_path: Path = typer.Option(
-        SETTINGS.sections_path,
-        "--sections-path",
-        "-s",
-        help="Optional sections.json from sectionize command",
-        resolve_path=True,
-        show_default=True,
-    ),
-    model: str = typer.Option(
-        SETTINGS.model,
-        "--model",
-        "-m",
-        help="OpenAI model name",
-        show_default=True,
-    ),
+    resume: ResumeArg,
+    job: JobArg,
+    out: OutOpt = Path(".loom/edits.json"),
+    sections_path: SectionsPathOpt = SETTINGS.sections_path,
+    model: ModelOpt = SETTINGS.model,
+    risk: RiskOpt = "med",
+    on_error: OnErrorOpt = "ask",
 ):
     with Progress(
         SpinnerColumn(),
@@ -223,7 +167,7 @@ def generate(
         console=console
     ) as progress:
         
-        task = progress.add_task("Generating edits...", total=5)
+        task = progress.add_task("Generating edits...", total=6)
         
         progress.update(task, description="Reading resume document...")
         lines = read_docx(resume)
@@ -240,7 +184,11 @@ def generate(
         progress.advance(task)
         
         progress.update(task, description="Generating edits with AI...")
-        edits = pipeline.generate_edits(lines, job_text, sections_json_str, model)
+        edits = pipeline.generate_edits(lines, job_text, sections_json_str, model, risk)
+        progress.advance(task)
+        
+        progress.update(task, description="Validating edits...")
+        _show_validation_warnings(console)
         progress.advance(task)
         
         progress.update(task, description="Writing edits JSON...")
@@ -248,34 +196,16 @@ def generate(
         write_json(edits, out)
         progress.advance(task)
     
-    console.print(f"✅ Wrote edits → {out}", style="green")
+    console.print(f"✅ Wrote edits -> {out}", style="green")
 
 # * Apply - apply edits.json to resume and generate output
 @app.command()
 def apply(
-    resume: Path = typer.Argument(
-        SETTINGS.resume_path,
-        help="Path to source resume .docx",
-        exists=True,
-        file_okay=True,
-        dir_okay=False,
-        readable=True,
-        resolve_path=True,
-    ),
-    edits: Path = typer.Argument(
-        Path(".loom/edits.json"),
-        help="Path to edits JSON file",
-        exists=True,
-        file_okay=True,
-        dir_okay=False,
-        readable=True,
-        resolve_path=True,
-    ),
-    out: Path = typer.Argument(
-        Path(SETTINGS.output_dir) / "tailored_resume.docx",
-        help="Output path for tailored resume .docx",
-        resolve_path=True,
-    ),
+    resume: ResumeArg,
+    edits: EditsArg,
+    out: OutputArg = Path(SETTINGS.output_dir) / "tailored_resume.docx",
+    risk: RiskOpt = "med",
+    on_error: OnErrorOpt = "ask",
 ):
     with Progress(
         SpinnerColumn(),
@@ -285,7 +215,7 @@ def apply(
         console=console
     ) as progress:
         
-        task = progress.add_task("Applying edits...", total=5)
+        task = progress.add_task("Applying edits...", total=7)
         
         progress.update(task, description="Reading resume document...")
         lines = read_docx(resume)
@@ -296,7 +226,15 @@ def apply(
         progress.advance(task)
         
         progress.update(task, description="Applying edits...")
-        new_lines = pipeline.apply_edits(lines, edits_obj)
+        try:
+            new_lines = pipeline.apply_edits(lines, edits_obj, risk)
+        except ValueError as e:
+            console.print(f"❌ {e}", style="red")
+            raise typer.Exit(1)
+        progress.advance(task)
+        
+        progress.update(task, description="Validating edits...")
+        _show_validation_warnings(console)
         progress.advance(task)
         
         progress.update(task, description="Generating diff...")
@@ -309,8 +247,66 @@ def apply(
         write_docx(new_lines, out)
         progress.advance(task)
     
-    console.print(f"✅ Wrote DOCX → {out}", style="green")
-    console.print(f"✅ Diff → .loom/diff.patch", style="dim")
+    console.print(f"✅ Wrote DOCX -> {out}", style="green")
+    console.print(f"✅ Diff -> .loom/diff.patch", style="dim")
+
+# * Plan - create edits.json with planning pipeline
+@app.command()
+def plan(
+    resume: ResumeArg,
+    job: JobArg,
+    out: OutOpt = Path(".loom/edits.json"),
+    plan: PlanOpt = None,
+    risk: RiskOpt = "med",
+    on_error: OnErrorOpt = "ask",
+):
+    settings = settings_manager.load()
+    
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TimeElapsedColumn(),
+        console=console
+    ) as progress:
+        
+        task = progress.add_task("Planning edits...", total=6)
+        
+        progress.update(task, description="Reading resume document...")
+        lines = read_docx(resume)
+        progress.advance(task)
+        
+        progress.update(task, description="Reading job description...")
+        job_text = read_text(job)
+        progress.advance(task)
+        
+        progress.update(task, description="Loading sections data...")
+        sections_json_str = None
+        sections_path = Path(settings.sections_path)
+        if sections_path and sections_path.exists():
+            sections_json_str = sections_path.read_text(encoding="utf-8")
+        progress.advance(task)
+        
+        progress.update(task, description="Generating edits with AI...")
+        edits = pipeline.generate_edits(lines, job_text, sections_json_str, settings.model, risk)
+        progress.advance(task)
+        
+        progress.update(task, description="Validating edits...")
+        _show_validation_warnings(console)
+        progress.advance(task)
+        
+        progress.update(task, description="Writing edits and plan...")
+        out.parent.mkdir(parents=True, exist_ok=True)
+        write_json(edits, out)
+        
+        # create simple plan file
+        plan_path = Path(".loom/plan.md")
+        plan_path.parent.mkdir(parents=True, exist_ok=True)
+        plan_path.write_text("# Plan\n\n- single-shot (stub)\n", encoding="utf-8")
+        progress.advance(task)
+    
+    console.print(f"✅ Wrote edits -> {out}", style="green")
+    console.print(f"✅ Plan -> .loom/plan.md", style="dim")
 
 
 # * Config management commands
