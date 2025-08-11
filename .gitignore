@@ -23,11 +23,10 @@ dist/
 .eggs/
 
 # ========================
-# Documentation / Outputs
+# Inputs / Outputs
 # ========================
-*.docx
-*.pdf
-*.txt
+data/*
+!data/README.md
 output/
 .loom/
 
