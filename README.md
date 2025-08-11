@@ -25,6 +25,28 @@ Create a `.env` file in the project root and add your OpenAI API key:
 OPENAI_API_KEY=your_api_key_here
 ```
 
+## Architecture
+
+Loom is organized into clean, modular packages:
+
+```
+src/
+├── ai/                     # 🧠 AI functionality
+│   ├── clients/            # OpenAI API integration
+│   └── prompts.py          # Prompt templates
+├── cli/                    # 💻 Command-line interface
+│   ├── commands.py         # All CLI commands
+│   ├── args.py             # Argument definitions
+│   └── art.py              # Banner display
+├── config/                 # ⚙️ Configuration management
+│   └── settings.py         # Settings and defaults
+├── core/                   # 🎯 Core business logic
+│   └── pipeline.py         # Main processing pipeline
+└── loom_io/               # 📁 I/O operations
+    ├── documents.py        # DOCX file handling
+    └── generics.py         # Generic file operations
+```
+
 ## Usage
 
 Loom provides two main commands for resume tailoring:
