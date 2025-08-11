@@ -5,10 +5,12 @@ import json
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
 from rich.console import Console
 
-from .document import read_docx, number_lines, read_text, write_json, write_docx
+from .document import read_docx, number_lines, read_text, write_docx
 from .prompts import build_sectionizer_prompt, build_generate_prompt
 from .openai_client import run_generate
 from .settings import settings_manager
+from .utils import write_json_safe, read_json_safe, ensure_parent
+from .constants import WARNINGS_FILE, DIFF_FILE, PLAN_FILE
 from . import pipeline
 from .cli_args import (
     ResumeArg, JobArg, EditsArg, OutputArg, ConfigKeyArg, ConfigValueArg,
@@ -24,7 +26,7 @@ SETTINGS = settings_manager.load()
 
 # shows validation warnings
 def _show_validation_warnings(console: Console) -> bool:
-    warnings_file = Path(".loom/edits.warnings.txt")
+    warnings_file = WARNINGS_FILE
     if not warnings_file.exists():
         return False
     text = warnings_file.read_text(encoding="utf-8").strip()
@@ -90,7 +92,7 @@ def sectionize(
         progress.advance(task)
         
         progress.update(task, description="Writing sections JSON...")
-        out_json.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        write_json_safe(data, out_json)
         progress.advance(task)
     
     console.print(f"✅ Wrote sections to {out_json}", style="green")
@@ -135,7 +137,7 @@ def tailor(
         progress.advance(task)
         
         progress.update(task, description="Generating edits with AI...")
-        edits = pipeline.generate_edits(lines, job_text, sections_json_str, model, "med")
+        edits = pipeline.generate_edits(lines, job_text, sections_json_str, model, "med", on_error)
         progress.advance(task)
         
         progress.update(task, description="Validating edits...")
@@ -143,7 +145,7 @@ def tailor(
         progress.advance(task)
         
         progress.update(task, description="Writing edits JSON...")
-        out.write_text(json.dumps(edits, indent=2), encoding="utf-8")
+        write_json_safe(edits, out)
         progress.advance(task)
     
     console.print(f"✅ Wrote tailored edits to {out}", style="green")
@@ -153,7 +155,7 @@ def tailor(
 def generate(
     resume: ResumeArg,
     job: JobArg,
-    out: OutOpt = Path(".loom/edits.json"),
+    out: OutOpt = SETTINGS.edits_path,
     sections_path: SectionsPathOpt = SETTINGS.sections_path,
     model: ModelOpt = SETTINGS.model,
     risk: RiskOpt = "med",
@@ -184,7 +186,7 @@ def generate(
         progress.advance(task)
         
         progress.update(task, description="Generating edits with AI...")
-        edits = pipeline.generate_edits(lines, job_text, sections_json_str, model, risk)
+        edits = pipeline.generate_edits(lines, job_text, sections_json_str, model, risk, on_error)
         progress.advance(task)
         
         progress.update(task, description="Validating edits...")
@@ -192,8 +194,7 @@ def generate(
         progress.advance(task)
         
         progress.update(task, description="Writing edits JSON...")
-        out.parent.mkdir(parents=True, exist_ok=True)
-        write_json(edits, out)
+        write_json_safe(edits, out)
         progress.advance(task)
     
     console.print(f"✅ Wrote edits -> {out}", style="green")
@@ -222,12 +223,12 @@ def apply(
         progress.advance(task)
         
         progress.update(task, description="Loading edits JSON...")
-        edits_obj = json.loads(edits.read_text(encoding="utf-8"))
+        edits_obj = read_json_safe(edits)
         progress.advance(task)
         
         progress.update(task, description="Applying edits...")
         try:
-            new_lines = pipeline.apply_edits(lines, edits_obj, risk)
+            new_lines = pipeline.apply_edits(lines, edits_obj, risk, on_error)
         except ValueError as e:
             console.print(f"❌ {e}", style="red")
             raise typer.Exit(1)
@@ -239,8 +240,8 @@ def apply(
         
         progress.update(task, description="Generating diff...")
         diff = pipeline.diff_lines(lines, new_lines)
-        Path(".loom").mkdir(exist_ok=True)
-        (Path(".loom") / "diff.patch").write_text(diff, encoding="utf-8")
+        ensure_parent(DIFF_FILE)
+        DIFF_FILE.write_text(diff, encoding="utf-8")
         progress.advance(task)
         
         progress.update(task, description="Writing tailored resume...")
@@ -248,14 +249,14 @@ def apply(
         progress.advance(task)
     
     console.print(f"✅ Wrote DOCX -> {out}", style="green")
-    console.print(f"✅ Diff -> .loom/diff.patch", style="dim")
+    console.print(f"✅ Diff -> {DIFF_FILE}", style="dim")
 
 # * Plan - create edits.json with planning pipeline
 @app.command()
 def plan(
     resume: ResumeArg,
     job: JobArg,
-    out: OutOpt = Path(".loom/edits.json"),
+    out: OutOpt = SETTINGS.edits_path,
     plan: PlanOpt = None,
     risk: RiskOpt = "med",
     on_error: OnErrorOpt = "ask",
@@ -288,7 +289,7 @@ def plan(
         progress.advance(task)
         
         progress.update(task, description="Generating edits with AI...")
-        edits = pipeline.generate_edits(lines, job_text, sections_json_str, settings.model, risk)
+        edits = pipeline.generate_edits(lines, job_text, sections_json_str, settings.model, risk, on_error)
         progress.advance(task)
         
         progress.update(task, description="Validating edits...")
@@ -296,17 +297,15 @@ def plan(
         progress.advance(task)
         
         progress.update(task, description="Writing edits and plan...")
-        out.parent.mkdir(parents=True, exist_ok=True)
-        write_json(edits, out)
+        write_json_safe(edits, out)
         
         # create simple plan file
-        plan_path = Path(".loom/plan.md")
-        plan_path.parent.mkdir(parents=True, exist_ok=True)
-        plan_path.write_text("# Plan\n\n- single-shot (stub)\n", encoding="utf-8")
+        ensure_parent(PLAN_FILE)
+        PLAN_FILE.write_text("# Plan\n\n- single-shot (stub)\n", encoding="utf-8")
         progress.advance(task)
     
     console.print(f"✅ Wrote edits -> {out}", style="green")
-    console.print(f"✅ Plan -> .loom/plan.md", style="dim")
+    console.print(f"✅ Plan -> {PLAN_FILE}", style="dim")
 
 
 # * Config management commands

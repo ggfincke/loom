@@ -24,7 +24,7 @@ RiskOpt = Annotated[
 
 OnErrorOpt = Annotated[
     str,
-    typer.Option("--on-error", help="ask|fail|soft|hard|retry|manual", show_default=True),
+    typer.Option("--on-error", help="ask|fail|fail:soft|fail:hard|manual|retry", show_default=True),
 ]
 
 EditsArg = Annotated[

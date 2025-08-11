@@ -1,47 +1,156 @@
-from typing import Dict, List
+from typing import Dict, List, Callable, Optional, Any
 from .document import number_lines
 import difflib
+import sys
+import json
+from pathlib import Path
+
+# centralized local paths
+LOOM_DIR = Path(".loom")
+WARNINGS_FILE = LOOM_DIR / "edits.warnings.txt"
+EDITS_JSON = LOOM_DIR / "edits.json"
 
 # type alias
 Lines = Dict[int, str]
 
+# handle validation errors based on policy
+def handle_validation_error(validate_fn: Callable[[], List[str]], 
+                           on_error: str = "ask") -> Any:
+    result = None
+    
+    while True:
+        warnings = validate_fn()
+        
+        # no warnings - validation passed
+        if not warnings:
+            return result if result is not None else True
+        
+        # save warnings to file
+        LOOM_DIR.mkdir(exist_ok=True)
+        WARNINGS_FILE.write_text("\n".join(warnings), encoding="utf-8")
+        
+        # handle fail / variants (soft/hard)
+        # default/soft
+        if on_error == "fail" or on_error == "fail:soft":
+            msg_lines = ["❌ Validation failed:"] + [f"   {w}" for w in warnings]
+            raise RuntimeError("\n".join(msg_lines))
+        
+        # hard
+        elif on_error == "fail:hard":
+            msg_lines = ["❌ Validation failed (hard):"] + [f"   {w}" for w in warnings]
+            # let CLI decide whether to clean .loom or not
+            raise RuntimeError("\n".join(msg_lines))
+        
+        # retry - regen if function provided, o/w just re-validate
+        elif on_error == "retry":
+            # TODO - need to write a new prompt to regenerate edits
+            continue
+        
+        # manual edit
+        elif on_error == "manual":
+            if not sys.stdin.isatty():
+                msg_lines = ["❌ Manual mode not available (not a TTY):"] + [f"   {w}" for w in warnings]
+                raise RuntimeError("\n".join(msg_lines))
+            
+            print(f"⚠️  Validation errors found. Please edit {EDITS_JSON} manually:")
+            for warning in warnings:
+                print(f"   {warning}")
+            
+            edits_path = EDITS_JSON
+            while True:
+                input("Press Enter after editing edits.json to re-validate...")
+                
+                if not edits_path.exists():
+                    print(f"❌ {EDITS_JSON} not found")
+                    continue
+                    
+                try:
+                    json.loads(edits_path.read_text(encoding="utf-8"))
+                    print("✅ File edited, re-validating...")
+                    # break inner loop to re-validate
+                    break 
+                except (json.JSONDecodeError, FileNotFoundError) as e:
+                    print(f"❌ Error reading edits.json: {e}")
+                    # continue outer loop to re-validate
+                    continue
+        
+        # default behavior (ask)
+        elif on_error == "ask":
+            print("⚠️  Validation errors found:")
+            for warning in warnings:
+                print(f"   {warning}")
+            
+            while True:
+                choice = input("Choose: [f]ail:soft, fail:[h]ard, [m]anual, [r]etry: ").lower().strip()
+                if choice in ['f', 'fail', 'fail:soft']:
+                    on_error = "fail:soft"
+                    break
+                elif choice in ['h', 'hard', 'fail:hard']:
+                    on_error = "fail:hard"
+                    break
+                elif choice in ['m', 'manual']:
+                    on_error = "manual"
+                    break
+                elif choice in ['r', 'retry']:
+                    on_error = "retry"
+                    break
+                else:
+                    print("Invalid choice. Please enter f, h, m, or r.")
+        
+        else:
+            # unknown policy, return success
+            return result if result is not None else True
+
 # generate edits.json for a resume based on job description & optional sections JSON
-def generate_edits(resume_lines: Lines, job_text: str, sections_json: str | None, model: str, risk: str = "med") -> dict:
+def generate_edits(resume_lines: Lines, job_text: str, sections_json: str | None, model: str, risk: str = "med", on_error: str = "ask") -> dict:
     from .prompts import build_generate_prompt
     from .openai_client import run_generate
-    from pathlib import Path
     
-    prompt = build_generate_prompt(job_text, number_lines(resume_lines), sections_json)
-    edits = run_generate(prompt, model)
+    # edits
+    edits: Optional[dict] = None
     
-    # validate response
-    if not isinstance(edits, dict):
-        raise ValueError("AI response is not a valid JSON object")
+    def create_edits():
+        nonlocal edits
+        prompt = build_generate_prompt(job_text, number_lines(resume_lines), sections_json)
+        edits = run_generate(prompt, model)
+        
+        # validate response structure
+        if not isinstance(edits, dict):
+            raise ValueError("AI response is not a valid JSON object")
+        
+        if edits.get("version") != 1:
+            raise ValueError(f"Invalid or missing version in AI response: {edits.get('version')}")
+        
+        if "meta" not in edits or "ops" not in edits:
+            raise ValueError("AI response missing required 'meta' or 'ops' fields")
+            
+        return edits
     
-    if edits.get("version") != 1:
-        raise ValueError(f"Invalid or missing version in AI response: {edits.get('version')}")
+    # initial generation
+    edits = create_edits()
     
-    if "meta" not in edits or "ops" not in edits:
-        raise ValueError("AI response missing required 'meta' or 'ops' fields")
+    # validate
+    result = handle_validation_error(
+        validate_fn=lambda: validate_edits(edits, resume_lines, risk) if edits is not None else ["Edits not initialized"],
+        on_error=on_error,
+    )
     
-    # validate edits & write warnings to file
-    warnings = validate_edits(edits, resume_lines, risk)
-    if warnings:
-        Path(".loom").mkdir(exist_ok=True)
-        (Path(".loom") / "edits.warnings.txt").write_text("\n".join(warnings), encoding="utf-8")
+    # if result, there was a regeneration
+    if isinstance(result, dict):
+        edits = result
+    elif edits is None:
+        raise ValueError("Failed to generate valid edits")
     
     return edits
 
 # apply edits to resume lines & return new lines dict 
-def apply_edits(resume_lines: Lines, edits: dict, risk: str = "med") -> Lines:
+def apply_edits(resume_lines: Lines, edits: dict, risk: str = "med", on_error: str = "ask") -> Lines:
     if edits.get("version") != 1:
         raise ValueError(f"Unsupported edits version: {edits.get('version')}")
     
-    # validate edits to fail fast on serious issues
-    warnings = validate_edits(edits, resume_lines, risk)
-    if warnings:
-        # treat warnings as fatal errors for apply
-        raise ValueError(f"Validation failed: {'; '.join(warnings)}")
+    # pre-apply validation
+    if not handle_validation_error(lambda: validate_edits(edits, resume_lines, risk), on_error):
+        raise ValueError("Validation failed before applying edits")
     
     new_lines = dict(resume_lines)
     ops = edits.get("ops", [])
@@ -70,14 +179,33 @@ def apply_edits(resume_lines: Lines, edits: dict, risk: str = "med") -> Lines:
                 if line_num not in new_lines:
                     raise ValueError(f"Cannot replace range {start}-{end}: line {line_num} does not exist")
             
-            # remove old lines
+            text_lines = text.split("\n") if text else [""]
+            old_line_count = end - start + 1
+            new_line_count = len(text_lines)
+            line_diff = new_line_count - old_line_count
+            
+            # collect lines that need to be moved (after the replacement range)
+            lines_to_move = sorted([(k, v) for k, v in new_lines.items() if k > end], 
+                                 key=lambda t: t[0], reverse=True)
+            
+            # if changing number of lines, need to shift later lines
+            if line_diff != 0:
+                # remove lines that will be moved
+                for k, v in lines_to_move:
+                    del new_lines[k]
+            
+            # remove old lines in the range
             for line_num in range(start, end + 1):
                 del new_lines[line_num]
             
             # insert new lines
-            text_lines = text.split("\n")
             for i, line_text in enumerate(text_lines):
                 new_lines[start + i] = line_text
+            
+            # reinsert moved lines with new positions
+            if line_diff != 0:
+                for k, v in lines_to_move:
+                    new_lines[k + line_diff] = v
                 
         # insert after ___
         elif op_type == "insert_after":
@@ -216,7 +344,12 @@ def validate_edits(edits: dict, resume_lines: Lines, risk: str) -> List[str]:
                     break
             
             # validate line count mismatch in replace_range
-            text_line_count = len(op["text"].splitlines())
+            # use split("\n") instead of splitlines() to handle empty strings correctly
+            if op["text"]:
+                text_line_count = len(op["text"].split("\n"))
+            else:
+                # empty text is treated as single line
+                text_line_count = 1  
             range_line_count = end - start + 1
             if text_line_count != range_line_count:
                 msg = f"Op {i}: replace_range line count mismatch ({range_line_count} -> {text_line_count})"
