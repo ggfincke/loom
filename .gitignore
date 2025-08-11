@@ -29,6 +29,7 @@ dist/
 *.pdf
 *.txt
 output/
+.loom/
 
 # ========================
 # Temporary & Editor Files
