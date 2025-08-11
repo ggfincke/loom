@@ -5,7 +5,7 @@ from pathlib import Path
 import typer
 import json
 
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
+from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.console import Console
 
 from ..loom_io import read_docx, number_lines, read_text, write_docx
@@ -82,7 +82,6 @@ def sectionize(
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
-        BarColumn(),
         TimeElapsedColumn(),
         console=console
     ) as progress:
@@ -122,7 +121,6 @@ def tailor(
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
-        BarColumn(),
         TimeElapsedColumn(),
         console=console
     ) as progress:
@@ -164,8 +162,24 @@ def tailor(
 # * Generate - create edits.json from job description and resume
 @app.command()
 def generate(
-    resume: ResumeArg,
-    job: JobArg,
+    resume: Path = typer.Argument(
+        SETTINGS.resume_path,
+        help="Path to resume .docx",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        resolve_path=True,
+    ),
+    job: Path = typer.Argument(
+        SETTINGS.job_path,
+        help="Path to job description",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        resolve_path=True,
+    ),
     out: OutOpt = SETTINGS.edits_path,
     sections_path: SectionsPathOpt = SETTINGS.sections_path,
     model: ModelOpt = SETTINGS.model,
@@ -175,7 +189,6 @@ def generate(
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
-        BarColumn(),
         TimeElapsedColumn(),
         console=console
     ) as progress:
@@ -213,51 +226,44 @@ def generate(
 # * Apply - apply edits.json to resume and generate output
 @app.command()
 def apply(
-    resume: ResumeArg,
-    edits: EditsArg,
+    resume: Path = typer.Argument(
+        SETTINGS.resume_path,
+        help="Path to resume .docx",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        resolve_path=True,
+    ),
+    edits: Path = typer.Argument(
+        SETTINGS.edits_path,
+        help="Path to edits JSON file",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        resolve_path=True,
+    ),
     out: OutputArg = Path(SETTINGS.output_dir) / "tailored_resume.docx",
     risk: RiskOpt = "med",
     on_error: OnErrorOpt = "ask",
 ):
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        BarColumn(),
-        TimeElapsedColumn(),
-        console=console
-    ) as progress:
-        
-        task = progress.add_task("Applying edits...", total=7)
-        
-        progress.update(task, description="Reading resume document...")
-        lines = read_docx(resume)
-        progress.advance(task)
-        
-        progress.update(task, description="Loading edits JSON...")
-        edits_obj = read_json_safe(edits)
-        progress.advance(task)
-        
-        progress.update(task, description="Applying edits...")
-        try:
-            new_lines = pipeline.apply_edits(lines, edits_obj, risk, on_error)
-        except ValueError as e:
-            console.print(f"❌ {e}", style="red")
-            raise typer.Exit(1)
-        progress.advance(task)
-        
-        progress.update(task, description="Validating edits...")
-        _show_validation_warnings(console)
-        progress.advance(task)
-        
-        progress.update(task, description="Generating diff...")
-        diff = pipeline.diff_lines(lines, new_lines)
-        ensure_parent(SETTINGS.diff_path)
-        SETTINGS.diff_path.write_text(diff, encoding="utf-8")
-        progress.advance(task)
-        
-        progress.update(task, description="Writing tailored resume...")
-        write_docx(new_lines, out)
-        progress.advance(task)
+    lines = read_docx(resume)
+    edits_obj = read_json_safe(edits)
+    
+    try:
+        new_lines = pipeline.apply_edits(lines, edits_obj, risk, on_error)
+    except ValueError as e:
+        console.print(f"❌ {e}", style="red")
+        raise typer.Exit(1)
+    
+    _show_validation_warnings(console)
+    
+    diff = pipeline.diff_lines(lines, new_lines)
+    ensure_parent(SETTINGS.diff_path)
+    SETTINGS.diff_path.write_text(diff, encoding="utf-8")
+    
+    write_docx(new_lines, out)
     
     console.print(f"✅ Wrote DOCX -> {out}", style="green")
     console.print(f"✅ Diff -> {SETTINGS.diff_path}", style="dim")
@@ -277,7 +283,6 @@ def plan(
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
-        BarColumn(),
         TimeElapsedColumn(),
         console=console
     ) as progress:
