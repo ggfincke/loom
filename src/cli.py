@@ -5,11 +5,11 @@ import json
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
 from rich.console import Console
 
-from .document import read_docx, number_lines, read_text, write_docx
+from .loom_io import read_docx, number_lines, read_text, write_docx
 from .prompts import build_sectionizer_prompt, build_generate_prompt
 from .openai_client import run_generate
 from .settings import settings_manager
-from .utils import write_json_safe, read_json_safe, ensure_parent
+from .loom_io import write_json_safe, read_json_safe, ensure_parent
 from . import pipeline
 from .cli_args import (
     ResumeArg, JobArg, EditsArg, OutputArg, ConfigKeyArg, ConfigValueArg,

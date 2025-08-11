@@ -1,5 +1,5 @@
 from typing import Dict, List, Callable, Optional, Any
-from .document import number_lines
+from .loom_io import number_lines
 import difflib
 import sys
 import json
@@ -9,8 +9,7 @@ from .settings import settings_manager
 # load settings once
 SETTINGS = settings_manager.load()
 
-# type alias
-Lines = Dict[int, str]
+from .loom_io.types import Lines
 
 # handle validation errors based on policy
 def handle_validation_error(validate_fn: Callable[[], List[str]], 
