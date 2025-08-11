@@ -1,3 +1,6 @@
+# src/cli.py
+# Main CLI interface for Loom with all command definitions and user interaction
+
 from pathlib import Path
 import typer
 import json

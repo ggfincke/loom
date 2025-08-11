@@ -1,3 +1,6 @@
+# src/settings.py
+# Configuration management for Loom CLI including default paths and OpenAI settings
+
 import json
 from pathlib import Path
 from typing import Dict, Any, Optional

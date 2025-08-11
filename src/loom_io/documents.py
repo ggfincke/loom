@@ -1,3 +1,6 @@
+# src/loom_io/documents.py
+# Document I/O operations for reading and writing DOCX files and text processing
+
 from pathlib import Path
 from docx import Document
 from .types import Lines

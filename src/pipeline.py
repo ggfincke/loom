@@ -1,3 +1,6 @@
+# src/pipeline.py
+# Core processing pipeline for edit generation, validation, and application
+
 from typing import Dict, List, Callable, Optional, Any
 from .loom_io import number_lines
 import difflib

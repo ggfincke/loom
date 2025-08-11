@@ -1,3 +1,6 @@
+# src/openai_client.py
+# OpenAI API client functions for generating JSON responses using the Responses API
+
 import os
 import json
 import re
