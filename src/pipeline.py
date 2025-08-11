@@ -4,11 +4,10 @@ import difflib
 import sys
 import json
 from pathlib import Path
+from .settings import settings_manager
 
-# centralized local paths
-LOOM_DIR = Path(".loom")
-WARNINGS_FILE = LOOM_DIR / "edits.warnings.txt"
-EDITS_JSON = LOOM_DIR / "edits.json"
+# load settings once
+SETTINGS = settings_manager.load()
 
 # type alias
 Lines = Dict[int, str]
@@ -26,8 +25,8 @@ def handle_validation_error(validate_fn: Callable[[], List[str]],
             return result if result is not None else True
         
         # save warnings to file
-        LOOM_DIR.mkdir(exist_ok=True)
-        WARNINGS_FILE.write_text("\n".join(warnings), encoding="utf-8")
+        SETTINGS.loom_dir.mkdir(exist_ok=True)
+        SETTINGS.warnings_path.write_text("\n".join(warnings), encoding="utf-8")
         
         # handle fail / variants (soft/hard)
         # default/soft
@@ -52,16 +51,16 @@ def handle_validation_error(validate_fn: Callable[[], List[str]],
                 msg_lines = ["❌ Manual mode not available (not a TTY):"] + [f"   {w}" for w in warnings]
                 raise RuntimeError("\n".join(msg_lines))
             
-            print(f"⚠️  Validation errors found. Please edit {EDITS_JSON} manually:")
+            print(f"⚠️  Validation errors found. Please edit {SETTINGS.edits_json_path} manually:")
             for warning in warnings:
                 print(f"   {warning}")
             
-            edits_path = EDITS_JSON
+            edits_path = SETTINGS.edits_json_path
             while True:
                 input("Press Enter after editing edits.json to re-validate...")
                 
                 if not edits_path.exists():
-                    print(f"❌ {EDITS_JSON} not found")
+                    print(f"❌ {SETTINGS.edits_json_path} not found")
                     continue
                     
                 try:

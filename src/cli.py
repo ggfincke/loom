@@ -10,7 +10,6 @@ from .prompts import build_sectionizer_prompt, build_generate_prompt
 from .openai_client import run_generate
 from .settings import settings_manager
 from .utils import write_json_safe, read_json_safe, ensure_parent
-from .constants import WARNINGS_FILE, DIFF_FILE, PLAN_FILE
 from . import pipeline
 from .cli_args import (
     ResumeArg, JobArg, EditsArg, OutputArg, ConfigKeyArg, ConfigValueArg,
@@ -26,7 +25,7 @@ SETTINGS = settings_manager.load()
 
 # shows validation warnings
 def _show_validation_warnings(console: Console) -> bool:
-    warnings_file = WARNINGS_FILE
+    warnings_file = SETTINGS.warnings_path
     if not warnings_file.exists():
         return False
     text = warnings_file.read_text(encoding="utf-8").strip()
@@ -240,8 +239,8 @@ def apply(
         
         progress.update(task, description="Generating diff...")
         diff = pipeline.diff_lines(lines, new_lines)
-        ensure_parent(DIFF_FILE)
-        DIFF_FILE.write_text(diff, encoding="utf-8")
+        ensure_parent(SETTINGS.diff_path)
+        SETTINGS.diff_path.write_text(diff, encoding="utf-8")
         progress.advance(task)
         
         progress.update(task, description="Writing tailored resume...")
@@ -249,7 +248,7 @@ def apply(
         progress.advance(task)
     
     console.print(f"✅ Wrote DOCX -> {out}", style="green")
-    console.print(f"✅ Diff -> {DIFF_FILE}", style="dim")
+    console.print(f"✅ Diff -> {SETTINGS.diff_path}", style="dim")
 
 # * Plan - create edits.json with planning pipeline
 @app.command()
@@ -300,12 +299,12 @@ def plan(
         write_json_safe(edits, out)
         
         # create simple plan file
-        ensure_parent(PLAN_FILE)
-        PLAN_FILE.write_text("# Plan\n\n- single-shot (stub)\n", encoding="utf-8")
+        ensure_parent(SETTINGS.plan_path)
+        SETTINGS.plan_path.write_text("# Plan\n\n- single-shot (stub)\n", encoding="utf-8")
         progress.advance(task)
     
     console.print(f"✅ Wrote edits -> {out}", style="green")
-    console.print(f"✅ Plan -> {PLAN_FILE}", style="dim")
+    console.print(f"✅ Plan -> {SETTINGS.plan_path}", style="dim")
 
 
 # * Config management commands
