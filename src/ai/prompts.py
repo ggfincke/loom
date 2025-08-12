@@ -82,7 +82,7 @@ def build_generate_prompt(job_info: str,
         "6) Never output lines that don't exist; validate with 'current_snippet' to avoid drift.\n"
         "7) Keep proper tech casing (TypeScript, JavaScript, PostgreSQL) and only correct if wrong.\n\n"
 
-        "Output ONLY JSON matching this schema exactly:\n"
+        "Output ONLY valid JSON matching this schema exactly. Ensure all string values are properly escaped:\n"
         "{\n"
         "  \"version\": 1,\n"
         f"  \"meta\": {{ \"strategy\": \"rule\", \"model\": \"{model}\", \"created_at\": \"{created_at}\" }},\n"
@@ -92,15 +92,17 @@ def build_generate_prompt(job_info: str,
         "    { \"op\": \"insert_after\", \"line\": <int>, \"text\": \"string\", \"current_snippet\": \"string\", \"why\": \"string (optional)\" },\n"
         "    { \"op\": \"delete_range\", \"start\": <int>, \"end\": <int>, \"current_snippet\": \"string\", \"why\": \"string (optional)\" }\n"
         "  ]\n"
-        "}\n\n"
+        "}\n"
+        "CRITICAL: Validate your JSON before outputting. No unescaped quotes, newlines, or control characters allowed.\n\n"
 
         "Requirements:\n"
         f"- Include version: 1 and meta object with strategy, model ({model}), and timestamp ({created_at})\n"
         "- For 'current_snippet': Include the EXACT current text being modified (for validation)\n"
-        "- For 'why' field (optional): Name the job phrase this targets and why it improves alignment\n"
+        "- For 'why' field (optional): Name the job phrase this targets and why it improves alignment. CRITICAL: Keep this field concise (under 100 chars) and avoid line breaks, tabs, or control characters that would break JSON parsing.\n"
         "- For replace_range: 'text' should be multi-line content (use \\n for line breaks)\n"
         "- For insert_after: 'text' should be the content to insert (use \\n for multiple lines)\n"
-        "- Use exact line numbers from the numbered resume provided\n\n"
+        "- Use exact line numbers from the numbered resume provided\n"
+        "- IMPORTANT: All JSON string values must be properly escaped and contain no unescaped control characters (newlines, tabs, etc.)\n\n"
 
         "Job Description:\n"
         f"{job_info}\n\n"
@@ -143,7 +145,7 @@ def build_edit_prompt(job_info: str,
         "6. Maintain the same job-alignment improvements as the original edits\n"
         "7. Keep all valid operations unchanged\n\n"
 
-        "Output ONLY the corrected JSON matching this schema exactly:\n"
+        "Output ONLY valid JSON matching this schema exactly. Ensure all string values are properly escaped:\n"
         "{\n"
         "  \"version\": 1,\n"
         f"  \"meta\": {{ \"strategy\": \"edit_fix\", \"model\": \"{model}\", \"created_at\": \"{created_at}\" }},\n"
@@ -153,7 +155,8 @@ def build_edit_prompt(job_info: str,
         "    { \"op\": \"insert_after\", \"line\": <int>, \"text\": \"string\", \"current_snippet\": \"string\", \"why\": \"string (optional)\" },\n"
         "    { \"op\": \"delete_range\", \"start\": <int>, \"end\": <int>, \"current_snippet\": \"string\", \"why\": \"string (optional)\" }\n"
         "  ]\n"
-        "}\n\n"
+        "}\n"
+        "CRITICAL: Validate your JSON before outputting. No unescaped quotes, newlines, or control characters allowed. Keep 'why' fields concise (under 100 chars).\n\n"
 
         "Validation Errors Found:\n"
         + "\n".join(f"- {error}" for error in validation_errors) + "\n\n"
