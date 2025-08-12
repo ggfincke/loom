@@ -16,7 +16,8 @@ from ..loom_io.types import Lines
 
 # handle validation errors based on policy
 def handle_validation_error(validate_fn: Callable[[], List[str]], 
-                           on_error: str = "ask") -> Any:
+                           on_error: str = "ask",
+                           edit_fn: Optional[Callable[[List[str]], Any]] = None) -> Any:
     result = None
     
     while True:
@@ -42,10 +43,24 @@ def handle_validation_error(validate_fn: Callable[[], List[str]],
             # let CLI decide whether to clean .loom or not
             raise RuntimeError("\n".join(msg_lines))
         
-        # retry - regen if function provided, o/w just re-validate
+        # retry - fix validation errors using AI
         elif on_error == "retry":
-            # TODO - need to write a new prompt to regenerate edits
-            continue
+            if edit_fn is None:
+                print("❌ Retry not available (no edit function provided)")
+                print("Falling back to manual mode...")
+                on_error = "manual"
+                continue
+            try:
+                result = edit_fn(warnings)
+                # save corrected edits
+                SETTINGS.edits_json_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+                print("✅ Generated corrected edits, re-validating...")
+                continue
+            except Exception as e:
+                print(f"❌ Error generating corrected edits: {e}")
+                print("Falling back to manual mode...")
+                on_error = "manual"
+                continue
         
         # manual edit
         elif on_error == "manual":
@@ -82,7 +97,7 @@ def handle_validation_error(validate_fn: Callable[[], List[str]],
                 print(f"   {warning}")
             
             while True:
-                choice = input("Choose: [f]ail:soft, fail:[h]ard, [m]anual, [r]etry: ").lower().strip()
+                choice = input("Choose: (f)ail-soft, (h)ard-fail, (m)anual, (r)etry: ").lower().strip()
                 if choice in ['f', 'fail', 'fail:soft']:
                     on_error = "fail:soft"
                     break
@@ -97,6 +112,8 @@ def handle_validation_error(validate_fn: Callable[[], List[str]],
                     break
                 else:
                     print("Invalid choice. Please enter f, h, m, or r.")
+            # After user makes choice, continue the outer loop to handle the selected action
+            continue
         
         else:
             # unknown policy, return success
@@ -127,6 +144,29 @@ def generate_edits(resume_lines: Lines, job_text: str, sections_json: str | None
             
         return edits
     
+    def edit_edits(validation_warnings):
+        # read current edits from file
+        if SETTINGS.edits_json_path.exists():
+            current_edits_json = SETTINGS.edits_json_path.read_text(encoding="utf-8")
+        else:
+            raise ValueError("No existing edits file found for correction")
+        
+        from ..ai.prompts import build_edit_prompt
+        prompt = build_edit_prompt(job_text, number_lines(resume_lines), current_edits_json, validation_warnings, sections_json)
+        edits = run_generate(prompt, model)
+        
+        # validate response structure
+        if not isinstance(edits, dict):
+            raise ValueError("AI response is not a valid JSON object")
+        
+        if edits.get("version") != 1:
+            raise ValueError(f"Invalid or missing version in AI response: {edits.get('version')}")
+        
+        if "meta" not in edits or "ops" not in edits:
+            raise ValueError("AI response missing required 'meta' or 'ops' fields")
+            
+        return edits
+    
     # initial generation
     edits = create_edits()
     
@@ -134,6 +174,7 @@ def generate_edits(resume_lines: Lines, job_text: str, sections_json: str | None
     result = handle_validation_error(
         validate_fn=lambda: validate_edits(edits, resume_lines, risk) if edits is not None else ["Edits not initialized"],
         on_error=on_error,
+        edit_fn=edit_edits,
     )
     
     # if result, there was a regeneration
