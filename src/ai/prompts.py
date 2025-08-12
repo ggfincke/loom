@@ -44,6 +44,8 @@ def build_sectionizer_prompt(resume_with_line_numbers: str) -> str:
 # build generate prompt for LLM
 def build_generate_prompt(job_info: str,
                          resume_with_line_numbers: str,
+                         model: str,
+                         created_at: str,
                          sections_json: str | None = None) -> str:
     return (
         "You are a resume editor tasked with tailoring a resume (provided as numbered lines) "
@@ -73,26 +75,28 @@ def build_generate_prompt(job_info: str,
 
         "Line-numbering rules:\n"
         "1) Use the exact 1-based line numbers provided.\n"
-        "2) For tiny tweaks, use 'replace_line'. For multi-line rewrites, use 'replace_range' only if necessary.\n"
-        "3) To add a new bullet directly after a line, use 'insert_after' (only to split existing substance for clarity or to surface job-relevant detail already present elsewhere in the resume).\n"
-        "4) To remove irrelevant content, use 'delete_range' and explain why it hurts alignment.\n"
-        "5) Never output lines that don't exist; validate with 'current_snippet' to avoid drift.\n"
-        "6) Keep proper tech casing (TypeScript, JavaScript, PostgreSQL) and only correct if wrong.\n\n"
+        "2) CRITICAL: For 'replace_line', the text must be a SINGLE line with NO newline characters. If you need multiple lines, use 'replace_range' instead.\n"
+        "3) For tiny tweaks, use 'replace_line'. For multi-line rewrites, use 'replace_range'.\n"
+        "4) To add a new bullet directly after a line, use 'insert_after' (only to split existing substance for clarity or to surface job-relevant detail already present elsewhere in the resume).\n"
+        "5) To remove irrelevant content, use 'delete_range' and explain why it hurts alignment.\n"
+        "6) Never output lines that don't exist; validate with 'current_snippet' to avoid drift.\n"
+        "7) Keep proper tech casing (TypeScript, JavaScript, PostgreSQL) and only correct if wrong.\n\n"
 
         "Output ONLY JSON matching this schema exactly:\n"
         "{\n"
         "  \"version\": 1,\n"
-        "  \"meta\": { \"strategy\": \"rule\", \"model\": \"<model_name>\", \"created_at\": \"<ISO8601_timestamp>\" },\n"
+        f"  \"meta\": {{ \"strategy\": \"rule\", \"model\": \"{model}\", \"created_at\": \"{created_at}\" }},\n"
         "  \"ops\": [\n"
-        "    { \"op\": \"replace_line\", \"line\": <int>, \"text\": \"string\", \"why\": \"string (optional)\" },\n"
-        "    { \"op\": \"replace_range\", \"start\": <int>, \"end\": <int>, \"text\": \"string\", \"why\": \"string (optional)\" },\n"
-        "    { \"op\": \"insert_after\", \"line\": <int>, \"text\": \"string\", \"why\": \"string (optional)\" },\n"
-        "    { \"op\": \"delete_range\", \"start\": <int>, \"end\": <int>, \"why\": \"string (optional)\" }\n"
+        "    { \"op\": \"replace_line\", \"line\": <int>, \"text\": \"string\", \"current_snippet\": \"string\", \"why\": \"string (optional)\" },\n"
+        "    { \"op\": \"replace_range\", \"start\": <int>, \"end\": <int>, \"text\": \"string\", \"current_snippet\": \"string\", \"why\": \"string (optional)\" },\n"
+        "    { \"op\": \"insert_after\", \"line\": <int>, \"text\": \"string\", \"current_snippet\": \"string\", \"why\": \"string (optional)\" },\n"
+        "    { \"op\": \"delete_range\", \"start\": <int>, \"end\": <int>, \"current_snippet\": \"string\", \"why\": \"string (optional)\" }\n"
         "  ]\n"
         "}\n\n"
 
         "Requirements:\n"
-        "- Include version: 1 and meta object with strategy, model, and ISO8601 timestamp\n"
+        f"- Include version: 1 and meta object with strategy, model ({model}), and timestamp ({created_at})\n"
+        "- For 'current_snippet': Include the EXACT current text being modified (for validation)\n"
         "- For 'why' field (optional): Name the job phrase this targets and why it improves alignment\n"
         "- For replace_range: 'text' should be multi-line content (use \\n for line breaks)\n"
         "- For insert_after: 'text' should be the content to insert (use \\n for multiple lines)\n"
@@ -104,4 +108,63 @@ def build_generate_prompt(job_info: str,
         "Resume (numbered lines start at 1):\n"
         f"{resume_with_line_numbers}\n"
     )
+
+# build edit prompt for fixing validation errors in edits.json
+def build_edit_prompt(job_info: str,
+                     resume_with_line_numbers: str, 
+                     edits_json: str,
+                     validation_errors: list[str],
+                     model: str,
+                     created_at: str,
+                     sections_json: str | None = None) -> str:
+    return (
+        "You are a resume editor tasked with FIXING VALIDATION ERRORS in a previously generated "
+        "edits JSON file. The edits were created to tailor a resume to a job description, but "
+        "contain validation errors that prevent them from being applied.\n\n"
+
+        "Your task is to CORRECT the existing edits to fix validation errors while preserving "
+        "the original intent and improving job alignment. Do NOT generate entirely new edits.\n\n"
+
+        "Common validation errors to fix:\n"
+        "- 'replace_line text contains newline; use replace_range': Convert replace_line ops with "
+        "  newlines to replace_range ops with proper start/end line numbers\n"
+        "- 'line X not in resume bounds': Remove ops referencing non-existent lines\n"
+        "- 'duplicate operation on line X': Remove or merge conflicting ops on same line\n"
+        "- 'replace_range line count mismatch': Adjust text to match the range size or vice versa\n"
+        "- Missing required fields: Add any missing 'op', 'line', 'text', 'start', 'end' fields\n"
+        "- Invalid ranges: Fix start > end or negative line numbers\n\n"
+
+        "Correction rules:\n"
+        "1. FIX errors without changing the editing intent - preserve the original meaning\n"
+        "2. For replace_line with newlines: Convert to replace_range with proper line boundaries\n"
+        "3. For out-of-bounds lines: Either remove the op or adjust to valid line numbers\n"
+        "4. For duplicate ops: Keep the most comprehensive edit or merge if possible\n"
+        "5. For line count mismatches: Adjust the range to match the intended text length\n"
+        "6. Maintain the same job-alignment improvements as the original edits\n"
+        "7. Keep all valid operations unchanged\n\n"
+
+        "Output ONLY the corrected JSON matching this schema exactly:\n"
+        "{\n"
+        "  \"version\": 1,\n"
+        f"  \"meta\": {{ \"strategy\": \"edit_fix\", \"model\": \"{model}\", \"created_at\": \"{created_at}\" }},\n"
+        "  \"ops\": [\n"
+        "    { \"op\": \"replace_line\", \"line\": <int>, \"text\": \"string\", \"current_snippet\": \"string\", \"why\": \"string (optional)\" },\n"
+        "    { \"op\": \"replace_range\", \"start\": <int>, \"end\": <int>, \"text\": \"string\", \"current_snippet\": \"string\", \"why\": \"string (optional)\" },\n"
+        "    { \"op\": \"insert_after\", \"line\": <int>, \"text\": \"string\", \"current_snippet\": \"string\", \"why\": \"string (optional)\" },\n"
+        "    { \"op\": \"delete_range\", \"start\": <int>, \"end\": <int>, \"current_snippet\": \"string\", \"why\": \"string (optional)\" }\n"
+        "  ]\n"
+        "}\n\n"
+
+        "Validation Errors Found:\n"
+        + "\n".join(f"- {error}" for error in validation_errors) + "\n\n"
+
+        "Job Description:\n"
+        f"{job_info}\n\n"
+        + (f"Known Sections (JSON):\n{sections_json}\n\n" if sections_json else "") +
+        "Resume (numbered lines start at 1):\n"
+        f"{resume_with_line_numbers}\n\n"
+        "INVALID Edits JSON (to be corrected):\n"
+        f"{edits_json}\n"
+    )
+
 

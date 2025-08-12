@@ -5,14 +5,19 @@ from pathlib import Path
 from typing import Annotated, Optional
 import typer
 
+from ..config.settings import settings_manager
+
+# load settings once
+SETTINGS = settings_manager.load()
+
 ResumeArg = Annotated[
     Path,
-    typer.Argument(..., help="Path to resume .docx", exists=True, file_okay=True, dir_okay=False, readable=True, resolve_path=True),
+    typer.Argument(help="Path to resume .docx", exists=True, file_okay=True, dir_okay=False, readable=True, resolve_path=True),
 ]
 
 JobArg = Annotated[
     Path,
-    typer.Argument(..., help="Path to job description", exists=True, file_okay=True, dir_okay=False, readable=True, resolve_path=True),
+    typer.Argument(help="Path to job description", exists=True, file_okay=True, dir_okay=False, readable=True, resolve_path=True),
 ]
 
 ModelOpt = Annotated[
