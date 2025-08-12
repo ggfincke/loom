@@ -7,6 +7,7 @@ import difflib
 import sys
 import json
 from pathlib import Path
+from datetime import datetime, timezone
 from ..config.settings import settings_manager
 
 # load settings once
@@ -129,7 +130,8 @@ def generate_edits(resume_lines: Lines, job_text: str, sections_json: str | None
     
     def create_edits():
         nonlocal edits
-        prompt = build_generate_prompt(job_text, number_lines(resume_lines), sections_json)
+        created_at = datetime.now(timezone.utc).isoformat()
+        prompt = build_generate_prompt(job_text, number_lines(resume_lines), model, created_at, sections_json)
         edits = run_generate(prompt, model)
         
         # validate response structure
@@ -152,7 +154,8 @@ def generate_edits(resume_lines: Lines, job_text: str, sections_json: str | None
             raise ValueError("No existing edits file found for correction")
         
         from ..ai.prompts import build_edit_prompt
-        prompt = build_edit_prompt(job_text, number_lines(resume_lines), current_edits_json, validation_warnings, sections_json)
+        created_at = datetime.now(timezone.utc).isoformat()
+        prompt = build_edit_prompt(job_text, number_lines(resume_lines), current_edits_json, validation_warnings, model, created_at, sections_json)
         edits = run_generate(prompt, model)
         
         # validate response structure

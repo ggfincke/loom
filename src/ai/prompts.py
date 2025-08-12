@@ -44,6 +44,8 @@ def build_sectionizer_prompt(resume_with_line_numbers: str) -> str:
 # build generate prompt for LLM
 def build_generate_prompt(job_info: str,
                          resume_with_line_numbers: str,
+                         model: str,
+                         created_at: str,
                          sections_json: str | None = None) -> str:
     return (
         "You are a resume editor tasked with tailoring a resume (provided as numbered lines) "
@@ -83,7 +85,7 @@ def build_generate_prompt(job_info: str,
         "Output ONLY JSON matching this schema exactly:\n"
         "{\n"
         "  \"version\": 1,\n"
-        "  \"meta\": { \"strategy\": \"rule\", \"model\": \"<model_name>\", \"created_at\": \"<ISO8601_timestamp>\" },\n"
+        f"  \"meta\": {{ \"strategy\": \"rule\", \"model\": \"{model}\", \"created_at\": \"{created_at}\" }},\n"
         "  \"ops\": [\n"
         "    { \"op\": \"replace_line\", \"line\": <int>, \"text\": \"string\", \"current_snippet\": \"string\", \"why\": \"string (optional)\" },\n"
         "    { \"op\": \"replace_range\", \"start\": <int>, \"end\": <int>, \"text\": \"string\", \"current_snippet\": \"string\", \"why\": \"string (optional)\" },\n"
@@ -93,7 +95,7 @@ def build_generate_prompt(job_info: str,
         "}\n\n"
 
         "Requirements:\n"
-        "- Include version: 1 and meta object with strategy, model, and ISO8601 timestamp\n"
+        f"- Include version: 1 and meta object with strategy, model ({model}), and timestamp ({created_at})\n"
         "- For 'current_snippet': Include the EXACT current text being modified (for validation)\n"
         "- For 'why' field (optional): Name the job phrase this targets and why it improves alignment\n"
         "- For replace_range: 'text' should be multi-line content (use \\n for line breaks)\n"
@@ -112,6 +114,8 @@ def build_edit_prompt(job_info: str,
                      resume_with_line_numbers: str, 
                      edits_json: str,
                      validation_errors: list[str],
+                     model: str,
+                     created_at: str,
                      sections_json: str | None = None) -> str:
     return (
         "You are a resume editor tasked with FIXING VALIDATION ERRORS in a previously generated "
@@ -142,7 +146,7 @@ def build_edit_prompt(job_info: str,
         "Output ONLY the corrected JSON matching this schema exactly:\n"
         "{\n"
         "  \"version\": 1,\n"
-        "  \"meta\": { \"strategy\": \"edit_fix\", \"model\": \"<model_name>\", \"created_at\": \"<ISO8601_timestamp>\" },\n"
+        f"  \"meta\": {{ \"strategy\": \"edit_fix\", \"model\": \"{model}\", \"created_at\": \"{created_at}\" }},\n"
         "  \"ops\": [\n"
         "    { \"op\": \"replace_line\", \"line\": <int>, \"text\": \"string\", \"current_snippet\": \"string\", \"why\": \"string (optional)\" },\n"
         "    { \"op\": \"replace_range\", \"start\": <int>, \"end\": <int>, \"text\": \"string\", \"current_snippet\": \"string\", \"why\": \"string (optional)\" },\n"
@@ -162,4 +166,5 @@ def build_edit_prompt(job_info: str,
         "INVALID Edits JSON (to be corrected):\n"
         f"{edits_json}\n"
     )
+
 

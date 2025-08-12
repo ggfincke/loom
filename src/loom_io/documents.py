@@ -4,6 +4,7 @@
 from pathlib import Path
 from docx import Document
 from docx.text.paragraph import Paragraph
+from docx.oxml import OxmlElement
 from typing import Dict, Tuple, Any, List, Set
 from .types import Lines
 
@@ -95,10 +96,13 @@ def _apply_edits_in_place(original_path: Path, new_lines: Lines, output_path: Pa
     doc.save(str(output_path))
 
 def _insert_paragraph_after(paragraph: Paragraph, text: str) -> Paragraph:
-    # insert new paragraph after given paragraph
-    new_p = paragraph._element.addnext(paragraph._element._new())
+    # insert new paragraph after given paragraph (python-docx safe)
+    new_p = OxmlElement("w:p")
+    # insert immediately after the reference paragraph
+    paragraph._p.addnext(new_p)
     new_para = Paragraph(new_p, paragraph._parent)
-    new_para.text = text
+    if text:
+        new_para.add_run(text)
     return new_para
 
 def _copy_run_formatting(source_run, target_run) -> None:

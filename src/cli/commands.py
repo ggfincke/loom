@@ -3,7 +3,6 @@
 
 from pathlib import Path
 import typer
-import json
 
 from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.console import Console
@@ -85,6 +84,73 @@ def _handle_config_error(operation: str, error: Exception) -> None:
     typer.echo(f"Error {operation}: {error}", err=True)
     raise typer.Exit(1)
 
+
+# core logic for generating edits (shared by commands)
+def _generate_edits_core(
+    lines,
+    job_text,
+    sections_path,
+    model,
+    risk,
+    on_error,
+    progress,
+    task,
+):
+    # load optional sections
+    sections_json_str = _load_sections(sections_path, progress, task)
+    
+    # generate edits via AI
+    progress.update(task, description="Generating edits with AI...")
+    edits = pipeline.generate_edits(lines, job_text, sections_json_str, model, risk, on_error)
+    progress.advance(task)
+    
+    # validate & show warnings
+    progress.update(task, description="Validating edits...")
+    _show_validation_warnings(console)
+    progress.advance(task)
+    
+    return edits
+
+# core logic for applying edits (shared by commands)
+def _apply_edits_core(
+    lines,
+    edits,
+    resume_path,
+    output_path,
+    risk,
+    on_error,
+    preserve_formatting,
+    preserve_mode,
+    progress,
+    task,
+):
+    progress.update(task, description="Applying edits...")
+    try:
+        new_lines = pipeline.apply_edits(lines, edits, risk, on_error)
+    except ValueError as e:
+        console.print(f"❌ {e}", style="red")
+        raise typer.Exit(1)
+    progress.advance(task)
+    
+    progress.update(task, description="Validating results...")
+    _show_validation_warnings(console)
+    progress.advance(task)
+    
+    progress.update(task, description="Generating diff...")
+    diff = pipeline.diff_lines(lines, new_lines)
+    ensure_parent(SETTINGS.diff_path)
+    SETTINGS.diff_path.write_text(diff, encoding="utf-8")
+    progress.advance(task)
+    
+    progress.update(task, description="Writing tailored resume...")
+    if preserve_formatting:
+        apply_edits_to_docx(resume_path, new_lines, output_path, preserve_mode=preserve_mode)
+    else:
+        write_docx(new_lines, output_path)
+    progress.advance(task)
+    
+    return new_lines
+
 # CLI command definitions
 
 # Sectionize command - parse resume into sections
@@ -138,45 +204,68 @@ def sectionize(
     
     console.print(f"✅ Wrote sections to {out_json}", style="green")
 
-# Tailor command - tailor resume to job description
-# Uses OpenAI Responses API to generate line-by-line edits
+# Tailor command - tailor resume to job description and produce final tailored resume
+# Uses OpenAI Responses API to generate line-by-line edits and applies them
 @app.command()
 def tailor(
     job: JobArg = SETTINGS.job_path,
     resume: ResumeArg = SETTINGS.resume_path,
     sections_path: SectionsPathOpt = SETTINGS.sections_path,
     out: OutOpt = SETTINGS.edits_path,
+    output_resume: Path = typer.Option(
+        Path(SETTINGS.output_dir) / "tailored_resume.docx",
+        "--output-resume", "-r",
+        help="Path to write the tailored resume .docx",
+        resolve_path=True,
+        show_default=True,
+    ),
     model: ModelOpt = SETTINGS.model,
+    risk: RiskOpt = "med",
     on_error: OnErrorOpt = "ask",
+    preserve_formatting: bool = typer.Option(
+        True,
+        "--preserve-formatting/--no-preserve-formatting",
+        help="Preserve original DOCX formatting (fonts, styles, etc.)",
+        show_default=True,
+    ),
+    preserve_mode: str = typer.Option(
+        "in_place",
+        "--preserve-mode",
+        help="How to preserve formatting: 'in_place' (edit original, best preservation) or 'rebuild' (create new doc, may lose some formatting)",
+        show_default=True,
+    ),
 ):
     with _with_progress() as progress:
         
-        task = progress.add_task("Tailoring resume...", total=7)
+        task = progress.add_task("Tailoring resume...", total=10)
         
+        # generate phase
         lines, job_text = _load_resume_and_job(resume, job, progress, task)
+        edits = _generate_edits_core(lines, job_text, sections_path, model, risk, on_error, progress, task)
         
-        progress.update(task, description="Numbering lines...")
-        _ = number_lines(lines)  # keep existing step to match progress UX
-        progress.advance(task)
-        
-        sections_json_str = _load_sections(sections_path, progress, task)
-        
-        progress.update(task, description="Generating edits with AI...")
-        edits = pipeline.generate_edits(lines, job_text, sections_json_str, model, "med", "fail:soft")
-        progress.advance(task)
-        
-    # validation happens outside progress context to allow user input
-    if not pipeline.handle_validation_error(lambda: pipeline.validate_edits(edits, lines, "med"), on_error):
-        raise RuntimeError("Validation failed")
-    
-    with _with_progress() as progress:
-        task = progress.add_task("Finalizing...", total=2)
-        
+        # persist edits (for inspection / re-run)
         progress.update(task, description="Writing edits JSON...")
         write_json_safe(edits, out)
         progress.advance(task)
+        
+        # apply phase
+        _apply_edits_core(
+            lines,
+            edits,
+            resume,
+            output_resume,
+            risk,
+            on_error,
+            preserve_formatting,
+            preserve_mode,
+            progress,
+            task,
+        )
     
-    console.print(f"✅ Wrote tailored edits to {out}", style="green")
+    console.print("✅ Complete tailoring finished", style="green")
+    console.print(f"   Edits -> {out}", style="dim")
+    console.print(f"   Resume -> {output_resume}", style="dim")
+    console.print(f"   Diff -> {SETTINGS.diff_path}", style="dim")
 
 # Generate command - create edits.json from job description and resume
 @app.command()
@@ -209,17 +298,13 @@ def generate(
         
         task = progress.add_task("Generating edits...", total=6)
         
+        # read resume + job
         lines, job_text = _load_resume_and_job(resume, job, progress, task)
-        sections_json_str = _load_sections(sections_path, progress, task)
         
-        progress.update(task, description="Generating edits with AI...")
-        edits = pipeline.generate_edits(lines, job_text, sections_json_str, model, risk, on_error)
-        progress.advance(task)
+        # generate & validate edits
+        edits = _generate_edits_core(lines, job_text, sections_path, model, risk, on_error, progress, task)
         
-        progress.update(task, description="Validating edits...")
-        _show_validation_warnings(console)
-        progress.advance(task)
-        
+        # write edits
         progress.update(task, description="Writing edits JSON...")
         write_json_safe(edits, out)
         progress.advance(task)
@@ -249,42 +334,31 @@ def apply(
 ):
     with _with_progress() as progress:
         
-        task = progress.add_task("Applying edits...", total=7)
+        task = progress.add_task("Applying edits...", total=6)
         
+        # read resume
         progress.update(task, description="Reading resume document...")
         lines = read_docx(resume)
         progress.advance(task)
         
+        # read edits
         progress.update(task, description="Loading edits JSON...")
         edits_obj = read_json_safe(edits)
         progress.advance(task)
         
-        progress.update(task, description="Applying edits...")
-        try:
-            new_lines = pipeline.apply_edits(lines, edits_obj, risk, on_error)
-        except ValueError as e:
-            console.print(f"❌ {e}", style="red")
-            raise typer.Exit(1)
-        progress.advance(task)
-        
-        progress.update(task, description="Validating edits...")
-        _show_validation_warnings(console)
-        progress.advance(task)
-        
-        progress.update(task, description="Generating diff...")
-        diff = pipeline.diff_lines(lines, new_lines)
-        ensure_parent(SETTINGS.diff_path)
-        SETTINGS.diff_path.write_text(diff, encoding="utf-8")
-        progress.advance(task)
-        
-        progress.update(task, description="Writing tailored resume...")
-        if preserve_formatting:
-            # use the formatting-preserving version with specified mode
-            apply_edits_to_docx(resume, new_lines, out, preserve_mode=preserve_mode)
-        else:
-            # use the plain version (backward compatibility)
-            write_docx(new_lines, out)
-        progress.advance(task)
+        # apply + validate + diff + write output
+        _apply_edits_core(
+            lines,
+            edits_obj,
+            resume,
+            out,
+            risk,
+            on_error,
+            preserve_formatting,
+            preserve_mode,
+            progress,
+            task,
+        )
     
     if preserve_formatting:
         format_msg = f" (formatting preserved via {preserve_mode} mode)"
@@ -341,7 +415,7 @@ reducing the need to specify them repeatedly. Settings are stored in
 ~/.loom/config.json and persist across sessions.
 
 Available settings:
-  - model: OpenAI model to use (default: gpt-4o-mini)  
+  - model: OpenAI model to use (default: gpt-5-mini)  
   - data_dir: Default directory for input files (default: current directory)
   - output_dir: Default directory for output files (default: current directory)
   - resume_filename: Default resume filename (default: resume.docx)
