@@ -7,6 +7,7 @@ import re
 from dotenv import load_dotenv
 from openai import OpenAI
 from ...config.settings import settings_manager
+from ..types import GenerateResult
 
 # strip markdown code blocks
 def strip_markdown_code_blocks(text: str) -> str:
@@ -19,7 +20,7 @@ def strip_markdown_code_blocks(text: str) -> str:
         return text.strip()
 
 # generate JSON response using OpenAI API
-def run_generate(prompt: str, model: str = "gpt-5-mini") -> dict:
+def run_generate(prompt: str, model: str = "gpt-5-mini") -> GenerateResult:
     load_dotenv()
     if not os.getenv("OPENAI_API_KEY"):
         raise RuntimeError("Missing OPENAI_API_KEY in environment or .env")
@@ -40,7 +41,9 @@ def run_generate(prompt: str, model: str = "gpt-5-mini") -> dict:
     
     # ensure valid JSON (model should already be constrained by prompt)
     try:
-        return json.loads(json_text)
+        data = json.loads(json_text)
+        return GenerateResult(success=True, data=data, raw_text=raw_text, json_text=json_text)
     except json.JSONDecodeError as e:
-        # fail w/ error message
-        raise RuntimeError(f"Model did not return valid JSON. Raw response:\n{raw_text}\n\nExtracted JSON:\n{json_text}") from e
+        # return error result instead of raising
+        error_msg = f"JSON parsing failed: {str(e)}"
+        return GenerateResult(success=False, raw_text=raw_text, json_text=json_text, error=error_msg)

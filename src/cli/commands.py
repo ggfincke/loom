@@ -5,49 +5,68 @@ from pathlib import Path
 import typer
 
 from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
-from rich.console import Console
 
 from ..loom_io import read_docx, number_lines, read_text, write_docx, apply_edits_to_docx
-from ..ai.prompts import build_sectionizer_prompt, build_generate_prompt
+from ..loom_io.console import console
+from ..loom_io.ui import UI
+from ..ai.prompts import build_sectionizer_prompt
 from ..ai.clients.openai_client import run_generate
 from ..config.settings import settings_manager
 from ..loom_io import write_json_safe, read_json_safe, ensure_parent
-from ..core import pipeline
+from ..core.pipeline import Pipeline
+from ..core.exceptions import handle_loom_error, ConfigurationError
 from .args import (
-    ResumeArg, JobArg, EditsArg, OutputArg, ConfigKeyArg, ConfigValueArg,
-    ModelOpt, RiskOpt, OnErrorOpt, OutOpt, EditsJsonOpt, ResumeDocxOpt, 
-    NoEditsJsonOpt, NoResumeDocxOpt, SectionsPathOpt, PlanOpt
+    ResumeArg, JobArg, EditsArg, ModelOpt, RiskOpt, OnErrorOpt, 
+    OutOpt, SectionsPathOpt, PlanOpt, OutputDocxArg, PreserveFormattingOpt,
+    PreserveModeOpt, OutJsonOpt, OutputResumeOpt
 )
 from .art import show_loom_art
 
 app = typer.Typer()
-console = Console()
 
-# main callback when no subcommand is provided
+# main callback when no subcommand is provided and settings loader
 @app.callback(invoke_without_command=True)
 def main_callback(ctx: typer.Context):
+    # load settings & store in context for all commands to access
+    ctx.obj = settings_manager.load()
+    
     if ctx.invoked_subcommand is None:
         show_loom_art()
-        print(ctx.get_help())
+        console.print(ctx.get_help())
         ctx.exit()
 
-# Load settings once at module initialization
-SETTINGS = settings_manager.load()
+# helper for merging provided values w/ settings defaults
+def _resolve(provided_value, settings_default):
+    return settings_default if provided_value is None else provided_value
 
-# Show validation warnings from file
-
-def _show_validation_warnings(console: Console) -> bool:
-    warnings_file = SETTINGS.warnings_path
-    if not warnings_file.exists():
-        return False
-    text = warnings_file.read_text(encoding="utf-8").strip()
-    if not text:
-        return False
-    console.print("⚠️  Validation warnings:", style="yellow")
-    for line in text.splitlines():
-        console.print(f"   {line}", style="yellow")
-    console.print(f"   Full warnings → {warnings_file}", style="dim")
-    return True
+# class for resolving args w/ settings defaults
+class ArgResolver:
+    def __init__(self, settings):
+        self.settings = settings
+        
+    def resolve_common(self, **kwargs):
+        return {
+            'resume': _resolve(kwargs.get('resume'), self.settings.resume_path),
+            'job': _resolve(kwargs.get('job'), self.settings.job_path),
+            'model': _resolve(kwargs.get('model'), self.settings.model),
+            'sections_path': _resolve(kwargs.get('sections_path'), self.settings.sections_path),
+            'out': _resolve(kwargs.get('out'), self.settings.edits_path),
+            'out_json': _resolve(kwargs.get('out_json'), self.settings.sections_path),
+        }
+    
+    # resolve path-specific arguments
+    def resolve_paths(self, **kwargs):
+        return {
+            'output_resume': _resolve(kwargs.get('output_resume'), Path(self.settings.output_dir) / "tailored_resume.docx"),
+            'edits': _resolve(kwargs.get('edits'), self.settings.edits_path),
+        }
+    
+    # resolve option arguments
+    def resolve_options(self, **kwargs):
+        return {
+            'risk': _resolve(kwargs.get('risk'), "med"),
+            'on_error': _resolve(kwargs.get('on_error'), "ask"),
+        }
 
 # standard progress context for CLI
 def _with_progress():
@@ -55,7 +74,9 @@ def _with_progress():
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
         TimeElapsedColumn(),
-        console=console
+        refresh_per_second=8,
+        console=console,
+        transient=False,
     )
 
 # load resume lines & job text with progress updates
@@ -79,108 +100,48 @@ def _load_sections(sections_path: Path | None, progress, task):
     progress.advance(task)
     return sections_json_str
 
-# standard error handling for config operations
-def _handle_config_error(operation: str, error: Exception) -> None:
-    typer.echo(f"Error {operation}: {error}", err=True)
-    raise typer.Exit(1)
 
 
-# core logic for generating edits (shared by commands)
-def _generate_edits_core(
-    lines,
-    job_text,
-    sections_path,
-    model,
-    risk,
-    on_error,
-    progress,
-    task,
-):
-    # load optional sections
-    sections_json_str = _load_sections(sections_path, progress, task)
-    
-    # generate edits via AI
-    progress.update(task, description="Generating edits with AI...")
-    edits = pipeline.generate_edits(lines, job_text, sections_json_str, model, risk, on_error)
-    progress.advance(task)
-    
-    # validate & show warnings
-    progress.update(task, description="Validating edits...")
-    _show_validation_warnings(console)
-    progress.advance(task)
-    
-    return edits
+# * Helpers for validation warnings and JSON persistence
 
-# core logic for applying edits (shared by commands)
-def _apply_edits_core(
-    lines,
-    edits,
-    resume_path,
-    output_path,
-    risk,
-    on_error,
-    preserve_formatting,
-    preserve_mode,
-    progress,
-    task,
-):
-    progress.update(task, description="Applying edits...")
-    try:
-        new_lines = pipeline.apply_edits(lines, edits, risk, on_error)
-    except ValueError as e:
-        console.print(f"❌ {e}", style="red")
-        raise typer.Exit(1)
+# persist edits JSON to disk
+def _persist_edits_json(edits, out_path: Path, progress, task, description: str = "Writing edits JSON...") -> None:
+    progress.update(task, description=description)
+    write_json_safe(edits, out_path)
     progress.advance(task)
-    
-    progress.update(task, description="Validating results...")
-    _show_validation_warnings(console)
-    progress.advance(task)
-    
-    progress.update(task, description="Generating diff...")
-    diff = pipeline.diff_lines(lines, new_lines)
-    ensure_parent(SETTINGS.diff_path)
-    SETTINGS.diff_path.write_text(diff, encoding="utf-8")
-    progress.advance(task)
-    
-    progress.update(task, description="Writing tailored resume...")
-    if preserve_formatting:
-        apply_edits_to_docx(resume_path, new_lines, output_path, preserve_mode=preserve_mode)
-    else:
-        write_docx(new_lines, output_path)
-    progress.advance(task)
-    
-    return new_lines
 
-# CLI command definitions
+
+# * CLI command definitions
 
 # Sectionize command - parse resume into sections
 @app.command()
+@handle_loom_error
 def sectionize(
-    resume_path: Path = typer.Argument(
-        SETTINGS.resume_path,
-        help="Path to source resume .docx",
-        exists=True,
-        file_okay=True,
-        dir_okay=False,
-        readable=True,
-        resolve_path=True,
-    ),
-    out_json: Path = typer.Option(
-        SETTINGS.sections_path,
-        "--out-json",
-        "-o",
-        help="Where to write the sections JSON",
-        resolve_path=True,
-        show_default=True,
-    ),
-    model: str = typer.Option(
-        SETTINGS.model,
-        "--model",
-        "-m",
-        help="OpenAI model name",
-        show_default=True,
-    ),
+    ctx: typer.Context,
+    resume_path: Path | None = ResumeArg(),
+    out_json: Path | None = OutJsonOpt(),
+    model: str | None = ModelOpt(),
 ):
+    settings = ctx.obj
+    resolver = ArgResolver(settings)
+    
+    # resolve arguments w/ settings defaults
+    resolved = resolver.resolve_common(resume=resume_path, out_json=out_json, model=model)
+    resume_path, out_json, model = resolved['resume'], resolved['out_json'], resolved['model']
+    
+    # validate required arguments
+    if not resume_path:
+        raise typer.BadParameter("Resume path is required (provide argument or set in config)")
+    if not out_json:
+        raise typer.BadParameter("Output path is required (provide --out-json or set sections_path in config)")
+    if not model:
+        raise typer.BadParameter("Model is required (provide --model or set in config)")
+    
+    # type assertions after validation
+    assert resume_path is not None
+    assert out_json is not None
+    assert model is not None
+    
     with _with_progress() as progress:
         
         task = progress.add_task("Processing resume...", total=4)
@@ -195,7 +156,15 @@ def sectionize(
         
         progress.update(task, description="Building prompt and calling OpenAI...")
         prompt = build_sectionizer_prompt(numbered)
-        data = run_generate(prompt, model=model)
+        result = run_generate(prompt, model=model)
+        
+        # handle JSON parsing errors
+        if not result.success:
+            from ..core.exceptions import AIError
+            raise AIError(f"AI failed to generate valid JSON: {result.error}\n\nRaw response:\n{result.raw_text}\n\nExtracted JSON:\n{result.json_text}")
+        
+        data = result.data
+        assert data is not None, "Expected non-None data from successful AI result"
         progress.advance(task)
         
         progress.update(task, description="Writing sections JSON...")
@@ -207,134 +176,197 @@ def sectionize(
 # Tailor command - tailor resume to job description and produce final tailored resume
 # Uses OpenAI Responses API to generate line-by-line edits and applies them
 @app.command()
+@handle_loom_error
 def tailor(
-    job: JobArg = SETTINGS.job_path,
-    resume: ResumeArg = SETTINGS.resume_path,
-    sections_path: SectionsPathOpt = SETTINGS.sections_path,
-    out: OutOpt = SETTINGS.edits_path,
-    output_resume: Path = typer.Option(
-        Path(SETTINGS.output_dir) / "tailored_resume.docx",
-        "--output-resume", "-r",
-        help="Path to write the tailored resume .docx",
-        resolve_path=True,
-        show_default=True,
-    ),
-    model: ModelOpt = SETTINGS.model,
-    risk: RiskOpt = "med",
-    on_error: OnErrorOpt = "ask",
-    preserve_formatting: bool = typer.Option(
-        True,
-        "--preserve-formatting/--no-preserve-formatting",
-        help="Preserve original DOCX formatting (fonts, styles, etc.)",
-        show_default=True,
-    ),
-    preserve_mode: str = typer.Option(
-        "in_place",
-        "--preserve-mode",
-        help="How to preserve formatting: 'in_place' (edit original, best preservation) or 'rebuild' (create new doc, may lose some formatting)",
-        show_default=True,
-    ),
+    ctx: typer.Context,
+    job: Path | None = JobArg(),
+    resume: Path | None = ResumeArg(),
+    model: str | None = ModelOpt(),
+    sections_path: Path | None = SectionsPathOpt(),
+    out: Path | None = OutOpt(),
+    output_resume: Path | None = OutputResumeOpt(),
+    risk: str | None = RiskOpt(),
+    on_error: str | None = OnErrorOpt(),
+    preserve_formatting: bool = PreserveFormattingOpt(),
+    preserve_mode: str = PreserveModeOpt(),
 ):
-    with _with_progress() as progress:
-        
-        task = progress.add_task("Tailoring resume...", total=10)
-        
-        # generate phase
-        lines, job_text = _load_resume_and_job(resume, job, progress, task)
-        edits = _generate_edits_core(lines, job_text, sections_path, model, risk, on_error, progress, task)
-        
-        # persist edits (for inspection / re-run)
-        progress.update(task, description="Writing edits JSON...")
-        write_json_safe(edits, out)
-        progress.advance(task)
-        
-        # apply phase
-        _apply_edits_core(
-            lines,
-            edits,
-            resume,
-            output_resume,
-            risk,
-            on_error,
-            preserve_formatting,
-            preserve_mode,
-            progress,
-            task,
-        )
+    settings = ctx.obj
+    resolver = ArgResolver(settings)
     
-    console.print("✅ Complete tailoring finished", style="green")
-    console.print(f"   Edits -> {out}", style="dim")
-    console.print(f"   Resume -> {output_resume}", style="dim")
-    console.print(f"   Diff -> {SETTINGS.diff_path}", style="dim")
-
-# Generate command - create edits.json from job description and resume
-@app.command()
-def generate(
-    resume: Path = typer.Argument(
-        SETTINGS.resume_path,
-        help="Path to resume .docx",
-        exists=True,
-        file_okay=True,
-        dir_okay=False,
-        readable=True,
-        resolve_path=True,
-    ),
-    job: Path = typer.Argument(
-        SETTINGS.job_path,
-        help="Path to job description",
-        exists=True,
-        file_okay=True,
-        dir_okay=False,
-        readable=True,
-        resolve_path=True,
-    ),
-    out: OutOpt = SETTINGS.edits_path,
-    sections_path: SectionsPathOpt = SETTINGS.sections_path,
-    model: ModelOpt = SETTINGS.model,
-    risk: RiskOpt = "med",
-    on_error: OnErrorOpt = "ask",
-):
+    # resolve args w/ settings defaults
+    common_resolved = resolver.resolve_common(job=job, resume=resume, model=model, sections_path=sections_path, out=out)
+    path_resolved = resolver.resolve_paths(output_resume=output_resume)
+    option_resolved = resolver.resolve_options(risk=risk, on_error=on_error)
+    
+    job, resume, model, sections_path, out = common_resolved['job'], common_resolved['resume'], common_resolved['model'], common_resolved['sections_path'], common_resolved['out']
+    output_resume = path_resolved['output_resume']
+    risk, on_error = option_resolved['risk'], option_resolved['on_error']
+    
+    # validate required arguments
+    if not job:
+        raise typer.BadParameter("Job description path is required (provide argument or set in config)")
+    if not resume:
+        raise typer.BadParameter("Resume path is required (provide argument or set in config)")
+    if not model:
+        raise typer.BadParameter("Model is required (provide --model or set in config)")
+    if not output_resume:
+        raise typer.BadParameter("Output resume path is required (provide argument or set output_dir in config)")
+    
+    # type assertions after validation
+    assert job is not None
+    assert resume is not None
+    assert out is not None
+    assert model is not None
+    assert output_resume is not None
+    
+    # pipeline instance
+    pipeline = Pipeline(settings)
+    
     with _with_progress() as progress:
         
-        task = progress.add_task("Generating edits...", total=6)
+        task = progress.add_task("Tailoring resume...", total=8)
+        ui = UI(progress=progress)
         
         # read resume + job
         lines, job_text = _load_resume_and_job(resume, job, progress, task)
         
-        # generate & validate edits
-        edits = _generate_edits_core(lines, job_text, sections_path, model, risk, on_error, progress, task)
+        # load optional sections
+        sections_json_str = _load_sections(sections_path, progress, task)
+        
+        # generate edits using pipeline
+        progress.update(task, description="Generating edits with AI...")
+        edits = pipeline.generate_edits(lines, job_text, sections_json_str, model, risk, on_error, ui)
+        progress.advance(task)
+        
+        # persist edits (for inspection / re-run)
+        _persist_edits_json(edits, out, progress, task)
+        
+        # apply edits using pipeline
+        progress.update(task, description="Applying edits...")
+        new_lines = pipeline.apply_edits(lines, edits, risk, on_error, ui)
+        progress.advance(task)
+        
+        # generate diff using pipeline
+        progress.update(task, description="Generating diff...")
+        diff = pipeline.diff_lines(lines, new_lines)
+        ensure_parent(settings.diff_path)
+        settings.diff_path.write_text(diff, encoding="utf-8")
+        progress.advance(task)
+        
+        # write output
+        progress.update(task, description="Writing tailored resume...")
+        if preserve_formatting:
+            apply_edits_to_docx(resume, new_lines, output_resume, preserve_mode=preserve_mode)
+        else:
+            write_docx(new_lines, output_resume)
+        progress.advance(task)
+    
+    console.print("✅ Complete tailoring finished", style="green")
+    console.print(f"   Edits -> {out}", style="dim")
+    console.print(f"   Resume -> {output_resume}", style="dim")
+    console.print(f"   Diff -> {settings.diff_path}", style="dim")
+
+# Generate command - create edits.json from job description and resume
+@app.command()
+@handle_loom_error
+def generate(
+    ctx: typer.Context,
+    model: str | None = ModelOpt(),
+    out: Path | None = OutOpt(),
+    sections_path: Path | None = SectionsPathOpt(),
+    resume: Path | None = ResumeArg(),
+    job: Path | None = JobArg(),
+    risk: str | None = RiskOpt(),
+    on_error: str | None = OnErrorOpt(),
+):
+    settings = ctx.obj
+    resolver = ArgResolver(settings)
+    
+    # resolve arguments w/ settings defaults
+    common_resolved = resolver.resolve_common(model=model, out=out, sections_path=sections_path, resume=resume, job=job)
+    option_resolved = resolver.resolve_options(risk=risk, on_error=on_error)
+    
+    model, out, sections_path, resume, job = common_resolved['model'], common_resolved['out'], common_resolved['sections_path'], common_resolved['resume'], common_resolved['job']
+    risk, on_error = option_resolved['risk'], option_resolved['on_error']
+    
+    # validate required arguments
+    if not resume:
+        raise typer.BadParameter("Resume path is required (provide argument or set in config)")
+    if not job:
+        raise typer.BadParameter("Job description path is required (provide argument or set in config)")
+    if not model:
+        raise typer.BadParameter("Model is required (provide --model or set in config)")
+    
+    # type assertions after validation
+    assert resume is not None
+    assert job is not None
+    assert out is not None
+    assert model is not None
+    
+    # pipeline instance
+    pipeline = Pipeline(settings)
+    
+    with _with_progress() as progress:
+        
+        task = progress.add_task("Generating edits...", total=4)
+        ui = UI(progress=progress)
+        
+        # read resume + job
+        lines, job_text = _load_resume_and_job(resume, job, progress, task)
+        
+        # load optional sections
+        sections_json_str = _load_sections(sections_path, progress, task)
+        
+        # generate edits using pipeline
+        progress.update(task, description="Generating edits with AI...")
+        edits = pipeline.generate_edits(lines, job_text, sections_json_str, model, risk, on_error, ui)
+        progress.advance(task)
         
         # write edits
-        progress.update(task, description="Writing edits JSON...")
-        write_json_safe(edits, out)
-        progress.advance(task)
+        _persist_edits_json(edits, out, progress, task)
     
     console.print(f"✅ Wrote edits -> {out}", style="green")
 
 # Apply command - apply edits.json to resume and generate output
 @app.command()
+@handle_loom_error
 def apply(
-    resume: ResumeArg = SETTINGS.resume_path,
-    edits: EditsArg = SETTINGS.edits_path,
-    out: OutputArg = Path(SETTINGS.output_dir) / "tailored_resume.docx",
-    risk: RiskOpt = "med",
-    on_error: OnErrorOpt = "ask",
-    preserve_formatting: bool = typer.Option(
-        True,
-        "--preserve-formatting/--no-preserve-formatting",
-        help="Preserve original DOCX formatting (fonts, styles, etc.)",
-        show_default=True,
-    ),
-    preserve_mode: str = typer.Option(
-        "in_place",
-        "--preserve-mode",
-        help="How to preserve formatting: 'in_place' (edit original, best preservation) or 'rebuild' (create new doc, may lose some formatting)",
-        show_default=True,
-    ),
+    ctx: typer.Context,
+    resume: Path | None = ResumeArg(),
+    edits: Path | None = EditsArg(),
+    out: Path | None = OutputDocxArg(),
+    risk: str | None = RiskOpt(),
+    on_error: str | None = OnErrorOpt(),
+    preserve_formatting: bool = PreserveFormattingOpt(),
+    preserve_mode: str = PreserveModeOpt(),
 ):
+    settings = ctx.obj
+    resolver = ArgResolver(settings)
+    
+    # resolve arguments w/ settings defaults
+    common_resolved = resolver.resolve_common(resume=resume)
+    path_resolved = resolver.resolve_paths(edits=edits, output_resume=out)
+    option_resolved = resolver.resolve_options(risk=risk, on_error=on_error)
+    
+    resume = common_resolved['resume']
+    edits, out = path_resolved['edits'], path_resolved['output_resume']
+    risk, on_error = option_resolved['risk'], option_resolved['on_error']
+    
+    # validate required arguments
+    if not resume:
+        raise typer.BadParameter("Resume path is required (provide argument or set in config)")
+    if not edits:
+        raise typer.BadParameter("Edits path is required (provide argument or set in config)")
+    if not out:
+        raise typer.BadParameter("Output path is required (provide argument)")
+    
+    # pipeline instance
+    pipeline = Pipeline(settings)
+    
     with _with_progress() as progress:
         
         task = progress.add_task("Applying edits...", total=6)
+        ui = UI(progress=progress)
         
         # read resume
         progress.update(task, description="Reading resume document...")
@@ -346,64 +378,102 @@ def apply(
         edits_obj = read_json_safe(edits)
         progress.advance(task)
         
-        # apply + validate + diff + write output
-        _apply_edits_core(
-            lines,
-            edits_obj,
-            resume,
-            out,
-            risk,
-            on_error,
-            preserve_formatting,
-            preserve_mode,
-            progress,
-            task,
-        )
+        # apply edits using pipeline
+        progress.update(task, description="Applying edits...")
+        new_lines = pipeline.apply_edits(lines, edits_obj, risk, on_error, ui)
+        progress.advance(task)
+        
+        # generate diff using pipeline
+        progress.update(task, description="Generating diff...")
+        diff = pipeline.diff_lines(lines, new_lines)
+        ensure_parent(settings.diff_path)
+        settings.diff_path.write_text(diff, encoding="utf-8")
+        progress.advance(task)
+        
+        # write output
+        progress.update(task, description="Writing tailored resume...")
+        if preserve_formatting:
+            apply_edits_to_docx(resume, new_lines, out, preserve_mode=preserve_mode)
+        else:
+            write_docx(new_lines, out)
+        progress.advance(task)
     
     if preserve_formatting:
         format_msg = f" (formatting preserved via {preserve_mode} mode)"
     else:
         format_msg = " (plain text)"
     console.print(f"✅ Wrote DOCX{format_msg} -> {out}", style="green")
-    console.print(f"✅ Diff -> {SETTINGS.diff_path}", style="dim")
+    console.print(f"✅ Diff -> {settings.diff_path}", style="dim")
 
 # Plan command - create edits.json with planning pipeline
 @app.command()
+@handle_loom_error
 def plan(
-    resume: ResumeArg = SETTINGS.resume_path,
-    job: JobArg = SETTINGS.job_path,
-    out: OutOpt = SETTINGS.edits_path,
-    plan: PlanOpt = None,
-    risk: RiskOpt = "med",
-    on_error: OnErrorOpt = "ask",
+    ctx: typer.Context,
+    resume: Path | None = ResumeArg(),
+    job: Path | None = JobArg(),
+    out: Path | None = OutOpt(),
+    plan: int | None = PlanOpt(),
+    risk: str | None = RiskOpt(),
+    on_error: str | None = OnErrorOpt(),
+    model: str | None = ModelOpt(),
+    sections_path: Path | None = SectionsPathOpt(),
 ):
-    settings = settings_manager.load()
+    settings = ctx.obj
+    resolver = ArgResolver(settings)
+    
+    # Resolve arguments with settings defaults
+    common_resolved = resolver.resolve_common(resume=resume, job=job, out=out, model=model, sections_path=sections_path)
+    option_resolved = resolver.resolve_options(risk=risk, on_error=on_error)
+
+    resume, job, out = common_resolved['resume'], common_resolved['job'], common_resolved['out']
+    model, sections_path = common_resolved['model'], common_resolved['sections_path']
+    risk, on_error = option_resolved['risk'], option_resolved['on_error']
+    # plan parameter is currently unused but kept for future functionality
+    _ = plan
+    
+    # validate required arguments
+    if not resume:
+        raise typer.BadParameter("Resume path is required (provide argument or set in config)")
+    if not job:
+        raise typer.BadParameter("Job description path is required (provide argument or set in config)")
+    if not model:
+        raise typer.BadParameter("Model is required (provide --model or set in config)")
+    
+    # type assertions after validation
+    assert resume is not None
+    assert job is not None
+    assert out is not None
+    assert model is not None
+    
+    # Create pipeline instance
+    pipeline = Pipeline(settings)
     
     with _with_progress() as progress:
-        
-        task = progress.add_task("Planning edits...", total=6)
-        
+
+        task = progress.add_task("Planning edits...", total=5)
+        ui = UI(progress=progress)
+
         lines, job_text = _load_resume_and_job(resume, job, progress, task)
-        sections_json_str = _load_sections(Path(settings.sections_path), progress, task)
-        
+
+        # load optional sections
+        sections_json_str = _load_sections(sections_path, progress, task)
+
+        # generate edits using pipeline
         progress.update(task, description="Generating edits with AI...")
-        edits = pipeline.generate_edits(lines, job_text, sections_json_str, settings.model, risk, on_error)
+        edits = pipeline.generate_edits(lines, job_text, sections_json_str, model, risk, on_error, ui)
         progress.advance(task)
-        
-        progress.update(task, description="Validating edits...")
-        _show_validation_warnings(console)
-        progress.advance(task)
-        
-        progress.update(task, description="Writing edits and plan...")
-        write_json_safe(edits, out)
-        
+
+        _persist_edits_json(edits, out, progress, task)
+
         # create simple plan file
-        ensure_parent(SETTINGS.plan_path)
-        SETTINGS.plan_path.write_text("# Plan\n\n- single-shot (stub)\n", encoding="utf-8")
+        progress.update(task, description="Writing plan...")
+        ensure_parent(settings.plan_path)
+        settings.plan_path.write_text("# Plan\n\n- single-shot (stub)\n", encoding="utf-8")
         progress.advance(task)
     
     console.print(f"✅ Wrote edits -> {out}", style="green")
-    console.print(f"✅ Plan -> {SETTINGS.plan_path}", style="dim")
+    console.print(f"✅ Plan -> {settings.plan_path}", style="dim")
 
 
 # Config management commands
@@ -430,7 +500,7 @@ Examples:
 )
 app.add_typer(config_app, name="config")
 
-# Manage Loom configuration settings
+# manage Loom configuration settings
 @config_app.callback()
 def config_callback(ctx: typer.Context):
     if ctx.invoked_subcommand is None:
@@ -447,18 +517,16 @@ def config_list():
 
 # Get command - retrieve a specific setting value
 @config_app.command("get", help="Retrieve the current value of a specific configuration setting")
+@handle_loom_error
 def config_get(key: str = typer.Argument(..., help="Configuration setting name to retrieve. Valid options: model, data_dir, output_dir, resume_filename, job_filename")):
-    try:
-        value = settings_manager.get(key)
-        if value is None:
-            typer.echo(f"Setting '{key}' not found", err=True)
-            raise typer.Exit(1)
-        typer.echo(f"{key}: {value}")
-    except Exception as e:
-        _handle_config_error("getting setting", e)
+    value = settings_manager.get(key)
+    if value is None:
+        raise ConfigurationError(f"Setting '{key}' not found")
+    typer.echo(f"{key}: {value}")
 
 # Set command - update a specific setting value
 @config_app.command("set", help="Set or update a configuration setting with a new value")
+@handle_loom_error
 def config_set(
     key: str = typer.Argument(..., help="Configuration setting name. Valid options: model, data_dir, output_dir, resume_filename, job_filename"),
     value: str = typer.Argument(..., help="New value to assign to the setting. For directories, use absolute or relative paths")
@@ -467,10 +535,7 @@ def config_set(
         settings_manager.set(key, value)
         typer.echo(f"Set {key} = {value}")
     except ValueError as e:
-        typer.echo(f"Error: {e}", err=True)
-        raise typer.Exit(1)
-    except Exception as e:
-        _handle_config_error("setting value", e)
+        raise ConfigurationError(str(e))
 
 # Reset command - restore all settings to defaults
 @config_app.command("reset", help="Reset all configuration settings to their factory default values (requires confirmation)")
