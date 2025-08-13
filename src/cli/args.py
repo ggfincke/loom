@@ -2,6 +2,7 @@
 # CLI argument definitions
 
 import typer
+from ..core.constants import normalize_risk, normalize_validation_policy
 
 def ResumeArg():
     return typer.Argument(
@@ -37,16 +38,15 @@ def RiskOpt():
     return typer.Option(
         None,
         "--risk",
+        callback=lambda v: normalize_risk(v),
         help="Risk level: low|med|high|strict",
     )
 
 def OnErrorOpt():
-    def _norm(v: str | None) -> str | None:
-        return v.strip().lower() if isinstance(v, str) else v
     return typer.Option(
         None,
         "--on-error",
-        callback=lambda v: _norm(v),
+        callback=lambda v: normalize_validation_policy(v),
         help="ask|fail|fail:soft|fail:hard|manual|retry",
     )
 
