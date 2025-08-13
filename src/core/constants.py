@@ -3,14 +3,15 @@
 
 from enum import Enum
 
-
+# * Constant Enums
+# RiskLevel
 class RiskLevel(Enum):
     LOW = "low"
     MED = "med"
     HIGH = "high"
     STRICT = "strict"
 
-
+# ValidationPolicy
 class ValidationPolicy(Enum):
     ASK = "ask"
     RETRY = "retry"
@@ -18,7 +19,8 @@ class ValidationPolicy(Enum):
     FAIL_SOFT = "fail_soft"
     FAIL_HARD = "fail_hard"
 
-
+# * Normalization functions 
+# risk normalization
 def normalize_risk(value: str | None) -> RiskLevel:
     if value is None:
         return RiskLevel.MED
@@ -36,7 +38,7 @@ def normalize_risk(value: str | None) -> RiskLevel:
     else:
         return RiskLevel.MED
 
-
+# validation policy normalization
 def normalize_validation_policy(value: str | None) -> ValidationPolicy:
     if value is None:
         return ValidationPolicy.ASK
