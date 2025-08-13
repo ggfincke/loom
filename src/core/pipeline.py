@@ -1,127 +1,168 @@
 # src/core/pipeline.py
-# Core processing pipeline for edit generation, validation, and application
+# Core processing pipeline for edit generation, validation, & application
 
-from typing import Dict, List, Callable, Optional, Any
+from typing import List, Callable, Optional, Any
+from dataclasses import dataclass
 from ..loom_io import number_lines
 import difflib
 import sys
 import json
-from pathlib import Path
 from datetime import datetime, timezone
-from ..config.settings import settings_manager
-
-# load settings once
-SETTINGS = settings_manager.load()
+from ..config.settings import LoomSettings
+from .exceptions import ValidationError, AIError, EditError
+from ..loom_io.console import console
 
 from ..loom_io.types import Lines
 
-# handle validation errors based on policy
-def handle_validation_error(validate_fn: Callable[[], List[str]], 
-                           on_error: str = "ask",
-                           edit_fn: Optional[Callable[[List[str]], Any]] = None) -> Any:
-    result = None
+# validation result for state machine transitions
+@dataclass
+class ValidationResult:
+    is_complete: bool
+    value: Any = None
+    next_state: str = ""
+    result: Any = None
+
+# validation state machine for handling edit validation errors
+class ValidationStateMachine:
+    def __init__(self, settings: LoomSettings, initial_policy: str = "ask", ui=None):
+        self.settings = settings
+        self.state = self._normalize_policy(initial_policy)
+        self.ui = ui or self._get_fallback_ui()
+        self.transitions = {
+            'ask': self._handle_ask,
+            'retry': self._handle_retry,
+            'manual': self._handle_manual,
+            'fail_soft': self._handle_fail_soft,
+            'fail_hard': self._handle_fail_hard,
+        }
     
-    while True:
-        warnings = validate_fn()
+    # create fallback UI when none provided
+    def _get_fallback_ui(self):
+        from ..loom_io.ui import UI
+        return UI(progress=None)
+    
+    # normalize initial policy to standard values
+    def _normalize_policy(self, policy: str) -> str:
+        policy = (policy or "ask").strip().lower()
+        if policy in ("fail", "fail:soft"):
+            return "fail_soft"
+        elif policy == "fail:hard":
+            return "fail_hard"
+        return policy
+    
+    # main validation loop with state transitions
+    def process(self, validate_fn: Callable[[], List[str]], edit_fn: Optional[Callable[[List[str]], Any]] = None) -> Any:
+        result = None
         
-        # no warnings - validation passed
-        if not warnings:
-            return result if result is not None else True
-        
-        # save warnings to file
-        SETTINGS.loom_dir.mkdir(exist_ok=True)
-        SETTINGS.warnings_path.write_text("\n".join(warnings), encoding="utf-8")
-        
-        # handle fail / variants (soft/hard)
-        # default/soft
-        if on_error == "fail" or on_error == "fail:soft":
-            msg_lines = ["❌ Validation failed:"] + [f"   {w}" for w in warnings]
-            raise RuntimeError("\n".join(msg_lines))
-        
-        # hard
-        elif on_error == "fail:hard":
-            msg_lines = ["❌ Validation failed (hard):"] + [f"   {w}" for w in warnings]
-            # let CLI decide whether to clean .loom or not
-            raise RuntimeError("\n".join(msg_lines))
-        
-        # retry - fix validation errors using AI
-        elif on_error == "retry":
-            if edit_fn is None:
-                print("❌ Retry not available (no edit function provided)")
-                print("Falling back to manual mode...")
-                on_error = "manual"
-                continue
-            try:
-                result = edit_fn(warnings)
-                # save corrected edits
-                SETTINGS.edits_json_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
-                print("✅ Generated corrected edits, re-validating...")
-                continue
-            except Exception as e:
-                print(f"❌ Error generating corrected edits: {e}")
-                print("Falling back to manual mode...")
-                on_error = "manual"
-                continue
-        
-        # manual edit
-        elif on_error == "manual":
-            if not sys.stdin.isatty():
-                msg_lines = ["❌ Manual mode not available (not a TTY):"] + [f"   {w}" for w in warnings]
-                raise RuntimeError("\n".join(msg_lines))
+        while True:
+            warnings = validate_fn()
             
-            print(f"⚠️  Validation errors found. Please edit {SETTINGS.edits_json_path} manually:")
-            for warning in warnings:
-                print(f"   {warning}")
+            if not warnings:
+                return result if result is not None else True
             
-            edits_path = SETTINGS.edits_json_path
-            while True:
-                input("Press Enter after editing edits.json to re-validate...")
+            self.settings.loom_dir.mkdir(exist_ok=True)
+            self.settings.warnings_path.write_text("\n".join(warnings), encoding="utf-8")
+            
+            handler = self.transitions.get(self.state, self._handle_ask)
+            validation_result = handler(warnings, validate_fn, edit_fn)
+            
+            if validation_result.is_complete:
+                return validation_result.value
+            
+            self.state = validation_result.next_state
+            if validation_result.result is not None:
+                result = validation_result.result
+    
+    # interactive prompt for user to choose validation policy
+    def _handle_ask(self, warnings: List[str], validate_fn: Callable[[], List[str]], edit_fn: Optional[Callable[[List[str]], Any]]) -> ValidationResult:
+        if not sys.stdin.isatty():
+            error_warnings = ["Validation failed (ask not possible - non-interactive):"] + warnings
+            raise ValidationError(error_warnings, recoverable=False)
+        
+        # Print a blank line to separate from any progress output
+        self.ui.print()
+        self.ui.print("⚠️  Validation errors found:")
+        for warning in warnings:
+            self.ui.print(f"   {warning}")
+        
+        while True:
+            self.ui.print()  # Ensure clean line before prompt
+            choice = self.ui.ask("Choose: [bold white](f)[/]ail-soft, [bold white](h)[/]ard-fail, [bold white](m)[/]anual, [bold white](r)[/]etry: ").lower().strip()
+            
+            if choice in ['f', 'fail', 'fail:soft']:
+                return ValidationResult(is_complete=False, next_state="fail_soft")
+            elif choice in ['h', 'hard', 'fail:hard']:
+                return ValidationResult(is_complete=False, next_state="fail_hard")
+            elif choice in ['m', 'manual']:
+                return ValidationResult(is_complete=False, next_state="manual")
+            elif choice in ['r', 'retry']:
+                return ValidationResult(is_complete=False, next_state="retry")
+            else:
+                self.ui.print("Invalid choice. Please enter f, h, m, or r.")
+
+    # attempt to regenerate edits with AI correction
+    def _handle_retry(self, warnings: List[str], validate_fn: Callable[[], List[str]], edit_fn: Optional[Callable[[List[str]], Any]]) -> ValidationResult:
+        if edit_fn is None:
+            self.ui.print("❌ Retry not available (no edit function provided)")
+            self.ui.print("Falling back to manual mode...")
+            return ValidationResult(is_complete=False, next_state="manual")
+        
+        try:
+            result = edit_fn(warnings)
+            self.settings.edits_json_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+            self.ui.print("✅ Generated corrected edits, re-validating...")
+            return ValidationResult(is_complete=False, next_state="ask", result=result)
+        except Exception as e:
+            self.ui.print(f"❌ Error generating corrected edits: {e}")
+            self.ui.print("Falling back to manual mode...")
+            return ValidationResult(is_complete=False, next_state="manual")
+    
+    # wait for user to manually edit the edits.json file
+    def _handle_manual(self, warnings: List[str], validate_fn: Callable[[], List[str]], edit_fn: Optional[Callable[[List[str]], Any]]) -> ValidationResult:
+        if not sys.stdin.isatty():
+            error_warnings = ["Manual mode not available (not a TTY):"] + warnings
+            raise ValidationError(error_warnings, recoverable=False)
+        
+        self.ui.print(f"⚠️  Validation errors found. Please edit {self.settings.edits_json_path} manually:")
+        for warning in warnings:
+            self.ui.print(f"   {warning}")
+        
+        edits_path = self.settings.edits_json_path
+        while True:
+            self.ui.ask("Press Enter after editing edits.json to re-validate...")
+            
+            if not edits_path.exists():
+                self.ui.print(f"❌ {self.settings.edits_json_path} not found")
+                continue
                 
-                if not edits_path.exists():
-                    print(f"❌ {SETTINGS.edits_json_path} not found")
-                    continue
-                    
-                try:
-                    json.loads(edits_path.read_text(encoding="utf-8"))
-                    print("✅ File edited, re-validating...")
-                    # break inner loop to re-validate
-                    break 
-                except (json.JSONDecodeError, FileNotFoundError) as e:
-                    print(f"❌ Error reading edits.json: {e}")
-                    # continue outer loop to re-validate
-                    continue
-        
-        # default behavior (ask)
-        elif on_error == "ask":
-            print("⚠️  Validation errors found:")
-            for warning in warnings:
-                print(f"   {warning}")
-            
-            while True:
-                choice = input("Choose: (f)ail-soft, (h)ard-fail, (m)anual, (r)etry: ").lower().strip()
-                if choice in ['f', 'fail', 'fail:soft']:
-                    on_error = "fail:soft"
-                    break
-                elif choice in ['h', 'hard', 'fail:hard']:
-                    on_error = "fail:hard"
-                    break
-                elif choice in ['m', 'manual']:
-                    on_error = "manual"
-                    break
-                elif choice in ['r', 'retry']:
-                    on_error = "retry"
-                    break
-                else:
-                    print("Invalid choice. Please enter f, h, m, or r.")
-            # After user makes choice, continue the outer loop to handle the selected action
-            continue
-        
-        else:
-            # unknown policy, return success
-            return result if result is not None else True
+            try:
+                json.loads(edits_path.read_text(encoding="utf-8"))
+                self.ui.print("✅ File edited, re-validating...")
+                return ValidationResult(is_complete=False, next_state="manual")
+            except (json.JSONDecodeError, FileNotFoundError) as e:
+                self.ui.print(f"❌ Error reading edits.json: {e}")
+                continue
+    
+    # raise validation error & exit
+    def _handle_fail_soft(self, warnings: List[str], validate_fn: Callable[[], List[str]], edit_fn: Optional[Callable[[List[str]], Any]]) -> ValidationResult:
+        raise ValidationError(warnings, recoverable=False)
+    
+    # raise validation error with hard failure message
+    def _handle_fail_hard(self, warnings: List[str], validate_fn: Callable[[], List[str]], edit_fn: Optional[Callable[[List[str]], Any]]) -> ValidationResult:
+        error_warnings = ["Validation failed (hard):"] + warnings
+        raise ValidationError(error_warnings, recoverable=False)
+
+# handle validation errors based on policy
+def handle_validation_error(settings: LoomSettings,
+                           validate_fn: Callable[[], List[str]], 
+                           on_error: str = "ask",
+                           edit_fn: Optional[Callable[[List[str]], Any]] = None,
+                           ui=None) -> Any:
+    state_machine = ValidationStateMachine(settings, on_error, ui)
+    return state_machine.process(validate_fn, edit_fn)
 
 # generate edits.json for a resume based on job description & optional sections JSON
-def generate_edits(resume_lines: Lines, job_text: str, sections_json: str | None, model: str, risk: str = "med", on_error: str = "ask") -> dict:
+def generate_edits(settings: LoomSettings, resume_lines: Lines, job_text: str, sections_json: str | None, model: str, risk: str = "med", on_error: str = "ask", ui=None) -> dict:
     from ..ai.prompts import build_generate_prompt
     from ..ai.clients.openai_client import run_generate
     
@@ -132,70 +173,120 @@ def generate_edits(resume_lines: Lines, job_text: str, sections_json: str | None
         nonlocal edits
         created_at = datetime.now(timezone.utc).isoformat()
         prompt = build_generate_prompt(job_text, number_lines(resume_lines), model, created_at, sections_json)
-        edits = run_generate(prompt, model)
+        result = run_generate(prompt, model)
+        
+        # handle JSON parsing errors - don't crash, let validation system handle it
+        if not result.success:
+            # return a special failure object that validation can detect
+            edits = {
+                "_json_parse_error": True,
+                "_error_details": result.error,
+                "_raw_response": result.raw_text,
+                "_json_text": result.json_text,
+                "version": 1, 
+                "meta": {},
+                "ops": []
+            }
+            return edits
+        
+        edits = result.data
         
         # validate response structure
         if not isinstance(edits, dict):
-            raise ValueError("AI response is not a valid JSON object")
+            raise AIError("AI response is not a valid JSON object")
         
         if edits.get("version") != 1:
-            raise ValueError(f"Invalid or missing version in AI response: {edits.get('version')}")
+            raise AIError(f"Invalid or missing version in AI response: {edits.get('version')}")
         
         if "meta" not in edits or "ops" not in edits:
-            raise ValueError("AI response missing required 'meta' or 'ops' fields")
+            raise AIError("AI response missing required 'meta' or 'ops' fields")
             
         return edits
     
     def edit_edits(validation_warnings):
         # read current edits from file
-        if SETTINGS.edits_json_path.exists():
-            current_edits_json = SETTINGS.edits_json_path.read_text(encoding="utf-8")
+        if settings.edits_json_path.exists():
+            current_edits_json = settings.edits_json_path.read_text(encoding="utf-8")
         else:
-            raise ValueError("No existing edits file found for correction")
+            raise EditError("No existing edits file found for correction")
         
         from ..ai.prompts import build_edit_prompt
         created_at = datetime.now(timezone.utc).isoformat()
         prompt = build_edit_prompt(job_text, number_lines(resume_lines), current_edits_json, validation_warnings, model, created_at, sections_json)
-        edits = run_generate(prompt, model)
+        result = run_generate(prompt, model)
+        
+        # handle JSON parsing errors - don't crash, let validation system handle it
+        if not result.success:
+            # return a special failure object that validation can detect
+            edits = {
+                "_json_parse_error": True,
+                "_error_details": result.error,
+                "_raw_response": result.raw_text,
+                "_json_text": result.json_text,
+                "version": 1,
+                "meta": {},
+                "ops": []
+            }
+            return edits
+        
+        edits = result.data
         
         # validate response structure
         if not isinstance(edits, dict):
-            raise ValueError("AI response is not a valid JSON object")
+            raise AIError("AI response is not a valid JSON object")
         
         if edits.get("version") != 1:
-            raise ValueError(f"Invalid or missing version in AI response: {edits.get('version')}")
+            raise AIError(f"Invalid or missing version in AI response: {edits.get('version')}")
         
         if "meta" not in edits or "ops" not in edits:
-            raise ValueError("AI response missing required 'meta' or 'ops' fields")
+            raise AIError("AI response missing required 'meta' or 'ops' fields")
             
         return edits
     
     # initial generation
     edits = create_edits()
     
+    # immediately persist edits so manual mode has a file to work with
+    settings.loom_dir.mkdir(exist_ok=True)
+    settings.edits_json_path.write_text(json.dumps(edits, indent=2), encoding="utf-8")
+    
+    # validate with a closure that can be updated
+    current_edits = [edits]  # use list to make it mutable in closure
+    
+    def validate_current():
+        return validate_edits(current_edits[0], resume_lines, risk) if current_edits[0] is not None else ["Edits not initialized"]
+    
+    def edit_edits_and_update(validation_warnings):
+        # call the original edit function
+        new_edits = edit_edits(validation_warnings)
+        # update the current edits being validated
+        current_edits[0] = new_edits
+        return new_edits
+    
     # validate
     result = handle_validation_error(
-        validate_fn=lambda: validate_edits(edits, resume_lines, risk) if edits is not None else ["Edits not initialized"],
+        settings,
+        validate_fn=validate_current,
         on_error=on_error,
-        edit_fn=edit_edits,
+        edit_fn=edit_edits_and_update,
+        ui=ui,
     )
     
     # if result, there was a regeneration
     if isinstance(result, dict):
         edits = result
     elif edits is None:
-        raise ValueError("Failed to generate valid edits")
+        raise EditError("Failed to generate valid edits")
     
     return edits
 
 # apply edits to resume lines & return new lines dict 
-def apply_edits(resume_lines: Lines, edits: dict, risk: str = "med", on_error: str = "ask") -> Lines:
+def apply_edits(settings: LoomSettings, resume_lines: Lines, edits: dict, risk: str = "med", on_error: str = "ask", ui=None) -> Lines:
     if edits.get("version") != 1:
-        raise ValueError(f"Unsupported edits version: {edits.get('version')}")
+        raise EditError(f"Unsupported edits version: {edits.get('version')}")
     
     # pre-apply validation
-    if not handle_validation_error(lambda: validate_edits(edits, resume_lines, risk), on_error):
-        raise ValueError("Validation failed before applying edits")
+    handle_validation_error(settings, lambda: validate_edits(edits, resume_lines, risk), on_error, ui=ui)
     
     new_lines = dict(resume_lines)
     ops = edits.get("ops", [])
@@ -210,7 +301,7 @@ def apply_edits(resume_lines: Lines, edits: dict, risk: str = "med", on_error: s
         if op_type == "replace_line":
             line_num = op["line"]
             if line_num not in new_lines:
-                raise ValueError(f"Cannot replace line {line_num}: line does not exist")
+                raise EditError(f"Cannot replace line {line_num}: line does not exist")
             new_lines[line_num] = op["text"]
             
         # replace range of lines
@@ -222,7 +313,7 @@ def apply_edits(resume_lines: Lines, edits: dict, risk: str = "med", on_error: s
             # validate range exists
             for line_num in range(start, end + 1):
                 if line_num not in new_lines:
-                    raise ValueError(f"Cannot replace range {start}-{end}: line {line_num} does not exist")
+                    raise EditError(f"Cannot replace range {start}-{end}: line {line_num} does not exist")
             
             text_lines = text.split("\n") if text else [""]
             old_line_count = end - start + 1
@@ -258,7 +349,7 @@ def apply_edits(resume_lines: Lines, edits: dict, risk: str = "med", on_error: s
             text = op["text"]
             
             if line_num not in new_lines:
-                raise ValueError(f"Cannot insert after line {line_num}: line does not exist")
+                raise EditError(f"Cannot insert after line {line_num}: line does not exist")
             
             # shift all lines after insert point
             text_lines = text.split("\n")
@@ -282,14 +373,22 @@ def apply_edits(resume_lines: Lines, edits: dict, risk: str = "med", on_error: s
             # validate range exists
             for line_num in range(start, end + 1):
                 if line_num not in new_lines:
-                    raise ValueError(f"Cannot delete range {start}-{end}: line {line_num} does not exist")
+                    raise EditError(f"Cannot delete range {start}-{end}: line {line_num} does not exist")
             
-            # delete lines
+            delete_count = end - start + 1
+            
+            # delete the range
             for line_num in range(start, end + 1):
                 del new_lines[line_num]
+            
+            # shift everything after 'end' down
+            lines_to_move = sorted([(k, v) for k, v in new_lines.items() if k > end], key=lambda t: t[0])
+            for k, v in lines_to_move:
+                del new_lines[k]
+                new_lines[k - delete_count] = v
                 
         else:
-            raise ValueError(f"Unknown operation type: {op_type}")
+            raise EditError(f"Unknown operation type: {op_type}")
     
     return new_lines
 
@@ -300,11 +399,25 @@ def diff_lines(old: Lines, new: Lines) -> str:
     
     return "".join(difflib.unified_diff(old_list, new_list, fromfile="old", tofile="new"))
 
-# validate edits.json structure and ops
+# validate edits.json structure & ops
 def validate_edits(edits: dict, resume_lines: Lines, risk: str) -> List[str]:
     warnings = []
     
-    # check ops exists and is non-empty list
+    # check for JSON parsing errors first
+    if edits.get("_json_parse_error"):
+        error_details = edits.get("_error_details", "Unknown JSON error")
+        raw_response = edits.get("_raw_response", "")
+        json_text = edits.get("_json_text", "")
+        
+        warnings.append(f"AI returned invalid JSON: {error_details}")
+        if raw_response:
+            warnings.append(f"Raw AI response (first 500 chars): {raw_response[:500]}...")
+        if json_text:
+            warnings.append(f"Extracted JSON (first 500 chars): {json_text[:500]}...")
+        warnings.append("You can manually edit the JSON file or retry with AI correction")
+        return warnings
+    
+    # check ops exists & is non-empty list
     if "ops" not in edits:
         warnings.append("Missing 'ops' field in edits")
         return warnings
@@ -331,7 +444,7 @@ def validate_edits(edits: dict, resume_lines: Lines, risk: str) -> List[str]:
             warnings.append(f"Op {i}: missing 'op' field")
             continue
         
-        # validate each op type and required fields
+        # validate each op type & required fields
         if op_type == "replace_line":
             if "line" not in op:
                 warnings.append(f"Op {i}: replace_line missing 'line' field")
@@ -469,6 +582,23 @@ def validate_edits(edits: dict, resume_lines: Lines, risk: str) -> List[str]:
             if any(s <= ln <= e for s, e in delete_ranges):
                 warnings.append(f"Op {i}: insert_after on line {ln} that is deleted by a delete_range")
     
+    # detect overlaps between delete_range & replace_range
+    replace_ranges = [(op["start"], op["end"]) for op in ops if op.get("op") == "replace_range"]
+    for i, op in enumerate(ops):
+        if op.get("op") == "delete_range":
+            s, e = op["start"], op["end"]
+            if any(not (e2 < s or s2 > e) for (s2, e2) in replace_ranges):
+                warnings.append(f"Op {i}: delete_range overlaps a replace_range; split or reorder ops")
+    
+    # detect multiple insert_after on the same line
+    seen_inserts = set()
+    for i, op in enumerate(ops):
+        if op.get("op") == "insert_after":
+            ln = op["line"]
+            if ln in seen_inserts:
+                warnings.append(f"Op {i}: multiple insert_after on line {ln}")
+            seen_inserts.add(ln)
+    
     return warnings
 
 # get primary line num for an operation
@@ -479,3 +609,27 @@ def _get_op_line(op: dict) -> int:
         return op["start"]
     else:
         return 0
+
+
+# pipeline class with dependency injection
+class Pipeline:
+    # main processing pipeline with injected settings dependency
+    
+    def __init__(self, settings: LoomSettings):
+        self.settings = settings
+    
+    def generate_edits(self, resume_lines: Lines, job_text: str, sections_json: str | None, model: str, risk: str = "med", on_error: str = "ask", ui=None) -> dict:
+        # generate edits.json for a resume based on job description & optional sections JSON
+        return generate_edits(self.settings, resume_lines, job_text, sections_json, model, risk, on_error, ui)
+    
+    def apply_edits(self, resume_lines: Lines, edits: dict, risk: str = "med", on_error: str = "ask", ui=None) -> Lines:
+        # apply edits to resume lines & return new lines dict
+        return apply_edits(self.settings, resume_lines, edits, risk, on_error, ui)
+    
+    def diff_lines(self, old: Lines, new: Lines) -> str:
+        # generate unified diff between two line dicts
+        return diff_lines(old, new)
+    
+    def validate_edits(self, edits: dict, resume_lines: Lines, risk: str) -> List[str]:
+        # validate edits.json structure & operations
+        return validate_edits(edits, resume_lines, risk)

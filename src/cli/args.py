@@ -1,96 +1,176 @@
 # src/cli/args.py
-# Type annotations and argument definitions for CLI commands
+# CLI argument definitions
 
-from pathlib import Path
-from typing import Annotated, Optional
 import typer
 
-from ..config.settings import settings_manager
+def ResumeArg():
+    return typer.Argument(
+        None,
+        help="Path to resume .docx",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        resolve_path=True,
+    )
 
-# load settings once
-SETTINGS = settings_manager.load()
+def JobArg():
+    return typer.Argument(
+        None,
+        help="Path to job description",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        resolve_path=True,
+    )
 
-ResumeArg = Annotated[
-    Path,
-    typer.Argument(help="Path to resume .docx", exists=True, file_okay=True, dir_okay=False, readable=True, resolve_path=True),
-]
+def ModelOpt():
+    return typer.Option(
+        None,
+        "--model",
+        "-m",
+        help="OpenAI model name",
+    )
 
-JobArg = Annotated[
-    Path,
-    typer.Argument(help="Path to job description", exists=True, file_okay=True, dir_okay=False, readable=True, resolve_path=True),
-]
+def RiskOpt():
+    return typer.Option(
+        None,
+        "--risk",
+        help="Risk level: low|med|high|strict",
+    )
 
-ModelOpt = Annotated[
-    str,
-    typer.Option("--model", "-m", help="OpenAI model name", show_default=True),
-]
+def OnErrorOpt():
+    def _norm(v: str | None) -> str | None:
+        return v.strip().lower() if isinstance(v, str) else v
+    return typer.Option(
+        None,
+        "--on-error",
+        callback=lambda v: _norm(v),
+        help="ask|fail|fail:soft|fail:hard|manual|retry",
+    )
 
-RiskOpt = Annotated[
-    str,
-    typer.Option("--risk", help="Risk level: low|med|high|strict", show_default=True),
-]
+def EditsArg():
+    return typer.Argument(
+        None,
+        help="Path to edits JSON file",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        resolve_path=True,
+    )
 
-OnErrorOpt = Annotated[
-    str,
-    typer.Option("--on-error", help="ask|fail|fail:soft|fail:hard|manual|retry", show_default=True),
-]
+def OutputArg():
+    return typer.Argument(
+        ...,
+        help="Output path for tailored resume .docx",
+        resolve_path=True,
+    )
 
-EditsArg = Annotated[
-    Path,
-    typer.Argument(..., help="Path to edits JSON file", exists=True, file_okay=True, dir_okay=False, readable=True, resolve_path=True),
-]
+def ConfigKeyArg():
+    return typer.Argument(
+        ...,
+        help="Configuration setting name",
+    )
 
-OutputArg = Annotated[
-    Path,
-    typer.Argument(..., help="Output path for tailored resume .docx", resolve_path=True),
-]
+def ConfigValueArg():
+    return typer.Argument(
+        ...,
+        help="New value to assign to the setting",
+    )
 
-ConfigKeyArg = Annotated[
-    str,
-    typer.Argument(..., help="Configuration setting name"),
-]
+def OutOpt():
+    return typer.Option(
+        None,
+        "--out",
+        "-o",
+        help="Output path (infer type by extension: .docx/.json)",
+        resolve_path=True,
+    )
 
-ConfigValueArg = Annotated[
-    str,
-    typer.Argument(..., help="New value to assign to the setting"),
-]
+def EditsJsonOpt():
+    return typer.Option(
+        None,
+        "--edits-json",
+        help="Path to write edits JSON",
+        resolve_path=True,
+    )
 
-# Single-artifact commands - use --out/-o (infer type by extension)
-OutOpt = Annotated[
-    Path,
-    typer.Option("--out", "-o", help="Output path (infer type by extension: .docx/.json)", resolve_path=True, show_default=True),
-]
+def ResumeDocxOpt():
+    return typer.Option(
+        None,
+        "--resume-docx",
+        help="Path to write tailored DOCX",
+        resolve_path=True,
+    )
 
-# Multi-artifact commands - specific artifact flags
-EditsJsonOpt = Annotated[
-    Path,
-    typer.Option("--edits-json", help="Path to write edits JSON", resolve_path=True, show_default=True),
-]
+def NoEditsJsonOpt():
+    return typer.Option(
+        False,
+        "--no-edits-json",
+        help="Skip writing edits JSON",
+    )
 
-ResumeDocxOpt = Annotated[
-    Path,
-    typer.Option("--resume-docx", help="Path to write tailored DOCX", resolve_path=True, show_default=True),
-]
+def NoResumeDocxOpt():
+    return typer.Option(
+        False,
+        "--no-resume-docx",
+        help="Skip writing tailored DOCX",
+    )
 
-# Optional skips for multi-artifact commands
-NoEditsJsonOpt = Annotated[
-    bool,
-    typer.Option("--no-edits-json", help="Skip writing edits JSON", show_default=True),
-]
+def SectionsPathOpt():
+    return typer.Option(
+        None,
+        "--sections-path",
+        "-s",
+        help="Optional sections.json path",
+        resolve_path=True,
+    )
 
-NoResumeDocxOpt = Annotated[
-    bool,
-    typer.Option("--no-resume-docx", help="Skip writing tailored DOCX", show_default=True),
-]
+def PlanOpt():
+    return typer.Option(
+        None,
+        "--plan",
+        help="Plan mode: no value=plan only, =N for max N steps",
+    )
 
-# Other options
-SectionsPathOpt = Annotated[
-    Path,
-    typer.Option("--sections-path", "-s", help="Optional sections.json path", resolve_path=True, show_default=True),
-]
+def OutputDocxArg():
+    return typer.Argument(
+        None,
+        help="Output path for tailored resume .docx",
+        resolve_path=True,
+    )
 
-# Consolidated planning flag - use Optional[int] to support --plan (no value) or --plan=N
-PlanOpt = Annotated[
-    Optional[int],
-    typer.Option("--plan", help="Plan mode: no value=plan only, =N for max N steps", show_default=True),
-]
+def PreserveFormattingOpt():
+    return typer.Option(
+        True,
+        "--preserve-formatting/--no-preserve-formatting",
+        help="Preserve original DOCX formatting (fonts, styles, etc.)",
+        show_default=True,
+    )
+
+def PreserveModeOpt():
+    return typer.Option(
+        "in_place",
+        "--preserve-mode",
+        help="How to preserve formatting: 'in_place' (edit original, best preservation) or 'rebuild' (create new doc, may lose some formatting)",
+        show_default=True,
+    )
+
+def OutJsonOpt():
+    return typer.Option(
+        None,
+        "--out-json",
+        "-o",
+        help="Where to write the sections JSON",
+        resolve_path=True,
+    )
+
+def OutputResumeOpt():
+    return typer.Option(
+        None,
+        "--output-resume", "-r",
+        help="Path to write the tailored resume .docx",
+        resolve_path=True,
+    )
