@@ -57,9 +57,6 @@ class LoomSettings:
     def loom_dir(self) -> Path:
         return Path(self.base_dir)
     
-    @property
-    def edits_json_path(self) -> Path:
-        return self.loom_dir / self.edits_filename
     
     @property
     def warnings_path(self) -> Path:
