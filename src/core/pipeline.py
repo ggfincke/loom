@@ -109,7 +109,7 @@ class ValidationStateMachine:
         
         try:
             result = edit_fn(warnings)
-            self.settings.edits_json_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+            self.settings.edits_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
             self.ui.print("✅ Generated corrected edits, re-validating...")
             return ValidationResult(is_complete=False, next_state="ask", result=result)
         except Exception as e:
@@ -123,16 +123,16 @@ class ValidationStateMachine:
             error_warnings = ["Manual mode not available (not a TTY):"] + warnings
             raise ValidationError(error_warnings, recoverable=False)
         
-        self.ui.print(f"⚠️  Validation errors found. Please edit {self.settings.edits_json_path} manually:")
+        self.ui.print(f"⚠️  Validation errors found. Please edit {self.settings.edits_path} manually:")
         for warning in warnings:
             self.ui.print(f"   {warning}")
         
-        edits_path = self.settings.edits_json_path
+        edits_path = self.settings.edits_path
         while True:
             self.ui.ask("Press Enter after editing edits.json to re-validate...")
             
             if not edits_path.exists():
-                self.ui.print(f"❌ {self.settings.edits_json_path} not found")
+                self.ui.print(f"❌ {self.settings.edits_path} not found")
                 continue
                 
             try:
@@ -205,8 +205,8 @@ def generate_edits(settings: LoomSettings, resume_lines: Lines, job_text: str, s
     
     def edit_edits(validation_warnings):
         # read current edits from file
-        if settings.edits_json_path.exists():
-            current_edits_json = settings.edits_json_path.read_text(encoding="utf-8")
+        if settings.edits_path.exists():
+            current_edits_json = settings.edits_path.read_text(encoding="utf-8")
         else:
             raise EditError("No existing edits file found for correction")
         
@@ -248,7 +248,7 @@ def generate_edits(settings: LoomSettings, resume_lines: Lines, job_text: str, s
     
     # immediately persist edits so manual mode has a file to work with
     settings.loom_dir.mkdir(exist_ok=True)
-    settings.edits_json_path.write_text(json.dumps(edits, indent=2), encoding="utf-8")
+    settings.edits_path.write_text(json.dumps(edits, indent=2), encoding="utf-8")
     
     # validate with a closure that can be updated
     current_edits = [edits]  # use list to make it mutable in closure

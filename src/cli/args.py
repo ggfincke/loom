@@ -63,20 +63,17 @@ def EditsArg():
 
 def OutputArg():
     return typer.Argument(
-        ...,
         help="Output path for tailored resume .docx",
         resolve_path=True,
     )
 
 def ConfigKeyArg():
     return typer.Argument(
-        ...,
         help="Configuration setting name",
     )
 
 def ConfigValueArg():
     return typer.Argument(
-        ...,
         help="New value to assign to the setting",
     )
 
