@@ -4,7 +4,6 @@
 from pathlib import Path
 import typer
 
-from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 
 from ..loom_io import read_docx, number_lines, read_text, write_docx, apply_edits_to_docx
 from ..loom_io.console import console
@@ -15,12 +14,15 @@ from ..config.settings import settings_manager
 from ..loom_io import write_json_safe, read_json_safe, ensure_parent
 from ..core.pipeline import Pipeline
 from ..core.exceptions import handle_loom_error, ConfigurationError
+from ..core.constants import normalize_risk, normalize_validation_policy
 from .args import (
     ResumeArg, JobArg, EditsArg, ModelOpt, RiskOpt, OnErrorOpt, 
     OutOpt, SectionsPathOpt, PlanOpt, OutputDocxArg, PreserveFormattingOpt,
     PreserveModeOpt, OutJsonOpt, OutputResumeOpt
 )
 from .art import show_loom_art
+from typing import TypedDict
+from ..core.constants import RiskLevel, ValidationPolicy
 
 app = typer.Typer()
 
@@ -38,6 +40,9 @@ def main_callback(ctx: typer.Context):
 # helper for merging provided values w/ settings defaults
 def _resolve(provided_value, settings_default):
     return settings_default if provided_value is None else provided_value
+class OptionsResolved(TypedDict):
+    risk: RiskLevel
+    on_error: ValidationPolicy
 
 # class for resolving args w/ settings defaults
 class ArgResolver:
@@ -62,22 +67,12 @@ class ArgResolver:
         }
     
     # resolve option arguments
-    def resolve_options(self, **kwargs):
+    def resolve_options(self, **kwargs) -> OptionsResolved:
         return {
-            'risk': _resolve(kwargs.get('risk'), "med"),
-            'on_error': _resolve(kwargs.get('on_error'), "ask"),
+            'risk': _resolve(kwargs.get('risk'), normalize_risk("med")),
+            'on_error': _resolve(kwargs.get('on_error'), normalize_validation_policy("ask")),
         }
 
-# standard progress context for CLI
-def _with_progress():
-    return Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        TimeElapsedColumn(),
-        refresh_per_second=8,
-        console=console,
-        transient=False,
-    )
 
 # load resume lines & job text with progress updates
 def _load_resume_and_job(resume_path: Path, job_path: Path, progress, task):
@@ -142,7 +137,8 @@ def sectionize(
     assert out_json is not None
     assert model is not None
     
-    with _with_progress() as progress:
+    ui = UI()
+    with ui.build_progress() as progress:
         
         task = progress.add_task("Processing resume...", total=4)
         
@@ -185,8 +181,8 @@ def tailor(
     sections_path: Path | None = SectionsPathOpt(),
     out: Path | None = OutOpt(),
     output_resume: Path | None = OutputResumeOpt(),
-    risk: str | None = RiskOpt(),
-    on_error: str | None = OnErrorOpt(),
+    risk: RiskLevel | None = RiskOpt(),
+    on_error: ValidationPolicy | None = OnErrorOpt(),
     preserve_formatting: bool = PreserveFormattingOpt(),
     preserve_mode: str = PreserveModeOpt(),
 ):
@@ -200,8 +196,9 @@ def tailor(
     
     job, resume, model, sections_path, out = common_resolved['job'], common_resolved['resume'], common_resolved['model'], common_resolved['sections_path'], common_resolved['out']
     output_resume = path_resolved['output_resume']
-    risk, on_error = option_resolved['risk'], option_resolved['on_error']
-    
+    risk_enum: RiskLevel = option_resolved['risk']
+    on_error_policy: ValidationPolicy = option_resolved['on_error']
+
     # validate required arguments
     if not job:
         raise typer.BadParameter("Job description path is required (provide argument or set in config)")
@@ -222,10 +219,11 @@ def tailor(
     # pipeline instance
     pipeline = Pipeline(settings)
     
-    with _with_progress() as progress:
+    ui = UI()
+    with ui.build_progress() as progress:
+        ui.progress = progress  # update UI with progress reference
         
         task = progress.add_task("Tailoring resume...", total=8)
-        ui = UI(progress=progress)
         
         # read resume + job
         lines, job_text = _load_resume_and_job(resume, job, progress, task)
@@ -235,7 +233,15 @@ def tailor(
         
         # generate edits using pipeline
         progress.update(task, description="Generating edits with AI...")
-        edits = pipeline.generate_edits(lines, job_text, sections_json_str, model, risk, on_error, ui)
+        edits = pipeline.generate_edits(
+            resume_lines=lines,
+            job_text=job_text,
+            sections_json=sections_json_str,
+            model=model,
+            risk=risk_enum,
+            on_error=on_error_policy,
+            ui=ui,
+        )
         progress.advance(task)
         
         # persist edits (for inspection / re-run)
@@ -243,7 +249,7 @@ def tailor(
         
         # apply edits using pipeline
         progress.update(task, description="Applying edits...")
-        new_lines = pipeline.apply_edits(lines, edits, risk, on_error, ui)
+        new_lines = pipeline.apply_edits(lines, edits, risk_enum, on_error_policy, ui)
         progress.advance(task)
         
         # generate diff using pipeline
@@ -276,8 +282,8 @@ def generate(
     sections_path: Path | None = SectionsPathOpt(),
     resume: Path | None = ResumeArg(),
     job: Path | None = JobArg(),
-    risk: str | None = RiskOpt(),
-    on_error: str | None = OnErrorOpt(),
+    risk: RiskLevel | None = RiskOpt(),
+    on_error: ValidationPolicy | None = OnErrorOpt(),
 ):
     settings = ctx.obj
     resolver = ArgResolver(settings)
@@ -287,8 +293,9 @@ def generate(
     option_resolved = resolver.resolve_options(risk=risk, on_error=on_error)
     
     model, out, sections_path, resume, job = common_resolved['model'], common_resolved['out'], common_resolved['sections_path'], common_resolved['resume'], common_resolved['job']
-    risk, on_error = option_resolved['risk'], option_resolved['on_error']
-    
+    risk_enum: RiskLevel = option_resolved['risk']
+    on_error_policy: ValidationPolicy = option_resolved['on_error']
+
     # validate required arguments
     if not resume:
         raise typer.BadParameter("Resume path is required (provide argument or set in config)")
@@ -306,10 +313,11 @@ def generate(
     # pipeline instance
     pipeline = Pipeline(settings)
     
-    with _with_progress() as progress:
+    ui = UI()
+    with ui.build_progress() as progress:
+        ui.progress = progress  # update UI with progress reference
         
         task = progress.add_task("Generating edits...", total=4)
-        ui = UI(progress=progress)
         
         # read resume + job
         lines, job_text = _load_resume_and_job(resume, job, progress, task)
@@ -319,7 +327,15 @@ def generate(
         
         # generate edits using pipeline
         progress.update(task, description="Generating edits with AI...")
-        edits = pipeline.generate_edits(lines, job_text, sections_json_str, model, risk, on_error, ui)
+        edits = pipeline.generate_edits(
+            resume_lines=lines,
+            job_text=job_text,
+            sections_json=sections_json_str,
+            model=model,
+            risk=risk_enum,
+            on_error=on_error_policy,
+            ui=ui,
+        )
         progress.advance(task)
         
         # write edits
@@ -335,8 +351,8 @@ def apply(
     resume: Path | None = ResumeArg(),
     edits: Path | None = EditsArg(),
     out: Path | None = OutputDocxArg(),
-    risk: str | None = RiskOpt(),
-    on_error: str | None = OnErrorOpt(),
+    risk: RiskLevel | None = RiskOpt(),
+    on_error: ValidationPolicy | None = OnErrorOpt(),
     preserve_formatting: bool = PreserveFormattingOpt(),
     preserve_mode: str = PreserveModeOpt(),
 ):
@@ -363,10 +379,11 @@ def apply(
     # pipeline instance
     pipeline = Pipeline(settings)
     
-    with _with_progress() as progress:
+    ui = UI()
+    with ui.build_progress() as progress:
+        ui.progress = progress  # update UI with progress reference
         
         task = progress.add_task("Applying edits...", total=6)
-        ui = UI(progress=progress)
         
         # read resume
         progress.update(task, description="Reading resume document...")
@@ -428,8 +445,9 @@ def plan(
 
     resume, job, out = common_resolved['resume'], common_resolved['job'], common_resolved['out']
     model, sections_path = common_resolved['model'], common_resolved['sections_path']
-    risk, on_error = option_resolved['risk'], option_resolved['on_error']
-    # plan parameter is currently unused but kept for future functionality
+    risk_enum: RiskLevel = option_resolved['risk']
+    on_error_policy: ValidationPolicy = option_resolved['on_error']
+    # unused byt planned
     _ = plan
     
     # validate required arguments
@@ -449,10 +467,11 @@ def plan(
     # Create pipeline instance
     pipeline = Pipeline(settings)
     
-    with _with_progress() as progress:
+    ui = UI()
+    with ui.build_progress() as progress:
+        ui.progress = progress  # update UI with progress reference
 
         task = progress.add_task("Planning edits...", total=5)
-        ui = UI(progress=progress)
 
         lines, job_text = _load_resume_and_job(resume, job, progress, task)
 
@@ -461,7 +480,16 @@ def plan(
 
         # generate edits using pipeline
         progress.update(task, description="Generating edits with AI...")
-        edits = pipeline.generate_edits(lines, job_text, sections_json_str, model, risk, on_error, ui)
+        edits = pipeline.generate_edits(
+            resume_lines=lines,
+            job_text=job_text,
+            sections_json=sections_json_str,
+            model=model,
+            risk=risk_enum,
+            on_error=on_error_policy,
+            ui=ui,
+        )
+
         progress.advance(task)
 
         _persist_edits_json(edits, out, progress, task)

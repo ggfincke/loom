@@ -66,7 +66,8 @@ def handle_validation_error(settings: LoomSettings,
                     ui.print(f"   {warning}")
                 
                 while True:
-                    ui.ask("Press Enter after editing edits.json to re-validate...")
+                    with ui.input_mode():
+                        ui.ask("Press Enter after editing edits.json to re-validate...")
                     
                     if not settings.edits_path.exists():
                         ui.print(f"❌ {settings.edits_path} not found")

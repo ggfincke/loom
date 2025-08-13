@@ -3,6 +3,7 @@
 
 import sys
 from contextlib import contextmanager
+from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from .console import console
 
 # UI abstraction that safely coordinates console output w/ progress display
@@ -55,3 +56,14 @@ class UI:
     # alias for ask() method for convenience
     def input(self, prompt: str = "") -> str:
         return self.ask(prompt)
+    
+    # create configured progress instance for consistent CLI progress display
+    def build_progress(self):
+        return Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            TimeElapsedColumn(),
+            refresh_per_second=8,
+            console=self.console,
+            transient=False,
+        )

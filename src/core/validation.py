@@ -37,7 +37,8 @@ class AskStrategy(ValidationStrategy):
         
         while True:
             ui.print()
-            choice = ui.ask("Choose: [bold white](f)[/]ail-soft, [bold white](h)[/]ard-fail, [bold white](m)[/]anual, [bold white](r)[/]etry: ").lower().strip()
+            with ui.input_mode():
+                choice = ui.ask("Choose: [bold white](f)[/]ail-soft, [bold white](h)[/]ard-fail, [bold white](m)[/]anual, [bold white](r)[/]etry: ").lower().strip()
             
             if choice in ['f', 'fail', 'fail:soft']:
                 return FailSoftStrategy().handle(warnings, ui)
