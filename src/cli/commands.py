@@ -23,6 +23,8 @@ from .args import (
 from .art import show_loom_art
 from typing import TypedDict
 from ..core.constants import RiskLevel, ValidationPolicy
+from ..loom_io.types import Lines
+from ..config.settings import LoomSettings
 
 app = typer.Typer()
 
@@ -95,6 +97,26 @@ def _load_sections(sections_path: Path | None, progress, task):
     progress.advance(task)
     return sections_json_str
 
+
+# * Core processing primitives
+
+# generate edits using pipeline
+def _generate_edits_core(settings: LoomSettings, resume_lines: Lines, job_text: str, sections_json: str | None, model: str, risk: RiskLevel, policy: ValidationPolicy, ui) -> dict:
+    pipeline = Pipeline(settings)
+    return pipeline.generate_edits(
+        resume_lines=resume_lines,
+        job_text=job_text, 
+        sections_json=sections_json,
+        model=model,
+        risk=risk,
+        on_error=policy,
+        ui=ui
+    )
+
+# apply edits using pipeline
+def _apply_edits_core(settings: LoomSettings, resume_lines: Lines, edits: dict, risk: RiskLevel, policy: ValidationPolicy, ui) -> Lines:
+    pipeline = Pipeline(settings)
+    return pipeline.apply_edits(resume_lines, edits, risk, policy, ui)
 
 
 # * Helpers for validation warnings and JSON persistence
