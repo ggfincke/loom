@@ -1,0 +1,148 @@
+# src/cli/helpers.py
+# Shared CLI helpers for validation, progress, I/O orchestration, and reporting
+
+from __future__ import annotations
+
+from contextlib import contextmanager
+from pathlib import Path
+from typing import Iterable
+
+from ..config.settings import LoomSettings
+from ..loom_io import (
+    read_docx,
+    number_lines,
+    read_text,
+    write_docx,
+    apply_edits_to_docx,
+    write_json_safe,
+    read_json_safe,
+    ensure_parent,
+)
+from ..loom_io.console import console
+from ..loom_io.types import Lines
+from ..core.pipeline import diff_lines
+
+
+# * Validate required CLI arguments & raise typer.BadParameter if missing
+def validate_required_args(**kwargs) -> None:
+    import typer
+
+    for _, (value, description) in kwargs.items():
+        if not value:
+            raise typer.BadParameter(
+                f"{description} is required (provide argument or set in config)"
+            )
+
+
+# * Context manager to build UI progress & yield (ui, progress, task)
+@contextmanager
+def setup_ui_with_progress(task_description: str, total: int):
+    from ..ui import UI
+
+    ui = UI()
+    with ui.build_progress() as progress:
+        ui.progress = progress
+        task = progress.add_task(task_description, total=total)
+        yield ui, progress, task
+
+
+# Read resume lines & job text w/ progress updates
+def load_resume_and_job(
+    resume_path: Path, job_path: Path, progress, task
+) -> tuple[Lines, str]:
+    progress.update(task, description="Reading resume document...")
+    lines = read_docx(resume_path)
+    progress.advance(task)
+
+    progress.update(task, description="Reading job description...")
+    job_text = read_text(job_path)
+    progress.advance(task)
+
+    return lines, job_text
+
+
+def load_sections(sections_path: Path | None, progress, task) -> str | None:
+    """Load sections JSON string if available."""
+    progress.update(task, description="Loading sections data...")
+    sections_json_str = None
+    if sections_path and Path(sections_path).exists():
+        sections_json_str = Path(sections_path).read_text(encoding="utf-8")
+    progress.advance(task)
+    return sections_json_str
+
+
+def load_edits_json(edits_path: Path, progress, task) -> dict:
+    """Load edits JSON object from file."""
+    progress.update(task, description="Loading edits JSON...")
+    edits_obj = read_json_safe(edits_path)
+    progress.advance(task)
+    return edits_obj
+
+
+def persist_edits_json(
+    edits: dict, out_path: Path, progress, task, description: str = "Writing edits JSON..."
+) -> None:
+    """Persist edits JSON to disk with progress update."""
+    progress.update(task, description=description)
+    write_json_safe(edits, out_path)
+    progress.advance(task)
+
+
+# * Report results consistently across commands to the console
+def report_result(result_type: str, settings: LoomSettings | None = None, **paths) -> None:
+    if result_type == "sections":
+        console.print(f"✅ Wrote sections to {paths['sections_path']}", style="green")
+    elif result_type == "edits":
+        console.print(f"✅ Wrote edits -> {paths['edits_path']}", style="green")
+    elif result_type == "tailor":
+        console.print("✅ Complete tailoring finished", style="green")
+        console.print(f"   Edits -> {paths['edits_path']}", style="dim")
+        console.print(f"   Resume -> {paths['output_path']}", style="dim")
+        if settings:
+            console.print(f"   Diff -> {settings.diff_path}", style="dim")
+    elif result_type == "apply":
+        format_msg = (
+            f" (formatting preserved via {paths.get('preserve_mode', 'unknown')} mode)"
+            if paths.get("preserve_formatting")
+            else " (plain text)"
+        )
+        console.print(
+            f"✅ Wrote DOCX{format_msg} -> {paths['output_path']}", style="green"
+        )
+        if settings:
+            console.print(f"✅ Diff -> {settings.diff_path}", style="dim")
+    elif result_type == "plan":
+        console.print(f"✅ Wrote edits -> {paths['edits_path']}", style="green")
+        if settings:
+            console.print(f"✅ Plan -> {settings.plan_path}", style="dim")
+
+
+# * Generate diff & write tailored resume output w/ formatting preservation
+def write_output_with_diff(
+    settings: LoomSettings,
+    resume_path: Path,
+    resume_lines: Lines,
+    new_lines: Lines,
+    output_path: Path,
+    preserve_formatting: bool,
+    preserve_mode: str,
+    progress,
+    task,
+) -> None:
+    # generate diff
+    progress.update(task, description="Generating diff...")
+    diff = diff_lines(resume_lines, new_lines)
+    ensure_parent(settings.diff_path)
+    settings.diff_path.write_text(diff, encoding="utf-8")
+    progress.advance(task)
+
+    # write output
+    progress.update(task, description="Writing tailored resume...")
+    if preserve_formatting:
+        apply_edits_to_docx(
+            resume_path, new_lines, output_path, preserve_mode=preserve_mode
+        )
+    else:
+        write_docx(new_lines, output_path)
+    progress.advance(task)
+

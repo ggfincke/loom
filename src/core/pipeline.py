@@ -6,14 +6,14 @@ from ..loom_io import number_lines
 import difflib
 import json
 from datetime import datetime, timezone
-from .exceptions import AIError, EditError
+from .exceptions import AIError, EditError, JSONParsingError
 from .constants import RiskLevel
 from ..ai.prompts import build_generate_prompt, build_edit_prompt
 from ..ai.clients.openai_client import run_generate
 
 from ..loom_io.types import Lines
 
-# generate edits.json for a resume based on job description & optional sections JSON
+# * Generate edits.json for resume using AI model w/ job description & sections context
 def generate_edits(resume_lines: Lines, job_text: str, sections_json: str | None, model: str) -> dict:
     
     # generate edits
@@ -23,17 +23,13 @@ def generate_edits(resume_lines: Lines, job_text: str, sections_json: str | None
     
     # handle JSON parsing errors
     if not result.success:
-        # return a special failure object that validation can detect
-        edits = {
-            "_json_parse_error": True,
-            "_error_details": result.error,
-            "_raw_response": result.raw_text,
-            "_json_text": result.json_text,
-            "version": 1, 
-            "meta": {},
-            "ops": []
-        }
-        return edits
+        # create a trimmed snippet from problematic JSON
+        lines = result.json_text.split('\n')
+        if len(lines) > 5:
+            snippet = '\n'.join(lines[:5]) + '\n...'
+        else:
+            snippet = result.json_text
+        raise JSONParsingError(f"AI generated invalid JSON:\n{snippet}\nError: {result.error}")
     
     edits = result.data
     
@@ -49,35 +45,24 @@ def generate_edits(resume_lines: Lines, job_text: str, sections_json: str | None
         
     return edits
 
-# generate corrected edits based on validation warnings
+# * Generate corrected edits based on validation warnings
 def generate_corrected_edits(current_edits_json: str, resume_lines: Lines, job_text: str, sections_json: str | None, model: str, validation_warnings: List[str]) -> dict:
     
-    # if file contains wrapper object, unwrap to original JSON text
-    try:
-        maybe = json.loads(current_edits_json)
-        if isinstance(maybe, dict) and maybe.get("_json_parse_error") and maybe.get("_json_text"):
-            current_edits_json = maybe["_json_text"]
-    except json.JSONDecodeError:
-        pass
     
     created_at = datetime.now(timezone.utc).isoformat()
     prompt = build_edit_prompt(job_text, number_lines(resume_lines), current_edits_json, validation_warnings, model, created_at, sections_json)
     
     result = run_generate(prompt, model)
     
-    # handle JSON parsing errors - don't crash, let validation system handle it
+    # handle JSON parsing errors
     if not result.success:
-        # return a special failure object that validation can detect
-        edits = {
-            "_json_parse_error": True,
-            "_error_details": result.error,
-            "_raw_response": result.raw_text,
-            "_json_text": result.json_text,
-            "version": 1,
-            "meta": {},
-            "ops": []
-        }
-        return edits
+        # create a trimmed snippet from problematic JSON
+        lines = result.json_text.split('\n')
+        if len(lines) > 5:
+            snippet = '\n'.join(lines[:5]) + '\n...'
+        else:
+            snippet = result.json_text
+        raise JSONParsingError(f"AI generated invalid JSON during correction:\n{snippet}\nError: {result.error}")
     
     edits = result.data
     
@@ -93,7 +78,7 @@ def generate_corrected_edits(current_edits_json: str, resume_lines: Lines, job_t
         
     return edits
 
-# apply edits to resume lines & return new lines dict 
+# * Apply edits to resume lines & return new lines dict
 def apply_edits(resume_lines: Lines, edits: dict) -> Lines:
     if edits.get("version") != 1:
         raise EditError(f"Unsupported edits version: {edits.get('version')}")
@@ -202,30 +187,16 @@ def apply_edits(resume_lines: Lines, edits: dict) -> Lines:
     
     return new_lines
 
-# generate unified diff b/w two line dicts
+# * Generate unified diff b/w two line dicts
 def diff_lines(old: Lines, new: Lines) -> str:
     old_list = [f"{i:>4} {old[i]}" for i in sorted(old.keys())]
     new_list = [f"{i:>4} {new[i]}" for i in sorted(new.keys())]
     
     return "".join(difflib.unified_diff(old_list, new_list, fromfile="old", tofile="new"))
 
-# validate edits.json structure & ops
+# * Validate edits.json structure & ops
 def validate_edits(edits: dict, resume_lines: Lines, risk: RiskLevel) -> List[str]:
     warnings = []
-    
-    # check for JSON parsing errors first
-    if edits.get("_json_parse_error"):
-        error_details = edits.get("_error_details", "Unknown JSON error")
-        raw_response = edits.get("_raw_response", "")
-        json_text = edits.get("_json_text", "")
-        
-        warnings.append(f"AI returned invalid JSON: {error_details}")
-        if raw_response:
-            warnings.append(f"Raw AI response (first 500 chars): {raw_response[:500]}...")
-        if json_text:
-            warnings.append(f"Extracted JSON (first 500 chars): {json_text[:500]}...")
-        warnings.append("You can manually edit the JSON file or retry with AI correction")
-        return warnings
     
     # check ops exists & is non-empty list
     if "ops" not in edits:

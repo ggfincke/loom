@@ -1,6 +1,6 @@
 # src/cli/__init__.py
 # CLI components module for Loom
 
-from .commands import app
+from .app import app
 
 __all__ = ["app"]
