@@ -16,9 +16,8 @@ from ..loom_io import write_json_safe, read_json_safe, ensure_parent
 from ..core.pipeline import generate_edits, generate_corrected_edits, apply_edits, validate_edits, diff_lines
 from ..core.exceptions import handle_loom_error, ConfigurationError, EditError
  
-from ..core.validation import validate
+from ..core.validation import handle_validation_error
 import json
-from typing import List, Callable, Optional, Any
 from .args import (
     ResumeArg, JobArg, ModelOpt, RiskOpt, OnErrorOpt,
     SectionsPathOpt, PlanOpt, PreserveFormattingOpt,
@@ -119,73 +118,6 @@ def _validate_required_args(**kwargs):
         if not value:
             raise typer.BadParameter(f"{description} is required (provide argument or set in config)")
 
-# handle validation errors w/ strategy pattern - moved from pipeline for separation of concerns
-def handle_validation_error(settings: LoomSettings,
-                           validate_fn: Callable[[], List[str]], 
-                           policy: ValidationPolicy,
-                           edit_fn: Optional[Callable[[List[str]], Any]] = None,
-                           reload_fn: Optional[Callable[[Any], None]] = None,
-                           ui=None) -> Any:
-    result = None
-    while True:
-        outcome = validate(validate_fn, policy, ui)
-
-        if outcome.success:
-            return result if result is not None else True
-
-        # treat either an explicit RETRY policy or a user 'r' choice as "retry"
-        want_retry = outcome.should_continue or policy == ValidationPolicy.RETRY
-
-        if want_retry:
-            if edit_fn is None:
-                if ui:
-                    ui.print("❌ Retry requested but no AI correction is available; switching to manual...")
-                # fall through to manual path below
-            else:
-                # generate corrected edits via LLM
-                warnings = validate_fn()
-                result = edit_fn(warnings)
-                settings.loom_dir.mkdir(exist_ok=True)
-                settings.edits_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
-                if ui:
-                    ui.print("✅ Generated corrected edits, re-validating...")
-                # loop & re-validate
-                continue
-
-        # manual path (either chosen by user in ASK mode or as fallback)
-        warnings = validate_fn()
-        if ui:
-            ui.print(f"⚠️  Validation errors found. Please edit {settings.edits_path} manually:")
-            for w in warnings:
-                ui.print(f"   {w}")
-
-            while True:
-                with ui.input_mode():
-                    ui.ask("Press Enter after editing edits.json to re-validate...")
-
-                try:
-                    text = settings.edits_path.read_text(encoding="utf-8")
-                    data = json.loads(text)
-                    if reload_fn is not None:
-                        reload_fn(data)
-                    if ui: ui.print("✅ File edited, re-validating...")
-                    break
-                except json.JSONDecodeError as e:
-                    # create a trimmed snippet for the error
-                    try:
-                        text = settings.edits_path.read_text(encoding="utf-8")
-                        lines = text.split('\n')
-                        line_num = e.lineno - 1
-                        snippet_start = max(0, line_num - 1)
-                        snippet_end = min(len(lines), line_num + 2)
-                        snippet = '\n'.join(f"{i+snippet_start+1}: {lines[i+snippet_start]}" for i in range(snippet_end - snippet_start))
-                        if ui: ui.print(f"❌ JSON error in edits.json at line {e.lineno}:\n{snippet}\n{e.msg}")
-                    except:
-                        if ui: ui.print(f"❌ JSON error in edits.json: {e}")
-                    continue
-                except FileNotFoundError as e:
-                    if ui: ui.print(f"❌ File not found: {e}")
-                    continue
 
 # * Core processing primitives
 
