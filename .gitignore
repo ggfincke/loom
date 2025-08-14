@@ -43,3 +43,8 @@ Thumbs.db
 # ========================
 claude.md
 .claude/
+
+# ========================
+# Local Docs (ignored)
+# ========================
+AGENTS.md
