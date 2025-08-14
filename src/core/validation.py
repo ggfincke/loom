@@ -25,6 +25,7 @@ class ValidationStrategy(ABC):
 # interactive strategy that prompts user for choice
 class AskStrategy(ValidationStrategy):
     def handle(self, warnings: List[str], ui) -> ValidationOutcome:
+
         if not sys.stdin.isatty():
             error_warnings = ["Validation failed (ask not possible - non-interactive):"] + warnings
             raise ValidationError(error_warnings, recoverable=False)
@@ -38,9 +39,9 @@ class AskStrategy(ValidationStrategy):
         while True:
             ui.print()
             with ui.input_mode():
-                choice = ui.ask("Choose: [bold white](f)[/]ail-soft, [bold white](h)[/]ard-fail, [bold white](m)[/]anual, [bold white](r)[/]etry: ").lower().strip()
+                choice = ui.ask("Choose: [bold white](f)[/]soft-fail, [bold white](h)[/]ard-fail, [bold white](m)[/]anual, [bold white](r)[/]etry: ").lower().strip()
             
-            if choice in ['f', 'fail', 'fail:soft']:
+            if choice in ['s', 'soft', 'fail:soft']:
                 return FailSoftStrategy().handle(warnings, ui)
             elif choice in ['h', 'hard', 'fail:hard']:
                 return FailHardStrategy().handle(warnings, ui)
