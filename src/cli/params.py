@@ -1,10 +1,12 @@
-# src/cli/args.py
-# CLI argument definitions and normalization helpers
+# src/cli/params.py
+# CLI argument definitions and normalization helpers (renamed from args.py)
+
+from __future__ import annotations
 
 import typer
 from ..core.constants import RiskLevel, ValidationPolicy
 
-# Single normalization point for CLI string inputs -> Enums
+
 def _normalize_risk(value: str | None) -> RiskLevel:
     if value is None:
         return RiskLevel.MED
@@ -42,7 +44,10 @@ def _normalize_validation_policy(value: str | None) -> ValidationPolicy:
     try:
         return mapping[v]
     except KeyError:
-        raise typer.BadParameter("Invalid on-error policy. Choose: ask|retry|manual|fail|fail:soft|fail:hard")
+        raise typer.BadParameter(
+            "Invalid on-error policy. Choose: ask|retry|manual|fail|fail:soft|fail:hard"
+        )
+
 
 def ResumeArg():
     return typer.Argument(
@@ -55,6 +60,7 @@ def ResumeArg():
         resolve_path=True,
     )
 
+
 def JobArg():
     return typer.Argument(
         None,
@@ -66,6 +72,7 @@ def JobArg():
         resolve_path=True,
     )
 
+
 def ModelOpt():
     return typer.Option(
         None,
@@ -73,6 +80,7 @@ def ModelOpt():
         "-m",
         help="OpenAI model name",
     )
+
 
 def RiskOpt():
     return typer.Option(
@@ -82,6 +90,7 @@ def RiskOpt():
         help="Risk level: low|med|high|strict",
     )
 
+
 def OnErrorOpt():
     return typer.Option(
         None,
@@ -90,15 +99,18 @@ def OnErrorOpt():
         help="ask|retry|manual|fail|fail:soft|fail:hard",
     )
 
+
 def ConfigKeyArg():
     return typer.Argument(
         help="Configuration setting name",
     )
 
+
 def ConfigValueArg():
     return typer.Argument(
         help="New value to assign to the setting",
     )
+
 
 def EditsJsonOpt():
     return typer.Option(
@@ -109,6 +121,7 @@ def EditsJsonOpt():
         resolve_path=True,
     )
 
+
 def SectionsPathOpt():
     return typer.Option(
         None,
@@ -118,12 +131,14 @@ def SectionsPathOpt():
         resolve_path=True,
     )
 
+
 def PlanOpt():
     return typer.Option(
         None,
         "--plan",
         help="Plan mode: no value=plan only, =N for max N steps",
     )
+
 
 def PreserveFormattingOpt():
     return typer.Option(
@@ -133,13 +148,18 @@ def PreserveFormattingOpt():
         show_default=True,
     )
 
+
 def PreserveModeOpt():
     return typer.Option(
         "in_place",
         "--preserve-mode",
-        help="How to preserve formatting: 'in_place' (edit original, best preservation) or 'rebuild' (create new doc, may lose some formatting)",
+        help=(
+            "How to preserve formatting: 'in_place' (edit original, best preservation) or "
+            "'rebuild' (create new doc, may lose some formatting)"
+        ),
         show_default=True,
     )
+
 
 def OutJsonOpt():
     return typer.Option(
@@ -150,10 +170,13 @@ def OutJsonOpt():
         resolve_path=True,
     )
 
+
 def OutputResumeOpt():
     return typer.Option(
         None,
-        "--output-resume", "-r",
+        "--output-resume",
+        "-r",
         help="Path to write the tailored resume .docx",
         resolve_path=True,
     )
+

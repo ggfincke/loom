@@ -13,7 +13,7 @@ from ..ai.clients.openai_client import run_generate
 
 from ..loom_io.types import Lines
 
-# generate edits.json for a resume based on job description & optional sections JSON
+# * Generate edits.json for resume using AI model w/ job description & sections context
 def generate_edits(resume_lines: Lines, job_text: str, sections_json: str | None, model: str) -> dict:
     
     # generate edits
@@ -45,7 +45,7 @@ def generate_edits(resume_lines: Lines, job_text: str, sections_json: str | None
         
     return edits
 
-# generate corrected edits based on validation warnings
+# * Generate corrected edits based on validation warnings
 def generate_corrected_edits(current_edits_json: str, resume_lines: Lines, job_text: str, sections_json: str | None, model: str, validation_warnings: List[str]) -> dict:
     
     
@@ -78,7 +78,7 @@ def generate_corrected_edits(current_edits_json: str, resume_lines: Lines, job_t
         
     return edits
 
-# apply edits to resume lines & return new lines dict 
+# * Apply edits to resume lines & return new lines dict
 def apply_edits(resume_lines: Lines, edits: dict) -> Lines:
     if edits.get("version") != 1:
         raise EditError(f"Unsupported edits version: {edits.get('version')}")
@@ -187,14 +187,14 @@ def apply_edits(resume_lines: Lines, edits: dict) -> Lines:
     
     return new_lines
 
-# generate unified diff b/w two line dicts
+# * Generate unified diff b/w two line dicts
 def diff_lines(old: Lines, new: Lines) -> str:
     old_list = [f"{i:>4} {old[i]}" for i in sorted(old.keys())]
     new_list = [f"{i:>4} {new[i]}" for i in sorted(new.keys())]
     
     return "".join(difflib.unified_diff(old_list, new_list, fromfile="old", tofile="new"))
 
-# validate edits.json structure & ops
+# * Validate edits.json structure & ops
 def validate_edits(edits: dict, resume_lines: Lines, risk: RiskLevel) -> List[str]:
     warnings = []
     
