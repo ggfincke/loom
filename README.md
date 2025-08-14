@@ -144,7 +144,26 @@ loom --help
 
 ## Configuration Management
 
-Loom reads defaults from `~/.loom/config.json`. Create or edit this file to avoid repeating common options.
+Loom reads defaults from `~/.loom/config.json`. You can manage settings either via the CLI or by editing the JSON directly.
+
+### Using the CLI
+
+```bash
+# Show config file location
+loom config path
+
+# List all settings
+loom config list
+
+# Get or set a specific setting
+loom config get model
+loom config set model gpt-5-mini
+
+# Reset to defaults
+loom config reset
+```
+
+### Editing JSON Directly
 
 Example `~/.loom/config.json`:
 ```json

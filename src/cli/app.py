@@ -13,7 +13,6 @@ from ..ui.ascii_art import show_loom_art
 
 app = typer.Typer()
 
-
 # * Load settings & show banner + help when no subcommand is used
 @app.callback(invoke_without_command=True)
 def main_callback(ctx: typer.Context) -> None:
@@ -25,11 +24,10 @@ def main_callback(ctx: typer.Context) -> None:
         ctx.exit()
 
 
-# Import command modules to attach their @app.command definitions
-# This import side-effect registers commands on the global `app` above.
+# import command modules to attach their @app.command definitions - registers commands on global 'app' above
 from .commands import sectionize as _sectionize  # noqa: F401
 from .commands import generate as _generate  # noqa: F401
 from .commands import apply as _apply  # noqa: F401
 from .commands import tailor as _tailor  # noqa: F401
 from .commands import plan as _plan  # noqa: F401
-
+from .commands import config as _config  # noqa: F401
