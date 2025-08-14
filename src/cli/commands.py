@@ -118,6 +118,7 @@ def handle_validation_error(settings: LoomSettings,
                            validate_fn: Callable[[], List[str]], 
                            policy: ValidationPolicy,
                            edit_fn: Optional[Callable[[List[str]], Any]] = None,
+                           reload_fn: Optional[Callable[[Any], None]] = None,
                            ui=None) -> Any:
     result = None
     while True:
@@ -157,11 +158,13 @@ def handle_validation_error(settings: LoomSettings,
                     ui.ask("Press Enter after editing edits.json to re-validate...")
 
                 try:
-                    json.loads(settings.edits_path.read_text(encoding="utf-8"))
-                    ui.print("✅ File edited, re-validating...")
+                    data = json.loads(settings.edits_path.read_text(encoding="utf-8"))
+                    if reload_fn is not None:
+                        reload_fn(data)
+                    if ui: ui.print("✅ File edited, re-validating...")
                     break
                 except (json.JSONDecodeError, FileNotFoundError) as e:
-                    ui.print(f"❌ Error reading edits.json: {e}")
+                    if ui: ui.print(f"❌ Error reading edits.json: {e}")
                     continue
 
 # * Core processing primitives
@@ -203,12 +206,16 @@ def _generate_edits_core(settings: LoomSettings, resume_lines: Lines, job_text: 
         current_edits[0] = new_edits
         return new_edits
     
+    def reload_from_disk(data):
+        current_edits[0] = data
+    
     # validate
     result = handle_validation_error(
         settings,
         validate_fn=validate_current,
         policy=policy,
         edit_fn=edit_edits_and_update,
+        reload_fn=reload_from_disk,
         ui=ui,
     )
     
@@ -218,17 +225,32 @@ def _generate_edits_core(settings: LoomSettings, resume_lines: Lines, job_text: 
     elif edits is None:
         raise EditError("Failed to generate valid edits")
     
-    return edits
+    return current_edits[0]
 
 # apply edits using pipeline
 def _apply_edits_core(settings: LoomSettings, resume_lines: Lines, edits: dict, risk: RiskLevel, policy: ValidationPolicy, ui) -> Lines:
     pipeline = Pipeline(settings)
     
+    # use mutable container for edits to support reload functionality
+    current = [edits]
+    
+    def validate_current():
+        return pipeline.validate_edits(current[0], resume_lines, risk)
+    
+    def reload_from_disk(data):
+        current[0] = data
+    
     # pre-apply validation
-    handle_validation_error(settings, lambda: pipeline.validate_edits(edits, resume_lines, risk), policy=policy, ui=ui)
+    handle_validation_error(
+        settings,
+        validate_fn=validate_current,
+        policy=policy,
+        reload_fn=reload_from_disk,
+        ui=ui
+    )
     
     # apply edits
-    return pipeline.apply_edits(resume_lines, edits)
+    return pipeline.apply_edits(resume_lines, current[0])
 
 
 # * UI and progress helpers
