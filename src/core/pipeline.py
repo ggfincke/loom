@@ -428,28 +428,3 @@ def _get_op_line(op: dict) -> int:
         return 0
 
 
-# pipeline class with dependency injection
-class Pipeline:
-    # main processing pipeline with injected settings dependency
-    def __init__(self, settings: LoomSettings):
-        self.settings = settings
-    
-    # generate edits.json for a resume based on job description & optional sections JSON
-    def generate_edits(self, resume_lines: Lines, job_text: str, sections_json: str | None, model: str) -> dict:
-        return generate_edits(resume_lines, job_text, sections_json, model)
-    
-    # generate corrected edits based on validation warnings
-    def generate_corrected_edits(self, resume_lines: Lines, job_text: str, sections_json: str | None, model: str, validation_warnings: List[str]) -> dict:
-        return generate_corrected_edits(self.settings, resume_lines, job_text, sections_json, model, validation_warnings)
-    
-    # apply edits to resume lines & return new lines dict
-    def apply_edits(self, resume_lines: Lines, edits: dict) -> Lines:
-        return apply_edits(resume_lines, edits)
-    
-    # generate unified diff between two line dicts
-    def diff_lines(self, old: Lines, new: Lines) -> str:
-        return diff_lines(old, new)
-    
-    # validate edits.json structure & operations
-    def validate_edits(self, edits: dict, resume_lines: Lines, risk: RiskLevel) -> List[str]:
-        return validate_edits(edits, resume_lines, risk)

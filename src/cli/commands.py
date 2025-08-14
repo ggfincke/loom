@@ -13,7 +13,7 @@ from ..ai.prompts import build_sectionizer_prompt
 from ..ai.clients.openai_client import run_generate
 from ..config.settings import settings_manager
 from ..loom_io import write_json_safe, read_json_safe, ensure_parent
-from ..core.pipeline import Pipeline
+from ..core.pipeline import generate_edits, generate_corrected_edits, apply_edits, validate_edits, diff_lines
 from ..core.exceptions import handle_loom_error, ConfigurationError, EditError
 from ..core.constants import normalize_risk, normalize_validation_policy
 from ..core.validation import validate
@@ -171,10 +171,8 @@ def handle_validation_error(settings: LoomSettings,
 
 # generate edits using pipeline
 def _generate_edits_core(settings: LoomSettings, resume_lines: Lines, job_text: str, sections_json: str | None, model: str, risk: RiskLevel, policy: ValidationPolicy, ui) -> dict:
-    pipeline = Pipeline(settings)
-    
     # generate initial edits
-    edits = pipeline.generate_edits(
+    edits = generate_edits(
         resume_lines=resume_lines,
         job_text=job_text, 
         sections_json=sections_json,
@@ -197,11 +195,11 @@ def _generate_edits_core(settings: LoomSettings, resume_lines: Lines, job_text: 
     current_edits = [edits]
     
     def validate_current():
-        return pipeline.validate_edits(current_edits[0], resume_lines, risk) if current_edits[0] is not None else ["Edits not initialized"]
+        return validate_edits(current_edits[0], resume_lines, risk) if current_edits[0] is not None else ["Edits not initialized"]
     
     def edit_edits_and_update(validation_warnings):
         # call the pipeline to generate corrected edits
-        new_edits = pipeline.generate_corrected_edits(resume_lines, job_text, sections_json, model, validation_warnings)
+        new_edits = generate_corrected_edits(settings, resume_lines, job_text, sections_json, model, validation_warnings)
         # update the current edits being validated
         current_edits[0] = new_edits
         return new_edits
@@ -229,13 +227,11 @@ def _generate_edits_core(settings: LoomSettings, resume_lines: Lines, job_text: 
 
 # apply edits using pipeline
 def _apply_edits_core(settings: LoomSettings, resume_lines: Lines, edits: dict, risk: RiskLevel, policy: ValidationPolicy, ui) -> Lines:
-    pipeline = Pipeline(settings)
-    
     # use mutable container for edits to support reload functionality
     current = [edits]
     
     def validate_current():
-        return pipeline.validate_edits(current[0], resume_lines, risk)
+        return validate_edits(current[0], resume_lines, risk)
     
     def reload_from_disk(data):
         current[0] = data
@@ -250,7 +246,7 @@ def _apply_edits_core(settings: LoomSettings, resume_lines: Lines, edits: dict, 
     )
     
     # apply edits
-    return pipeline.apply_edits(resume_lines, current[0])
+    return apply_edits(resume_lines, current[0])
 
 
 # * UI and progress helpers
@@ -275,8 +271,7 @@ def _persist_edits_json(edits, out_path: Path, progress, task, description: str 
 def _write_output_with_diff(settings: LoomSettings, resume_path: Path, resume_lines: Lines, new_lines: Lines, output_path: Path, preserve_formatting: bool, preserve_mode: str, progress, task) -> None:
     # generate diff
     progress.update(task, description="Generating diff...")
-    pipeline = Pipeline(settings)
-    diff = pipeline.diff_lines(resume_lines, new_lines)
+    diff = diff_lines(resume_lines, new_lines)
     ensure_parent(settings.diff_path)
     settings.diff_path.write_text(diff, encoding="utf-8")
     progress.advance(task)
