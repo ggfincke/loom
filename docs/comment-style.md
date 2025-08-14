@@ -23,13 +23,14 @@ Uses selective semantic tagging for important information:
 # * Important function description (capitalize first letter after *)
 def important_function():
 
-# ! Deprecated method, do not use
+# ! Deprecated method, do not use (we shouldn't have these anyways)
 def old_method():
 
 # ? Should this method be exposed in the public API?
 def questionable_method():
 
 # todo refactor this method so that it conforms to the API
+# or todo for another feature/fix/expansion down the line
 def needs_work():
 ```
 

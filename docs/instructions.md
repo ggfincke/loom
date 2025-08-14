@@ -29,42 +29,32 @@ This document provides comprehensive usage instructions for the Loom resume tail
 
 ## Configuration Management
 
-Loom supports persistent configuration to streamline your workflow. All settings are stored in `~/.loom/config.json`.
+Loom supports persistent configuration to streamline your workflow. Settings are read from `~/.loom/config.json`.
 
 ### Initial Configuration
 
-Set up your default working directories:
-```bash
-# Set data directory (where you keep resumes and job descriptions)
-loom config set data_dir /path/to/your/data
+Create or edit `~/.loom/config.json` to set defaults:
 
-# Set output directory (where tailored resumes will be saved)
-loom config set output_dir /path/to/your/output
-
-# Set default model (optional)
-loom config set model gpt-4o
+```json
+{
+  "data_dir": "/path/to/your/data",
+  "output_dir": "/path/to/your/output",
+  "resume_filename": "my_resume.docx",
+  "job_filename": "job_posting.txt",
+  "sections_filename": "sections.json",
+  "edits_filename": "edits.json",
+  "model": "gpt-4o",
+  "temperature": 0.2,
+  "base_dir": ".loom"
+}
 ```
 
-Set default filenames to avoid repetitive typing:
+With defaults set, you can omit many CLI arguments:
 ```bash
-loom config set resume_filename my_resume.docx
-loom config set job_filename job_posting.txt
-```
-
-### Configuration Commands
-
-```bash
-# View all current settings
-loom config list
-
-# Get a specific setting
-loom config get model
-
-# Reset all settings to defaults
-loom config reset
-
-# Show config file location
-loom config path
+loom sectionize
+loom generate
+loom apply
+loom tailor
 ```
 
 ## Core Workflows
@@ -75,7 +65,7 @@ For most users, the `tailor` command provides the complete workflow:
 
 ```bash
 # With explicit paths
-loom tailor job_description.txt resume.docx --out-docx tailored_resume.docx
+loom tailor job_description.txt resume.docx --output-resume tailored_resume.docx
 
 # With configured defaults (recommended)
 loom tailor
@@ -112,7 +102,7 @@ loom generate
 #### Step 3: Apply Edits
 ```bash
 # Apply edits to create tailored resume
-loom apply resume.docx edits.json --out-docx tailored_resume.docx
+loom apply resume.docx edits.json --output-resume tailored_resume.docx
 
 # With defaults configured
 loom apply
@@ -184,16 +174,9 @@ loom apply [RESUME_PATH] [EDITS_PATH] [OPTIONS]
 - `--policy TEXT`: Error handling policy
 - `--risk TEXT`: Validation risk level
 
-### `loom config`
+### Configuration
 
-Manage configuration settings.
-
-**Subcommands:**
-- `loom config list`: Show all settings
-- `loom config get KEY`: Get specific setting
-- `loom config set KEY VALUE`: Set a setting
-- `loom config reset`: Reset to defaults
-- `loom config path`: Show config file location
+Loom reads defaults from `~/.loom/config.json`. Edit this file to change paths, filenames, and model defaults.
 
 ## Advanced Usage
 
@@ -318,7 +301,7 @@ loom tailor job.txt resume.docx --model gpt-3.5-turbo
 
 - Use `loom --help` for general help
 - Use `loom [command] --help` for command-specific help
-- Check the configuration with `loom config list`
+- Check your JSON config at `~/.loom/config.json`
 - Review generated files (sections.json, edits.json) to debug issues
 
 ## Next Steps

@@ -10,27 +10,43 @@ Loom is a Python CLI application built with Typer that uses OpenAI's Responses A
 
 ```
 src/
-├── main.py         # Entry point (imports cli.app)
-├── cli.py          # Main CLI application with Typer commands  
-├── cli_args.py     # Annotated argument/option type definitions
-├── pipeline.py     # Core processing pipeline and edit operations
-├── document.py     # Document I/O (DOCX reading/writing, line numbering)
-├── openai_client.py # OpenAI API integration and response handling
-├── prompts.py      # Prompt engineering for AI interactions
-└── settings.py     # Configuration management and persistence
+├── main.py                # Entry point (delegates to cli.app)
+├── ai/
+│   ├── clients/openai_client.py  # OpenAI API integration and response handling
+│   ├── prompts.py         # Prompt engineering for AI interactions
+│   └── types.py           # AI result types
+├── cli/
+│   ├── app.py             # Typer app + command registration
+│   ├── commands/          # Command modules (sectionize/generate/apply/tailor/plan)
+│   ├── helpers.py         # CLI-layer orchestration + I/O glue
+│   └── params.py          # Argument and option definitions
+├── config/
+│   └── settings.py        # Settings manager (~/.loom/config.json)
+├── core/
+│   ├── pipeline.py        # Core processing pipeline and edit operations
+│   ├── validation.py      # Validation gates and helpers
+│   ├── exceptions.py      # Custom exception classes
+│   └── constants.py       # Enums and constants
+├── loom_io/
+│   ├── documents.py       # DOCX reading/writing, line numbering
+│   ├── console.py         # Console output helpers
+│   ├── generics.py        # Generic file helpers (json/text)
+│   └── types.py           # I/O type definitions
+└── ui/
+    ├── ascii_art.py       # Banner display
+    └── ui.py              # Progress/input utilities
 ```
 
 ## Core Architecture
 
-### 1. CLI Layer (`cli.py`)
-The application uses Typer for command-line interface with Rich for progress display. Main commands:
+### 1. CLI Layer (`src/cli/app.py` and `src/cli/commands/*`)
+The application uses Typer for command-line interface with Rich for progress display. Commands:
 
-- **`sectionize`**: Parses resume into structured sections
-- **`tailor`**: Generates line-by-line edits for job alignment  
-- **`generate`**: Creates edits JSON from job description + resume
-- **`apply`**: Applies existing edits to produce tailored resume
-- **`plan`**: Planning-based edit generation (stub implementation)
-- **`config`**: Settings management subcommands
+- `sectionize`: Parses resume into structured sections
+- `generate`: Creates edits JSON from job description + resume
+- `apply`: Applies existing edits to produce tailored resume
+- `tailor`: End-to-end: generate+apply to produce tailored resume
+- `plan`: Planning-based edit generation
 
 Each command follows a consistent pattern:
 1. Load settings and validate inputs
@@ -66,7 +82,7 @@ The core processing engine that handles:
 - Risk-based validation levels (low/med/high/strict)
 - Warning generation and policy enforcement
 
-### 3. Document Layer (`document.py`)
+### 3. Document Layer (`src/loom_io/documents.py`)
 Handles all document I/O operations:
 
 - **DOCX Reading**: Extracts text from Word documents into line-numbered dict
@@ -76,7 +92,7 @@ Handles all document I/O operations:
 
 Key data structure: `Lines = Dict[int, str]` - maps line numbers to text content.
 
-### 4. AI Integration (`openai_client.py`, `prompts.py`)
+### 4. AI Integration (`src/ai/clients/openai_client.py`, `src/ai/prompts.py`)
 
 **OpenAI Client**:
 - Loads environment variables and API keys
@@ -89,7 +105,7 @@ Key data structure: `Lines = Dict[int, str]` - maps line numbers to text content
 - **Sectionizer Prompt**: Analyzes resume structure, identifies sections with confidence scores, detects subsections (experience items, projects, education)
 - **Generate Prompt**: Comprehensive editing instructions with strict policies on truthfulness, embellishment bounds, job alignment, and safety checks
 
-### 5. Configuration (`settings.py`)
+### 5. Configuration (`src/config/settings.py`)
 Manages persistent user preferences:
 
 - **LoomSettings dataclass**: Default paths, filenames, model selection
@@ -97,7 +113,7 @@ Manages persistent user preferences:
 - **Property methods**: Dynamic path construction from base settings
 - **CRUD operations**: get, set, reset, list settings
 
-### 6. Type System (`cli_args.py`)
+### 6. CLI Types (`src/cli/params.py`)
 Uses Python typing with Typer annotations for:
 - Argument validation (file existence, readability)
 - Path resolution and type checking

@@ -27,32 +27,44 @@ OPENAI_API_KEY=your_api_key_here
 
 ## Architecture
 
-Loom is built as a CLI tool using Typer with a clean, modular package structure:
+Loom is a Typer-based CLI organized into focused packages. High-level layout:
 
 ```
 src/
-├── ai/                     # 🧠 AI functionality
-│   ├── clients/            # OpenAI API integration
-│   │   └── openai_client.py
-│   ├── prompts.py          # Prompt templates
-│   ├── test_prompts.py     # Test prompts for validation
-│   └── types.py            # AI-related type definitions
-├── cli/                    # 💻 Command-line interface
-│   ├── commands.py         # All CLI commands and handlers
-│   ├── args.py             # Argument definitions
-│   ├── art.py              # Banner display functionality
-│   └── banner.txt          # ASCII art banner
-├── config/                 # ⚙️ Configuration management
-│   └── settings.py         # Settings, defaults, and config handling
-├── core/                   # 🎯 Core business logic
-│   ├── pipeline.py         # Main processing pipeline
-│   └── exceptions.py       # Custom exception classes
-└── loom_io/               # 📁 I/O operations
-    ├── documents.py        # DOCX file processing
-    ├── generics.py         # Generic file operations
-    ├── console.py          # Console output handling
-    ├── ui.py               # User interface components
-    └── types.py            # I/O type definitions
+├── ai/                      # 🧠 AI prompts, types, clients
+│   ├── clients/
+│   │   └── openai_client.py # OpenAI Responses API integration
+│   ├── prompts.py           # Prompt templates (sectionize, edits, corrections)
+│   ├── test_prompts.py      # Prompt sanity helpers
+│   └── types.py             # AI result types
+├── cli/                     # 💻 CLI entry + commands
+│   ├── app.py               # Typer app and command registration
+│   ├── helpers.py           # Shared CLI helpers (I/O glue, reporting)
+│   ├── logic.py             # CLI orchestration around core pipeline
+│   ├── params.py            # Argument/option definitions
+│   ├── banner.txt           # ASCII art
+│   └── commands/
+│       ├── sectionize.py
+│       ├── generate.py
+│       ├── apply.py
+│       ├── tailor.py
+│       └── plan.py
+├── config/                  # ⚙️ Settings & persistence
+│   └── settings.py          # Settings manager (~/.loom/config.json)
+├── core/                    # 🎯 Pure business logic (no I/O)
+│   ├── pipeline.py          # Edit generation/application
+│   ├── validation.py        # Validation gates and helpers
+│   ├── exceptions.py        # Domain exceptions
+│   └── constants.py         # Enums and constants
+├── loom_io/                 # 📁 File & console I/O
+│   ├── documents.py         # DOCX read/write + line maps
+│   ├── generics.py          # Generic fs/json helpers
+│   ├── console.py           # Rich console utilities
+│   └── types.py             # I/O-related types
+└── ui/                      # ✨ Progress, input, timers, art
+    ├── ascii_art.py
+    ├── pausable_timer.py
+    └── ui.py
 ```
 
 ## Key Features
@@ -87,7 +99,10 @@ This command:
 Generate targeted edits for your resume based on a job description:
 
 ```bash
-loom tailor job_description.txt path/to/resume.docx --sections-path sections.json --out-json edits.json
+loom tailor job_description.txt path/to/resume.docx \
+  --sections-path sections.json \
+  --edits-json edits.json \
+  --output-resume tailored_resume.docx
 ```
 
 This command:
@@ -118,41 +133,32 @@ View all available commands and options:
 loom --help
 ```
 
+## Quick Build & Smoke Tests
+
+- Create env: `conda create -n loom python=3.12 && conda activate loom`
+- Install deps: `pip install -r requirements.txt`
+- Install CLI (editable): `pip install -e .` (provides `loom` command)
+- Smoke tests:
+  - Sectionize: `loom sectionize path/to/resume.docx --out-json sections.json`
+  - Tailor: `loom tailor job.txt path/to/resume.docx --sections-path sections.json --edits-json edits.json`
+
 ## Configuration Management
 
-Loom supports persistent configuration settings to avoid repeating common options. Settings are stored in `~/.loom/config.json`.
+Loom reads defaults from `~/.loom/config.json`. Create or edit this file to avoid repeating common options.
 
-### View current settings
-```bash
-loom config list
-```
-
-### Set default directories and model
-```bash
-loom config set data_dir /path/to/your/data
-loom config set output_dir /path/to/your/output
-loom config set model gpt-4o
-```
-
-### Set default filenames
-```bash
-loom config set resume_filename my_resume.docx
-loom config set job_filename job_posting.txt
-```
-
-### Get a specific setting
-```bash
-loom config get model
-```
-
-### Reset all settings to defaults
-```bash
-loom config reset
-```
-
-### Show config file location
-```bash
-loom config path
+Example `~/.loom/config.json`:
+```json
+{
+  "data_dir": "data",
+  "output_dir": "output",
+  "resume_filename": "resume.docx",
+  "job_filename": "job.txt",
+  "sections_filename": "sections.json",
+  "edits_filename": "edits.json",
+  "base_dir": ".loom",
+  "model": "gpt-4o",
+  "temperature": 0.2
+}
 ```
 
 Once configured, commands can be run with fewer arguments:
@@ -161,6 +167,12 @@ Once configured, commands can be run with fewer arguments:
 loom sectionize
 loom tailor
 ```
+
+## Repository & Local Files
+
+- Source lives under `src/`; generated artifacts go to `output/` (git-ignored).
+- Sample inputs under `data/` for experimentation.
+- Local config stored at `~/.loom/config.json`; environment variables via `.env`.
 
 ## Uninstallation
 
