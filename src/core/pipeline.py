@@ -1,216 +1,109 @@
 # src/core/pipeline.py
 # Core processing pipeline for edit generation, validation, & application
 
-from typing import List, Callable, Optional, Any
-from dataclasses import dataclass
+from typing import List
 from ..loom_io import number_lines
 import difflib
-import sys
 import json
 from datetime import datetime, timezone
 from ..config.settings import LoomSettings
-from .exceptions import ValidationError, AIError, EditError
-from ..loom_io.console import console
-from .constants import ValidationPolicy, RiskLevel
-from .validation import validate
+from .exceptions import AIError, EditError
+from .constants import RiskLevel
+from ..ai.prompts import build_generate_prompt, build_edit_prompt
+from ..ai.clients.openai_client import run_generate
 
 from ..loom_io.types import Lines
 
-
-# handle validation errors w/ strategy pattern
-def handle_validation_error(settings: LoomSettings,
-                           validate_fn: Callable[[], List[str]], 
-                           policy: ValidationPolicy,
-                           edit_fn: Optional[Callable[[List[str]], Any]] = None,
-                           ui=None) -> Any:
-    result = None
-    while True:
-        outcome = validate(validate_fn, policy, ui)
-
-        if outcome.success:
-            return result if result is not None else True
-
-        # treat either an explicit RETRY policy or a user 'r' choice as "retry"
-        want_retry = outcome.should_continue or policy == ValidationPolicy.RETRY
-
-        if want_retry:
-            if edit_fn is None:
-                if ui:
-                    ui.print("❌ Retry requested but no AI correction is available; switching to manual...")
-                # fall through to manual path below
-            else:
-                # generate corrected edits via LLM
-                warnings = validate_fn()
-                result = edit_fn(warnings)
-                settings.loom_dir.mkdir(exist_ok=True)
-                settings.edits_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
-                if ui:
-                    ui.print("✅ Generated corrected edits, re-validating...")
-                # loop & re-validate
-                continue
-
-        # manual path (either chosen by user in ASK mode or as fallback)
-        warnings = validate_fn()
-        if ui:
-            ui.print(f"⚠️  Validation errors found. Please edit {settings.edits_path} manually:")
-            for w in warnings:
-                ui.print(f"   {w}")
-
-            while True:
-                with ui.input_mode():
-                    ui.ask("Press Enter after editing edits.json to re-validate...")
-
-                try:
-                    json.loads(settings.edits_path.read_text(encoding="utf-8"))
-                    ui.print("✅ File edited, re-validating...")
-                    break
-                except (json.JSONDecodeError, FileNotFoundError) as e:
-                    ui.print(f"❌ Error reading edits.json: {e}")
-                    continue
-
 # generate edits.json for a resume based on job description & optional sections JSON
-def generate_edits(settings: LoomSettings, resume_lines: Lines, job_text: str, sections_json: str | None, model: str, risk: RiskLevel = RiskLevel.MED, on_error: ValidationPolicy = ValidationPolicy.ASK, ui=None) -> dict:
-    from ..ai.prompts import build_generate_prompt
-    from ..ai.clients.openai_client import run_generate
+def generate_edits(resume_lines: Lines, job_text: str, sections_json: str | None, model: str) -> dict:
     
-    # edits
-    edits: Optional[dict] = None
+    # generate edits
+    created_at = datetime.now(timezone.utc).isoformat()
+    prompt = build_generate_prompt(job_text, number_lines(resume_lines), model, created_at, sections_json)
+    result = run_generate(prompt, model)
     
-    def create_edits():
-        nonlocal edits
-        created_at = datetime.now(timezone.utc).isoformat()
-        prompt = build_generate_prompt(job_text, number_lines(resume_lines), model, created_at, sections_json)
-        result = run_generate(prompt, model)
-        
-        # handle JSON parsing errors
-        if not result.success:
-            # return a special failure object that validation can detect
-            edits = {
-                "_json_parse_error": True,
-                "_error_details": result.error,
-                "_raw_response": result.raw_text,
-                "_json_text": result.json_text,
-                "version": 1, 
-                "meta": {},
-                "ops": []
-            }
-            return edits
-        
-        edits = result.data
-        
-        # validate response structure
-        if not isinstance(edits, dict):
-            raise AIError("AI response is not a valid JSON object")
-        
-        if edits.get("version") != 1:
-            raise AIError(f"Invalid or missing version in AI response: {edits.get('version')}")
-        
-        if "meta" not in edits or "ops" not in edits:
-            raise AIError("AI response missing required 'meta' or 'ops' fields")
-            
+    # handle JSON parsing errors
+    if not result.success:
+        # return a special failure object that validation can detect
+        edits = {
+            "_json_parse_error": True,
+            "_error_details": result.error,
+            "_raw_response": result.raw_text,
+            "_json_text": result.json_text,
+            "version": 1, 
+            "meta": {},
+            "ops": []
+        }
         return edits
     
-    def edit_edits(validation_warnings):
-        # read current edits from file
-        if settings.edits_path.exists():
-            current_edits_json = settings.edits_path.read_text(encoding="utf-8")
-
-            # If the file contains the wrapper object, unwrap to the original JSON text
-            try:
-                maybe = json.loads(current_edits_json)
-                if isinstance(maybe, dict) and maybe.get("_json_parse_error") and maybe.get("_json_text"):
-                    current_edits_json = maybe["_json_text"]
-            except json.JSONDecodeError:
-                pass
-        else:
-            raise EditError("No existing edits file found for correction")
-        
-        from ..ai.prompts import build_edit_prompt
-        created_at = datetime.now(timezone.utc).isoformat()
-        prompt = build_edit_prompt(job_text, number_lines(resume_lines), current_edits_json, validation_warnings, model, created_at, sections_json)
-        result = run_generate(prompt, model)
-        
-        # handle JSON parsing errors - don't crash, let validation system handle it
-        if not result.success:
-            # return a special failure object that validation can detect
-            edits = {
-                "_json_parse_error": True,
-                "_error_details": result.error,
-                "_raw_response": result.raw_text,
-                "_json_text": result.json_text,
-                "version": 1,
-                "meta": {},
-                "ops": []
-            }
-            return edits
-        
-        edits = result.data
-        
-        # validate response structure
-        if not isinstance(edits, dict):
-            raise AIError("AI response is not a valid JSON object")
-        
-        if edits.get("version") != 1:
-            raise AIError(f"Invalid or missing version in AI response: {edits.get('version')}")
-        
-        if "meta" not in edits or "ops" not in edits:
-            raise AIError("AI response missing required 'meta' or 'ops' fields")
-            
-        return edits
+    edits = result.data
     
-    # initial generation
-    edits = create_edits()
+    # validate response structure
+    if not isinstance(edits, dict):
+        raise AIError("AI response is not a valid JSON object")
     
-    # immediately persist edits so manual mode has a file to work with
-    settings.loom_dir.mkdir(exist_ok=True)
+    if edits.get("version") != 1:
+        raise AIError(f"Invalid or missing version in AI response: {edits.get('version')}")
+    
+    if "meta" not in edits or "ops" not in edits:
+        raise AIError("AI response missing required 'meta' or 'ops' fields")
+        
+    return edits
 
-    to_write = edits
-    if isinstance(edits, dict) and edits.get("_json_parse_error"):
-        # prefer extracted JSON text, o/w fall back to raw text
-        to_write = edits.get("_json_text") or edits.get("_raw_response") or ""
+# generate corrected edits based on validation warnings
+def generate_corrected_edits(settings: LoomSettings, resume_lines: Lines, job_text: str, sections_json: str | None, model: str, validation_warnings: List[str]) -> dict:
+    
+    # read current edits from file
+    if settings.edits_path.exists():
+        current_edits_json = settings.edits_path.read_text(encoding="utf-8")
 
-    if isinstance(to_write, str):
-        settings.edits_path.write_text(to_write, encoding="utf-8")
+        # if file contains wrapper object, unwrap to original JSON text
+        try:
+            maybe = json.loads(current_edits_json)
+            if isinstance(maybe, dict) and maybe.get("_json_parse_error") and maybe.get("_json_text"):
+                current_edits_json = maybe["_json_text"]
+        except json.JSONDecodeError:
+            pass
     else:
-        settings.edits_path.write_text(json.dumps(to_write, indent=2), encoding="utf-8")
+        raise EditError("No existing edits file found for correction")
     
-    # validate with a closure that can be updated
-    current_edits = [edits]
+    created_at = datetime.now(timezone.utc).isoformat()
+    prompt = build_edit_prompt(job_text, number_lines(resume_lines), current_edits_json, validation_warnings, model, created_at, sections_json)
     
-    def validate_current():
-        return validate_edits(current_edits[0], resume_lines, risk) if current_edits[0] is not None else ["Edits not initialized"]
+    result = run_generate(prompt, model)
     
-    def edit_edits_and_update(validation_warnings):
-        # call the original edit function
-        new_edits = edit_edits(validation_warnings)
-        # update the current edits being validated
-        current_edits[0] = new_edits
-        return new_edits
+    # handle JSON parsing errors - don't crash, let validation system handle it
+    if not result.success:
+        # return a special failure object that validation can detect
+        edits = {
+            "_json_parse_error": True,
+            "_error_details": result.error,
+            "_raw_response": result.raw_text,
+            "_json_text": result.json_text,
+            "version": 1,
+            "meta": {},
+            "ops": []
+        }
+        return edits
     
-    # validate
-    result = handle_validation_error(
-        settings,
-        validate_fn=validate_current,
-        policy=on_error,
-        edit_fn=edit_edits_and_update,
-        ui=ui,
-    )
+    edits = result.data
     
-    # if result, there was a regeneration
-    if isinstance(result, dict):
-        edits = result
-    elif edits is None:
-        raise EditError("Failed to generate valid edits")
+    # validate response structure
+    if not isinstance(edits, dict):
+        raise AIError("AI response is not a valid JSON object")
     
+    if edits.get("version") != 1:
+        raise AIError(f"Invalid or missing version in AI response: {edits.get('version')}")
+    
+    if "meta" not in edits or "ops" not in edits:
+        raise AIError("AI response missing required 'meta' or 'ops' fields")
+        
     return edits
 
 # apply edits to resume lines & return new lines dict 
-def apply_edits(settings: LoomSettings, resume_lines: Lines, edits: dict, risk: RiskLevel = RiskLevel.MED, on_error: ValidationPolicy = ValidationPolicy.ASK, ui=None) -> Lines:
+def apply_edits(resume_lines: Lines, edits: dict) -> Lines:
     if edits.get("version") != 1:
         raise EditError(f"Unsupported edits version: {edits.get('version')}")
-    
-    # pre-apply validation
-    handle_validation_error(settings, lambda: validate_edits(edits, resume_lines, risk), policy=on_error, ui=ui)
     
     new_lines = dict(resume_lines)
     ops = edits.get("ops", [])
@@ -538,22 +431,25 @@ def _get_op_line(op: dict) -> int:
 # pipeline class with dependency injection
 class Pipeline:
     # main processing pipeline with injected settings dependency
-    
     def __init__(self, settings: LoomSettings):
         self.settings = settings
     
-    def generate_edits(self, resume_lines: Lines, job_text: str, sections_json: str | None, model: str, risk: RiskLevel = RiskLevel.MED, on_error: ValidationPolicy = ValidationPolicy.ASK, ui=None) -> dict:
-        # generate edits.json for a resume based on job description & optional sections JSON
-        return generate_edits(self.settings, resume_lines, job_text, sections_json, model, risk, on_error, ui)
+    # generate edits.json for a resume based on job description & optional sections JSON
+    def generate_edits(self, resume_lines: Lines, job_text: str, sections_json: str | None, model: str) -> dict:
+        return generate_edits(resume_lines, job_text, sections_json, model)
     
-    def apply_edits(self, resume_lines: Lines, edits: dict, risk: RiskLevel = RiskLevel.MED, on_error: ValidationPolicy = ValidationPolicy.ASK, ui=None) -> Lines:
-        # apply edits to resume lines & return new lines dict
-        return apply_edits(self.settings, resume_lines, edits, risk, on_error, ui)
+    # generate corrected edits based on validation warnings
+    def generate_corrected_edits(self, resume_lines: Lines, job_text: str, sections_json: str | None, model: str, validation_warnings: List[str]) -> dict:
+        return generate_corrected_edits(self.settings, resume_lines, job_text, sections_json, model, validation_warnings)
     
+    # apply edits to resume lines & return new lines dict
+    def apply_edits(self, resume_lines: Lines, edits: dict) -> Lines:
+        return apply_edits(resume_lines, edits)
+    
+    # generate unified diff between two line dicts
     def diff_lines(self, old: Lines, new: Lines) -> str:
-        # generate unified diff between two line dicts
         return diff_lines(old, new)
     
+    # validate edits.json structure & operations
     def validate_edits(self, edits: dict, resume_lines: Lines, risk: RiskLevel) -> List[str]:
-        # validate edits.json structure & operations
         return validate_edits(edits, resume_lines, risk)
