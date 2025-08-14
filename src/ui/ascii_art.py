@@ -39,6 +39,5 @@ def show_loom_art() -> None:
             else:
                 console.print(line)  # empty line without styling
     else:
-        console.print(
-            "LOOM - Smart, precise resume tailoring in seconds", style="bold cyan"
-        )
+        from .colors import accent_gradient
+        console.print(accent_gradient("LOOM - Smart, precise resume tailoring in seconds"))

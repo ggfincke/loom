@@ -9,9 +9,13 @@ import typer
 from ..config.settings import settings_manager
 from ..loom_io.console import console
 from ..ui.ascii_art import show_loom_art
+from ..ui.colors import LoomColors
 
 
-app = typer.Typer()
+app = typer.Typer(
+    rich_markup_mode="rich",
+    help=f"[{LoomColors.ACCENT_PRIMARY}]Smart, precise resume tailoring in seconds[/]"
+)
 
 # * Load settings & show banner + help when no subcommand is used
 @app.callback(invoke_without_command=True)

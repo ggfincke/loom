@@ -9,10 +9,14 @@ import typer
 
 from ...config.settings import settings_manager, LoomSettings
 from ...loom_io.console import console
+from ...ui.colors import styled_checkmark, success_gradient, LoomColors
 from ..app import app
 
 # * Sub-app for config commands; registered on root app
-config_app = typer.Typer(help="Manage Loom settings stored in ~/.loom/config.json")
+config_app = typer.Typer(
+    rich_markup_mode="rich", 
+    help=f"[{LoomColors.ACCENT_SECONDARY}]Manage Loom settings stored in ~/.loom/config.json[/]"
+)
 app.add_typer(config_app, name="config")
 
 # concise set of known keys for validation
@@ -31,7 +35,7 @@ def _coerce_value(raw: str):
 @config_app.command("list")
 def list_settings() -> None:
     data = settings_manager.list_settings()
-    console.print(json.dumps(data, indent=2))
+    console.print(f"[loom.accent2]{json.dumps(data, indent=2)}[/]")
 
 # * get a specific setting value & print as JSON
 @config_app.command()
@@ -40,7 +44,7 @@ def get(key: str) -> None:
         raise typer.BadParameter(f"Unknown setting: {key}")
     value = settings_manager.get(key)
     # print JSON for consistency (strings quoted)
-    console.print(json.dumps(value))
+    console.print(f"[loom.accent2]{json.dumps(value)}[/]")
 
 # * set a specific setting value; values are JSON-coerced when possible
 @config_app.command(name="set")
@@ -52,15 +56,15 @@ def set_cmd(key: str, value: str) -> None:
         settings_manager.set(key, coerced)
     except Exception as e:
         raise typer.BadParameter(str(e))
-    console.print(f"✅ Set {key} -> {json.dumps(coerced)}", style="green")
+    console.print(styled_checkmark(), success_gradient(f"Set {key}"), "→", f"[loom.accent2]{json.dumps(coerced)}[/]")
 
 # * reset all settings to defaults
 @config_app.command()
 def reset() -> None:
     settings_manager.reset()
-    console.print("✅ Reset settings to defaults", style="green")
+    console.print(styled_checkmark(), success_gradient("Reset settings to defaults"))
 
 # * show the configuration file path
 @config_app.command()
 def path() -> None:
-    console.print(str(settings_manager.config_path))
+    console.print(f"[loom.accent2]{settings_manager.config_path}[/]")

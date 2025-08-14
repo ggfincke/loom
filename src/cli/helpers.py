@@ -21,6 +21,7 @@ from ..loom_io import (
 from ..loom_io.console import console
 from ..loom_io.types import Lines
 from ..core.pipeline import diff_lines
+from ..ui.colors import styled_checkmark, styled_arrow, LoomColors, success_gradient
 
 
 # * Validate required CLI arguments & raise typer.BadParameter if missing
@@ -90,31 +91,32 @@ def persist_edits_json(
 
 # * Report results consistently across commands to the console
 def report_result(result_type: str, settings: LoomSettings | None = None, **paths) -> None:
+    checkmark = styled_checkmark()
+    arrow = styled_arrow()
+    
     if result_type == "sections":
-        console.print(f"✅ Wrote sections to {paths['sections_path']}", style="green")
+        console.print(checkmark, success_gradient("Wrote sections to"), f"{paths['sections_path']}")
     elif result_type == "edits":
-        console.print(f"✅ Wrote edits -> {paths['edits_path']}", style="green")
+        console.print(checkmark, success_gradient("Wrote edits"), arrow, f"{paths['edits_path']}")
     elif result_type == "tailor":
-        console.print("✅ Complete tailoring finished", style="green")
-        console.print(f"   Edits -> {paths['edits_path']}", style="dim")
-        console.print(f"   Resume -> {paths['output_path']}", style="dim")
+        console.print(checkmark, success_gradient("Complete tailoring finished"))
+        console.print(f"   Edits {arrow} {paths['edits_path']}", style="loom.accent2")
+        console.print(f"   Resume {arrow} {paths['output_path']}", style="loom.accent2") 
         if settings:
-            console.print(f"   Diff -> {settings.diff_path}", style="dim")
+            console.print(f"   Diff {arrow} {settings.diff_path}", style="dim")
     elif result_type == "apply":
         format_msg = (
             f" (formatting preserved via {paths.get('preserve_mode', 'unknown')} mode)"
             if paths.get("preserve_formatting")
             else " (plain text)"
         )
-        console.print(
-            f"✅ Wrote DOCX{format_msg} -> {paths['output_path']}", style="green"
-        )
+        console.print(checkmark, success_gradient(f"Wrote DOCX{format_msg}"), arrow, f"{paths['output_path']}")
         if settings:
-            console.print(f"✅ Diff -> {settings.diff_path}", style="dim")
+            console.print(checkmark, f"Diff {arrow} {settings.diff_path}", style="loom.accent2")
     elif result_type == "plan":
-        console.print(f"✅ Wrote edits -> {paths['edits_path']}", style="green")
+        console.print(checkmark, success_gradient("Wrote edits"), arrow, f"{paths['edits_path']}")
         if settings:
-            console.print(f"✅ Plan -> {settings.plan_path}", style="dim")
+            console.print(checkmark, f"Plan {arrow} {settings.plan_path}", style="loom.accent2")
 
 
 # * Generate diff & write tailored resume output w/ formatting preservation

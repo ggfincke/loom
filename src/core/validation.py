@@ -42,7 +42,7 @@ class AskStrategy(ValidationStrategy):
         while True:
             ui.print()
             with ui.input_mode():
-                choice = ui.ask("Choose: [bold white](f)[/]soft-fail, [bold white](h)[/]ard-fail, [bold white](m)[/]anual, [bold white](r)[/]etry: ").lower().strip()
+                choice = ui.ask("Choose: [bold white](s)[/]oft-fail, [bold white](h)[/]ard-fail, [bold white](m)[/]anual, [bold white](r)[/]etry, [bold white](c)[/]hange-model: ").lower().strip()
             
             if choice in ['s', 'soft', 'fail:soft']:
                 return FailSoftStrategy().handle(warnings, ui, settings)
@@ -52,8 +52,10 @@ class AskStrategy(ValidationStrategy):
                 return ManualStrategy().handle(warnings, ui, settings)
             elif choice in ['r', 'retry']:
                 return RetryStrategy().handle(warnings, ui, settings)
+            elif choice in ['c', 'change', 'change-model', 'different', 'model']:
+                return ModelRetryStrategy().handle(warnings, ui, settings)
             else:
-                ui.print("Invalid choice. Please enter f, h, m, or r.")
+                ui.print("Invalid choice. Please enter s, h, m, r, or c.")
 
 # retry strategy that signals to re-run validation
 class RetryStrategy(ValidationStrategy):
@@ -84,6 +86,58 @@ class FailSoftStrategy(ValidationStrategy):
                     ui.print(f"   Plan: {settings.plan_path}")
         
         raise typer.Exit(0)
+
+# model retry strategy that prompts user to select different model
+class ModelRetryStrategy(ValidationStrategy):
+    def handle(self, warnings: List[str], ui, settings=None) -> ValidationOutcome:
+        if not sys.stdin.isatty():
+            error_warnings = ["Model change not available (not a TTY):"] + warnings
+            raise ValidationError(error_warnings, recoverable=False)
+        
+        # common model options
+        model_options = [
+            ("1", "gpt-5", "GPT-5 (latest, most capable)"),
+            ("2", "gpt-5-mini", "GPT-5 Mini (latest generation, cost-efficient)"),
+            ("3", "gpt-5-nano", "GPT-5 Nano (fastest, ultra-low latency)"),
+            ("4", "gpt-4o", "GPT-4o (multimodal, high capability)"),
+            ("5", "gpt-4o-mini", "GPT-4o Mini (fast, cost-effective)")
+        ]
+        
+        ui.print()
+        ui.print("📋 Select a different model to retry with:")
+        for num, model, desc in model_options:
+            ui.print(f"   {num}) {model} - {desc}")
+        
+        while True:
+            ui.print()
+            with ui.input_mode():
+                choice = ui.ask("Enter model number (1-4) or model name: ").strip()
+            
+            # map choice to model
+            selected_model = None
+            if choice in ['1']:
+                selected_model = "gpt-4o"
+            elif choice in ['2']:
+                selected_model = "gpt-4o-mini"
+            elif choice in ['3']:
+                selected_model = "gpt-5-mini"
+            elif choice in ['4']:
+                selected_model = "gpt-3.5-turbo"
+            elif choice.startswith('gpt-'):
+                selected_model = choice
+            else:
+                ui.print("Invalid choice. Please enter a number (1-4) or valid model name.")
+                continue
+            
+            # update settings with new model
+            if settings:
+                from ..config.settings import settings_manager
+                current_settings = settings_manager.load()
+                current_settings.model = selected_model
+                settings_manager.save(current_settings)
+                ui.print(f"✅ Model changed to {selected_model}, retrying...")
+            
+            return ValidationOutcome(success=False, should_continue=True)
 
 # fail hard strategy that deletes progress files and exits
 class FailHardStrategy(ValidationStrategy):
