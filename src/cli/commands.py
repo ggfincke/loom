@@ -15,14 +15,14 @@ from ..config.settings import settings_manager
 from ..loom_io import write_json_safe, read_json_safe, ensure_parent
 from ..core.pipeline import generate_edits, generate_corrected_edits, apply_edits, validate_edits, diff_lines
 from ..core.exceptions import handle_loom_error, ConfigurationError, EditError
-from ..core.constants import normalize_risk, normalize_validation_policy
+ 
 from ..core.validation import validate
 import json
 from typing import List, Callable, Optional, Any
 from .args import (
-    ResumeArg, JobArg, EditsArg, ModelOpt, RiskOpt, OnErrorOpt, 
-    OutOpt, SectionsPathOpt, PlanOpt, OutputDocxArg, PreserveFormattingOpt,
-    PreserveModeOpt, OutJsonOpt, OutputResumeOpt
+    ResumeArg, JobArg, ModelOpt, RiskOpt, OnErrorOpt,
+    SectionsPathOpt, PlanOpt, PreserveFormattingOpt,
+    PreserveModeOpt, OutJsonOpt, OutputResumeOpt, EditsJsonOpt
 )
 from .art import show_loom_art
 from typing import TypedDict
@@ -63,7 +63,7 @@ class ArgResolver:
             'job': _resolve(kwargs.get('job'), self.settings.job_path),
             'model': _resolve(kwargs.get('model'), self.settings.model),
             'sections_path': _resolve(kwargs.get('sections_path'), self.settings.sections_path),
-            'out': _resolve(kwargs.get('out'), self.settings.edits_path),
+            'edits_json': _resolve(kwargs.get('edits_json'), self.settings.edits_path),
             'out_json': _resolve(kwargs.get('out_json'), self.settings.sections_path),
         }
     
@@ -71,14 +71,13 @@ class ArgResolver:
     def resolve_paths(self, **kwargs):
         return {
             'output_resume': _resolve(kwargs.get('output_resume'), Path(self.settings.output_dir) / "tailored_resume.docx"),
-            'edits': _resolve(kwargs.get('edits'), self.settings.edits_path),
         }
     
     # resolve option arguments
     def resolve_options(self, **kwargs) -> OptionsResolved:
         return {
-            'risk': _resolve(kwargs.get('risk'), normalize_risk("med")),
-            'on_error': _resolve(kwargs.get('on_error'), normalize_validation_policy("ask")),
+            'risk': _resolve(kwargs.get('risk'), RiskLevel.MED),
+            'on_error': _resolve(kwargs.get('on_error'), ValidationPolicy.ASK),
         }
 
 # * File loading helpers
@@ -359,7 +358,7 @@ def tailor(
     resume: Path | None = ResumeArg(),
     model: str | None = ModelOpt(),
     sections_path: Path | None = SectionsPathOpt(),
-    out: Path | None = OutOpt(),
+    edits_json: Path | None = EditsJsonOpt(),
     output_resume: Path | None = OutputResumeOpt(),
     risk: RiskLevel | None = RiskOpt(),
     on_error: ValidationPolicy | None = OnErrorOpt(),
@@ -370,11 +369,11 @@ def tailor(
     resolver = ArgResolver(settings)
     
     # resolve args w/ settings defaults
-    common_resolved = resolver.resolve_common(job=job, resume=resume, model=model, sections_path=sections_path, out=out)
+    common_resolved = resolver.resolve_common(job=job, resume=resume, model=model, sections_path=sections_path, edits_json=edits_json)
     path_resolved = resolver.resolve_paths(output_resume=output_resume)
     option_resolved = resolver.resolve_options(risk=risk, on_error=on_error)
     
-    job, resume, model, sections_path, out = common_resolved['job'], common_resolved['resume'], common_resolved['model'], common_resolved['sections_path'], common_resolved['out']
+    job, resume, model, sections_path, edits_json = common_resolved['job'], common_resolved['resume'], common_resolved['model'], common_resolved['sections_path'], common_resolved['edits_json']
     output_resume = path_resolved['output_resume']
     risk_enum: RiskLevel = option_resolved['risk']
     on_error_policy: ValidationPolicy = option_resolved['on_error']
@@ -390,7 +389,7 @@ def tailor(
     # type assertions after validation
     assert job is not None
     assert resume is not None
-    assert out is not None
+    assert edits_json is not None
     assert model is not None
     assert output_resume is not None
     
@@ -408,7 +407,7 @@ def tailor(
         progress.advance(task)
         
         # persist edits (for inspection / re-run)
-        _persist_edits_json(edits, out, progress, task)
+        _persist_edits_json(edits, edits_json, progress, task)
         
         # apply edits using core helper
         progress.update(task, description="Applying edits...")
@@ -419,7 +418,7 @@ def tailor(
         _write_output_with_diff(settings, resume, lines, new_lines, output_resume, preserve_formatting, preserve_mode, progress, task)
     
     console.print("✅ Complete tailoring finished", style="green")
-    console.print(f"   Edits -> {out}", style="dim")
+    console.print(f"   Edits -> {edits_json}", style="dim")
     console.print(f"   Resume -> {output_resume}", style="dim")
     console.print(f"   Diff -> {settings.diff_path}", style="dim")
 
@@ -429,7 +428,7 @@ def tailor(
 def generate(
     ctx: typer.Context,
     model: str | None = ModelOpt(),
-    out: Path | None = OutOpt(),
+    edits_json: Path | None = EditsJsonOpt(),
     sections_path: Path | None = SectionsPathOpt(),
     resume: Path | None = ResumeArg(),
     job: Path | None = JobArg(),
@@ -440,10 +439,10 @@ def generate(
     resolver = ArgResolver(settings)
     
     # resolve arguments w/ settings defaults
-    common_resolved = resolver.resolve_common(model=model, out=out, sections_path=sections_path, resume=resume, job=job)
+    common_resolved = resolver.resolve_common(model=model, edits_json=edits_json, sections_path=sections_path, resume=resume, job=job)
     option_resolved = resolver.resolve_options(risk=risk, on_error=on_error)
     
-    model, out, sections_path, resume, job = common_resolved['model'], common_resolved['out'], common_resolved['sections_path'], common_resolved['resume'], common_resolved['job']
+    model, edits_json, sections_path, resume, job = common_resolved['model'], common_resolved['edits_json'], common_resolved['sections_path'], common_resolved['resume'], common_resolved['job']
     risk_enum: RiskLevel = option_resolved['risk']
     on_error_policy: ValidationPolicy = option_resolved['on_error']
 
@@ -457,7 +456,7 @@ def generate(
     # type assertions after validation
     assert resume is not None
     assert job is not None
-    assert out is not None
+    assert edits_json is not None
     assert model is not None
     
     with _setup_ui_with_progress("Generating edits...", total=4) as (ui, progress, task):
@@ -474,9 +473,9 @@ def generate(
         progress.advance(task)
         
         # write edits
-        _persist_edits_json(edits, out, progress, task)
+        _persist_edits_json(edits, edits_json, progress, task)
     
-    console.print(f"✅ Wrote edits -> {out}", style="green")
+    console.print(f"✅ Wrote edits -> {edits_json}", style="green")
 
 # Apply command - apply edits.json to resume and generate output
 @app.command()
@@ -484,8 +483,8 @@ def generate(
 def apply(
     ctx: typer.Context,
     resume: Path | None = ResumeArg(),
-    edits: Path | None = EditsArg(),
-    out: Path | None = OutputDocxArg(),
+    edits_json: Path | None = EditsJsonOpt(),
+    output_resume: Path | None = OutputResumeOpt(),
     risk: RiskLevel | None = RiskOpt(),
     on_error: ValidationPolicy | None = OnErrorOpt(),
     preserve_formatting: bool = PreserveFormattingOpt(),
@@ -495,25 +494,25 @@ def apply(
     resolver = ArgResolver(settings)
     
     # resolve arguments w/ settings defaults
-    common_resolved = resolver.resolve_common(resume=resume)
-    path_resolved = resolver.resolve_paths(edits=edits, output_resume=out)
+    common_resolved = resolver.resolve_common(resume=resume, edits_json=edits_json)
+    path_resolved = resolver.resolve_paths(output_resume=output_resume)
     option_resolved = resolver.resolve_options(risk=risk, on_error=on_error)
     
     resume = common_resolved['resume']
-    edits, out = path_resolved['edits'], path_resolved['output_resume']
+    edits_json, output_resume = common_resolved['edits_json'], path_resolved['output_resume']
     risk, on_error = option_resolved['risk'], option_resolved['on_error']
     
     # validate required arguments
     _validate_required_args(
         resume=(resume, "Resume path"),
-        edits=(edits, "Edits path"),
-        out=(out, "Output path")
+        edits_json=(edits_json, "Edits path"),
+        output_resume=(output_resume, "Output path")
     )
     
     # type assertions after validation
     assert resume is not None
-    assert edits is not None
-    assert out is not None
+    assert edits_json is not None
+    assert output_resume is not None
     
     with _setup_ui_with_progress("Applying edits...", total=5) as (ui, progress, task):
         
@@ -524,7 +523,7 @@ def apply(
         
         # read edits
         progress.update(task, description="Loading edits JSON...")
-        edits_obj = read_json_safe(edits)
+        edits_obj = read_json_safe(edits_json)
         progress.advance(task)
         
         # apply edits using core helper
@@ -533,13 +532,13 @@ def apply(
         progress.advance(task)
         
         # write output w/ diff generation
-        _write_output_with_diff(settings, resume, lines, new_lines, out, preserve_formatting, preserve_mode, progress, task)
+        _write_output_with_diff(settings, resume, lines, new_lines, output_resume, preserve_formatting, preserve_mode, progress, task)
     
     if preserve_formatting:
         format_msg = f" (formatting preserved via {preserve_mode} mode)"
     else:
         format_msg = " (plain text)"
-    console.print(f"✅ Wrote DOCX{format_msg} -> {out}", style="green")
+    console.print(f"✅ Wrote DOCX{format_msg} -> {output_resume}", style="green")
     console.print(f"✅ Diff -> {settings.diff_path}", style="dim")
 
 # Plan command - create edits.json w/ planning pipeline
@@ -549,7 +548,7 @@ def plan(
     ctx: typer.Context,
     resume: Path | None = ResumeArg(),
     job: Path | None = JobArg(),
-    out: Path | None = OutOpt(),
+    edits_json: Path | None = EditsJsonOpt(),
     plan: int | None = PlanOpt(),
     risk: str | None = RiskOpt(),
     on_error: str | None = OnErrorOpt(),
@@ -560,10 +559,10 @@ def plan(
     resolver = ArgResolver(settings)
     
     # resolve args w/ defaults
-    common_resolved = resolver.resolve_common(resume=resume, job=job, out=out, model=model, sections_path=sections_path)
+    common_resolved = resolver.resolve_common(resume=resume, job=job, edits_json=edits_json, model=model, sections_path=sections_path)
     option_resolved = resolver.resolve_options(risk=risk, on_error=on_error)
 
-    resume, job, out = common_resolved['resume'], common_resolved['job'], common_resolved['out']
+    resume, job, edits_json = common_resolved['resume'], common_resolved['job'], common_resolved['edits_json']
     model, sections_path = common_resolved['model'], common_resolved['sections_path']
     risk_enum: RiskLevel = option_resolved['risk']
     on_error_policy: ValidationPolicy = option_resolved['on_error']
@@ -580,7 +579,7 @@ def plan(
     # type assertions after validation
     assert resume is not None
     assert job is not None
-    assert out is not None
+    assert edits_json is not None
     assert model is not None
     
     with _setup_ui_with_progress("Planning edits...", total=5) as (ui, progress, task):
@@ -595,7 +594,7 @@ def plan(
         edits = _generate_edits_core(settings, lines, job_text, sections_json_str, model, risk_enum, on_error_policy, ui)
         progress.advance(task)
 
-        _persist_edits_json(edits, out, progress, task)
+        _persist_edits_json(edits, edits_json, progress, task)
 
         # create simple plan file
         progress.update(task, description="Writing plan...")
@@ -603,7 +602,7 @@ def plan(
         settings.plan_path.write_text("# Plan\n\n- single-shot (stub)\n", encoding="utf-8")
         progress.advance(task)
     
-    console.print(f"✅ Wrote edits -> {out}", style="green")
+    console.print(f"✅ Wrote edits -> {edits_json}", style="green")
     console.print(f"✅ Plan -> {settings.plan_path}", style="dim")
 
 # * Configuration management commands
