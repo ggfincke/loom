@@ -30,6 +30,10 @@ class EditError(LoomError):
 class ConfigurationError(LoomError):
     pass
 
+# JSON parsing errors
+class JSONParsingError(LoomError):
+    pass
+
 
 # decorator for handling Loom errors in CLI commands
 def handle_loom_error(func):
@@ -45,6 +49,10 @@ def handle_loom_error(func):
                 raise typer.Exit(1)
             # for recoverable validation errors, let the function continue
             return None
+        except JSONParsingError as e:
+            console.print("❌ JSON parsing failed:", style="red")
+            console.print(f"   {e}", style="yellow")
+            raise typer.Exit(1)
         except LoomError as e:
             console.print(f"❌ {e}", style="red")
             raise typer.Exit(1)

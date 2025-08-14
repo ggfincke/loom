@@ -157,13 +157,27 @@ def handle_validation_error(settings: LoomSettings,
                     ui.ask("Press Enter after editing edits.json to re-validate...")
 
                 try:
-                    data = json.loads(settings.edits_path.read_text(encoding="utf-8"))
+                    text = settings.edits_path.read_text(encoding="utf-8")
+                    data = json.loads(text)
                     if reload_fn is not None:
                         reload_fn(data)
                     if ui: ui.print("✅ File edited, re-validating...")
                     break
-                except (json.JSONDecodeError, FileNotFoundError) as e:
-                    if ui: ui.print(f"❌ Error reading edits.json: {e}")
+                except json.JSONDecodeError as e:
+                    # create a trimmed snippet for the error
+                    try:
+                        text = settings.edits_path.read_text(encoding="utf-8")
+                        lines = text.split('\n')
+                        line_num = e.lineno - 1
+                        snippet_start = max(0, line_num - 1)
+                        snippet_end = min(len(lines), line_num + 2)
+                        snippet = '\n'.join(f"{i+snippet_start+1}: {lines[i+snippet_start]}" for i in range(snippet_end - snippet_start))
+                        if ui: ui.print(f"❌ JSON error in edits.json at line {e.lineno}:\n{snippet}\n{e.msg}")
+                    except:
+                        if ui: ui.print(f"❌ JSON error in edits.json: {e}")
+                    continue
+                except FileNotFoundError as e:
+                    if ui: ui.print(f"❌ File not found: {e}")
                     continue
 
 # * Core processing primitives
@@ -180,15 +194,7 @@ def _generate_edits_core(settings: LoomSettings, resume_lines: Lines, job_text: 
     
     # immediately persist edits so manual mode has a file to work with
     settings.loom_dir.mkdir(exist_ok=True)
-    to_write = edits
-    if isinstance(edits, dict) and edits.get("_json_parse_error"):
-        # prefer extracted JSON text, o/w fall back to raw text
-        to_write = edits.get("_json_text") or edits.get("_raw_response") or ""
-
-    if isinstance(to_write, str):
-        settings.edits_path.write_text(to_write, encoding="utf-8")
-    else:
-        settings.edits_path.write_text(json.dumps(to_write, indent=2), encoding="utf-8")
+    settings.edits_path.write_text(json.dumps(edits, indent=2), encoding="utf-8")
     
     # validate with a closure that can be updated
     current_edits = [edits]
