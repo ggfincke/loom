@@ -25,6 +25,7 @@ class ValidationStrategy(ABC):
 # interactive strategy that prompts user for choice
 class AskStrategy(ValidationStrategy):
     def handle(self, warnings: List[str], ui) -> ValidationOutcome:
+
         if not sys.stdin.isatty():
             error_warnings = ["Validation failed (ask not possible - non-interactive):"] + warnings
             raise ValidationError(error_warnings, recoverable=False)

@@ -8,7 +8,7 @@ from contextlib import contextmanager
 
 from ..loom_io import read_docx, number_lines, read_text, write_docx, apply_edits_to_docx
 from ..loom_io.console import console
-from ..loom_io.ui import UI
+from ..ui import UI
 from ..ai.prompts import build_sectionizer_prompt
 from ..ai.clients.openai_client import run_generate
 from ..config.settings import settings_manager
