@@ -103,6 +103,13 @@ def _load_sections(sections_path: Path | None, progress, task):
     progress.advance(task)
     return sections_json_str
 
+# load edits JSON from file
+def _load_edits_json(edits_path: Path, progress, task):
+    progress.update(task, description="Loading edits JSON...")
+    edits_obj = read_json_safe(edits_path)
+    progress.advance(task)
+    return edits_obj
+
 
 # * Command validation helpers
 
@@ -278,6 +285,28 @@ def _persist_edits_json(edits, out_path: Path, progress, task, description: str 
     write_json_safe(edits, out_path)
     progress.advance(task)
 
+# report results consistently across commands
+def _report_result(result_type: str, settings=None, **paths):
+    if result_type == "sections":
+        console.print(f"✅ Wrote sections to {paths['sections_path']}", style="green")
+    elif result_type == "edits":
+        console.print(f"✅ Wrote edits -> {paths['edits_path']}", style="green")
+    elif result_type == "tailor":
+        console.print("✅ Complete tailoring finished", style="green")
+        console.print(f"   Edits -> {paths['edits_path']}", style="dim")
+        console.print(f"   Resume -> {paths['output_path']}", style="dim")
+        if settings:
+            console.print(f"   Diff -> {settings.diff_path}", style="dim")
+    elif result_type == "apply":
+        format_msg = f" (formatting preserved via {paths.get('preserve_mode', 'unknown')} mode)" if paths.get('preserve_formatting') else " (plain text)"
+        console.print(f"✅ Wrote DOCX{format_msg} -> {paths['output_path']}", style="green")
+        if settings:
+            console.print(f"✅ Diff -> {settings.diff_path}", style="dim")
+    elif result_type == "plan":
+        console.print(f"✅ Wrote edits -> {paths['edits_path']}", style="green")
+        if settings:
+            console.print(f"✅ Plan -> {settings.plan_path}", style="dim")
+
 # write output w/ diff generation
 def _write_output_with_diff(settings: LoomSettings, resume_path: Path, resume_lines: Lines, new_lines: Lines, output_path: Path, preserve_formatting: bool, preserve_mode: str, progress, task) -> None:
     # generate diff
@@ -352,7 +381,7 @@ def sectionize(
         write_json_safe(data, out_json)
         progress.advance(task)
     
-    console.print(f"✅ Wrote sections to {out_json}", style="green")
+    _report_result("sections", sections_path=out_json)
 
 # Tailor command - tailor resume to job description and produce final tailored resume
 # Uses OpenAI Responses API to generate line-by-line edits and applies them
@@ -423,10 +452,7 @@ def tailor(
         # write output w/ diff generation
         _write_output_with_diff(settings, resume, lines, new_lines, output_resume, preserve_formatting, preserve_mode, progress, task)
     
-    console.print("✅ Complete tailoring finished", style="green")
-    console.print(f"   Edits -> {edits_json}", style="dim")
-    console.print(f"   Resume -> {output_resume}", style="dim")
-    console.print(f"   Diff -> {settings.diff_path}", style="dim")
+    _report_result("tailor", settings=settings, edits_path=edits_json, output_path=output_resume)
 
 # Generate command - create edits.json from job description and resume
 @app.command()
@@ -481,7 +507,7 @@ def generate(
         # write edits
         _persist_edits_json(edits, edits_json, progress, task)
     
-    console.print(f"✅ Wrote edits -> {edits_json}", style="green")
+    _report_result("edits", edits_path=edits_json)
 
 # Apply command - apply edits.json to resume and generate output
 @app.command()
@@ -528,9 +554,7 @@ def apply(
         progress.advance(task)
         
         # read edits
-        progress.update(task, description="Loading edits JSON...")
-        edits_obj = read_json_safe(edits_json)
-        progress.advance(task)
+        edits_obj = _load_edits_json(edits_json, progress, task)
         
         # apply edits using core helper
         progress.update(task, description="Applying edits...")
@@ -540,12 +564,7 @@ def apply(
         # write output w/ diff generation
         _write_output_with_diff(settings, resume, lines, new_lines, output_resume, preserve_formatting, preserve_mode, progress, task)
     
-    if preserve_formatting:
-        format_msg = f" (formatting preserved via {preserve_mode} mode)"
-    else:
-        format_msg = " (plain text)"
-    console.print(f"✅ Wrote DOCX{format_msg} -> {output_resume}", style="green")
-    console.print(f"✅ Diff -> {settings.diff_path}", style="dim")
+    _report_result("apply", settings=settings, output_path=output_resume, preserve_formatting=preserve_formatting, preserve_mode=preserve_mode)
 
 # Plan command - create edits.json w/ planning pipeline
 @app.command()
@@ -608,8 +627,7 @@ def plan(
         settings.plan_path.write_text("# Plan\n\n- single-shot (stub)\n", encoding="utf-8")
         progress.advance(task)
     
-    console.print(f"✅ Wrote edits -> {edits_json}", style="green")
-    console.print(f"✅ Plan -> {settings.plan_path}", style="dim")
+    _report_result("plan", settings=settings, edits_path=edits_json)
 
 # * Configuration management commands
 
