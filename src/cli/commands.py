@@ -646,6 +646,7 @@ def config_callback(ctx: typer.Context):
 
 # List command - display all current configuration settings
 @config_app.command("list", help="Display all current configuration settings with their values")
+@handle_loom_error
 def config_list():
     settings = settings_manager.list_settings()
     typer.echo("Current Loom settings:")
@@ -676,6 +677,7 @@ def config_set(
 
 # Reset command - restore all settings to defaults
 @config_app.command("reset", help="Reset all configuration settings to their factory default values (requires confirmation)")
+@handle_loom_error
 def config_reset():
     if typer.confirm("Reset all settings to defaults?"):
         settings_manager.reset()
@@ -685,5 +687,6 @@ def config_reset():
 
 # Path command - display configuration file location
 @config_app.command("path", help="Display the filesystem path to the configuration file (~/.loom/config.json)")
+@handle_loom_error
 def config_path():
     typer.echo(f"Config file: {settings_manager.config_path}")

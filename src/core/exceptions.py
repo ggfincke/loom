@@ -42,18 +42,12 @@ def handle_loom_error(func):
         try:
             return func(*args, **kwargs)
         except ValidationError as e:
-            console.print("❌ Validation failed:", style="red")
-            for warning in e.warnings:
-                console.print(f"   {warning}", style="yellow")
             if not e.recoverable:
                 raise typer.Exit(1)
             # for recoverable validation errors, let the function continue
             return None
         except JSONParsingError as e:
-            console.print("❌ JSON parsing failed:", style="red")
-            console.print(f"   {e}", style="yellow")
             raise typer.Exit(1)
         except LoomError as e:
-            console.print(f"❌ {e}", style="red")
             raise typer.Exit(1)
     return wrapper
