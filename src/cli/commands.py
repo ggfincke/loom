@@ -198,8 +198,14 @@ def _generate_edits_core(settings: LoomSettings, resume_lines: Lines, job_text: 
         return validate_edits(current_edits[0], resume_lines, risk) if current_edits[0] is not None else ["Edits not initialized"]
     
     def edit_edits_and_update(validation_warnings):
+        # read current edits from file
+        if settings.edits_path.exists():
+            current_edits_json = settings.edits_path.read_text(encoding="utf-8")
+        else:
+            raise EditError("No existing edits file found for correction")
+        
         # call the pipeline to generate corrected edits
-        new_edits = generate_corrected_edits(settings, resume_lines, job_text, sections_json, model, validation_warnings)
+        new_edits = generate_corrected_edits(current_edits_json, resume_lines, job_text, sections_json, model, validation_warnings)
         # update the current edits being validated
         current_edits[0] = new_edits
         return new_edits

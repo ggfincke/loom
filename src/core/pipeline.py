@@ -6,7 +6,6 @@ from ..loom_io import number_lines
 import difflib
 import json
 from datetime import datetime, timezone
-from ..config.settings import LoomSettings
 from .exceptions import AIError, EditError
 from .constants import RiskLevel
 from ..ai.prompts import build_generate_prompt, build_edit_prompt
@@ -51,21 +50,15 @@ def generate_edits(resume_lines: Lines, job_text: str, sections_json: str | None
     return edits
 
 # generate corrected edits based on validation warnings
-def generate_corrected_edits(settings: LoomSettings, resume_lines: Lines, job_text: str, sections_json: str | None, model: str, validation_warnings: List[str]) -> dict:
+def generate_corrected_edits(current_edits_json: str, resume_lines: Lines, job_text: str, sections_json: str | None, model: str, validation_warnings: List[str]) -> dict:
     
-    # read current edits from file
-    if settings.edits_path.exists():
-        current_edits_json = settings.edits_path.read_text(encoding="utf-8")
-
-        # if file contains wrapper object, unwrap to original JSON text
-        try:
-            maybe = json.loads(current_edits_json)
-            if isinstance(maybe, dict) and maybe.get("_json_parse_error") and maybe.get("_json_text"):
-                current_edits_json = maybe["_json_text"]
-        except json.JSONDecodeError:
-            pass
-    else:
-        raise EditError("No existing edits file found for correction")
+    # if file contains wrapper object, unwrap to original JSON text
+    try:
+        maybe = json.loads(current_edits_json)
+        if isinstance(maybe, dict) and maybe.get("_json_parse_error") and maybe.get("_json_text"):
+            current_edits_json = maybe["_json_text"]
+    except json.JSONDecodeError:
+        pass
     
     created_at = datetime.now(timezone.utc).isoformat()
     prompt = build_edit_prompt(job_text, number_lines(resume_lines), current_edits_json, validation_warnings, model, created_at, sections_json)
