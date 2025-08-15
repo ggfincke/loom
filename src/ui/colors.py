@@ -54,6 +54,7 @@ THEMES = {
 # * load active theme colors from settings
 def get_active_theme() -> list[str]:
     try:
+        # ! import here to avoid circular dependency w/ settings
         from ..config.settings import settings_manager
         settings = settings_manager.load()
         theme_name = getattr(settings, 'theme', 'blue_teal')
