@@ -111,22 +111,24 @@ class ModelRetryStrategy(ValidationStrategy):
         while True:
             ui.print()
             with ui.input_mode():
-                choice = ui.ask("Enter model number (1-4) or model name: ").strip()
+                choice = ui.ask("Enter model number (1-5) or model name: ").strip()
             
             # map choice to model
             selected_model = None
             if choice in ['1']:
-                selected_model = "gpt-4o"
+                selected_model = "gpt-5"
             elif choice in ['2']:
-                selected_model = "gpt-4o-mini"
-            elif choice in ['3']:
                 selected_model = "gpt-5-mini"
+            elif choice in ['3']:
+                selected_model = "gpt-5-nano"
             elif choice in ['4']:
-                selected_model = "gpt-3.5-turbo"
+                selected_model = "gpt-4o"
+            elif choice in ['5']:
+                selected_model = "gpt-4o-mini"
             elif choice.startswith('gpt-'):
                 selected_model = choice
             else:
-                ui.print("Invalid choice. Please enter a number (1-4) or valid model name.")
+                ui.print("Invalid choice. Please enter a number (1-5) or valid model name.")
                 continue
             
             # update settings with new model
