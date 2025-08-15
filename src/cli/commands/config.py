@@ -9,7 +9,7 @@ import typer
 
 from ...config.settings import settings_manager, LoomSettings
 from ...loom_io.console import console
-from ...ui.colors import styled_checkmark, success_gradient, LoomColors, THEMES
+from ...ui.colors import styled_checkmark, success_gradient, LoomColors, THEMES, accent_gradient, styled_bullet, styled_arrow
 from ..app import app
 from ...ui.theme_selector import interactive_theme_selector
 from ...ui.ascii_art import show_loom_art
@@ -37,11 +37,41 @@ def _coerce_value(raw: str):
     except Exception:
         return raw
 
-# * list all current settings as JSON
-@config_app.command("list")
-def list_settings() -> None:
-    data = settings_manager.list_settings()
-    console.print(f"[loom.accent2]{json.dumps(data, indent=2)}[/]")
+# * default callback: show current settings w/ styled output when no subcommand provided
+@config_app.callback(invoke_without_command=True)
+def config_callback(ctx: typer.Context) -> None:
+    if ctx.invoked_subcommand is None:
+        data = settings_manager.list_settings()
+        
+        # display header
+        console.print()
+        console.print(accent_gradient("Current Configuration"))
+        console.print(f"[dim]Config file: {settings_manager.config_path}[/]")
+        console.print()
+        
+        # display each setting w/ styled formatting
+        for key, value in data.items():
+            # format value based on type
+            if isinstance(value, str):
+                formatted_value = f'[loom.accent2]"{value}"[/]'
+            elif isinstance(value, bool):
+                formatted_value = f'[loom.accent2]{str(value).lower()}[/]'
+            elif isinstance(value, (int, float)):
+                formatted_value = f'[loom.accent2]{value}[/]'
+            else:
+                formatted_value = f'[loom.accent2]{json.dumps(value)}[/]'
+            
+            # display setting w/ bullet & arrow styling
+            console.print(
+                styled_bullet(),
+                f"[bold white]{key}[/]",
+                "[loom.accent2]->",
+                formatted_value
+            )
+        
+        # add help usage note
+        console.print()
+        console.print(f"[dim]Use [/][loom.accent2]loom config --help[/][dim] to see available commands[/]")
 
 # * get a specific setting value & print as JSON
 @config_app.command()
