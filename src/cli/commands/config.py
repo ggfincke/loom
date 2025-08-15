@@ -11,6 +11,8 @@ from ...config.settings import settings_manager, LoomSettings
 from ...loom_io.console import console
 from ...ui.colors import styled_checkmark, success_gradient, LoomColors, THEMES
 from ..app import app
+from ...ui.theme_selector import interactive_theme_selector
+from ...ui.ascii_art import show_loom_art
 
 # * Sub-app for config commands; registered on root app
 config_app = typer.Typer(
@@ -85,13 +87,25 @@ def reset() -> None:
 def path() -> None:
     console.print(f"[loom.accent2]{settings_manager.config_path}[/]")
 
-# * list available color themes
+# * interactive theme selector w/ live preview
 @config_app.command()
 def themes() -> None:
-    current_theme = settings_manager.get("theme")
+    # show current banner first
+    show_loom_art()
     
-    console.print("\n[loom.accent]Available themes:[/]")
-    for theme_name in sorted(THEMES.keys()):
-        marker = "●" if theme_name == current_theme else "○"
-        console.print(f"  {marker} [loom.accent2]{theme_name}[/]")
-    console.print()
+    # run interactive selector
+    selected_theme = interactive_theme_selector()
+    
+    if selected_theme:
+        # save the new theme
+        settings_manager.set("theme", selected_theme)
+        from ...loom_io.console import refresh_theme
+        refresh_theme()
+        
+        console.print(f"\n{styled_checkmark()} {success_gradient(f'Theme set to')} [loom.accent2]{selected_theme}[/]")
+        
+        # show banner w/ new theme
+        console.print("\n[loom.accent]New theme preview:[/]")
+        show_loom_art()
+    else:
+        console.print("\n[dim]Theme selection cancelled[/]")
