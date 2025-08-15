@@ -43,6 +43,11 @@ class HelpRenderer:
         self._render_commands_table(app)
         console.print()
         
+        # help note
+        help_note = f"[{self.theme_colors[0]}]Run 'loom <command> --help' for detailed command options[/]"
+        console.print(help_note)
+        console.print()
+        
         # examples section
         self._render_examples()
         console.print()
@@ -95,19 +100,8 @@ class HelpRenderer:
         if cmd_help.see_also:
             self._render_see_also(cmd_help.see_also)
         
-    # render commands organized in styled table
+    # render commands organized in separate visual sections
     def _render_commands_table(self, app: typer.Typer) -> None:
-        table = Table(
-            title="Commands",
-            title_style=f"bold {self.theme_colors[0]}",
-            border_style=self.theme_colors[2],
-            header_style=f"bold {self.theme_colors[1]}",
-            show_header=False,
-            padding=(0, 1, 0, 0)
-        )
-        table.add_column("Command", style=f"bold {self.theme_colors[0]}", width=12)
-        table.add_column("Description", style="white")
-        
         # group commands by workflow
         core_commands = [
             ("sectionize", "Parse resume into structured sections"),
@@ -122,25 +116,49 @@ class HelpRenderer:
         ]
         
         # core workflow section
-        table.add_row(
-            f"[{self.theme_colors[1]}]Core Workflow[/]",
-            "",
+        core_table = Table(
+            border_style=self.theme_colors[2],
+            show_header=False,
+            padding=(0, 1, 0, 0),
+            box=None
         )
+        core_table.add_column("Command", style=f"bold {self.theme_colors[0]}", width=12)
+        core_table.add_column("Description", style="white")
+        
         for cmd, desc in core_commands:
-            table.add_row(f"  {cmd}", desc)
+            core_table.add_row(cmd, desc)
         
-        # spacer
-        table.add_row("", "") 
-        
-        # utilities section  
-        table.add_row(
-            f"[{self.theme_colors[1]}]Utilities[/]",
-            "",
+        core_panel = Panel(
+            core_table,
+            title=f"[bold {self.theme_colors[1]}]Core Workflow[/]",
+            title_align="left",
+            border_style=self.theme_colors[2],
+            padding=(0, 1)
         )
+        console.print(core_panel)
+        console.print()
+        
+        # utilities section
+        utility_table = Table(
+            border_style=self.theme_colors[2],
+            show_header=False,
+            padding=(0, 1, 0, 0),
+            box=None
+        )
+        utility_table.add_column("Command", style=f"bold {self.theme_colors[0]}", width=12)
+        utility_table.add_column("Description", style="white")
+        
         for cmd, desc in utility_commands:
-            table.add_row(f"  {cmd}", desc)
-            
-        console.print(table)
+            utility_table.add_row(cmd, desc)
+        
+        utility_panel = Panel(
+            utility_table,
+            title=f"[bold {self.theme_colors[1]}]Utilities[/]",
+            title_align="left",
+            border_style=self.theme_colors[2],
+            padding=(0, 1)
+        )
+        console.print(utility_panel)
     
     # render common usage examples
     def _render_examples(self) -> None:
