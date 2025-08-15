@@ -90,9 +90,6 @@ def path() -> None:
 # * interactive theme selector w/ live preview
 @config_app.command()
 def themes() -> None:
-    # show current banner first
-    show_loom_art()
-    
     # run interactive selector
     selected_theme = interactive_theme_selector()
     
