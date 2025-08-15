@@ -35,7 +35,7 @@ from ..params import (
 
 
 # * Complete end-to-end resume tailoring: generate edits & apply to create tailored resume
-@app.command()
+@app.command(help="Complete end-to-end resume tailoring: generate edits & apply in one step")
 @handle_loom_error
 def tailor(
     ctx: typer.Context,

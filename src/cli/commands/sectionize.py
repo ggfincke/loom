@@ -18,7 +18,7 @@ from ..params import ResumeArg, OutJsonOpt, ModelOpt
 
 
 # * Parse resume document into structured sections using AI sectionizer
-@app.command()
+@app.command(help="Parse resume document into structured sections using AI")
 @handle_loom_error
 def sectionize(
     ctx: typer.Context,

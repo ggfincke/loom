@@ -32,7 +32,7 @@ from ..params import (
 
 
 # * Generate edits w/ step-by-step planning & validation workflow
-@app.command()
+@app.command(help="Generate edits with step-by-step planning workflow (experimental)")
 @handle_loom_error
 def plan(
     ctx: typer.Context,

@@ -23,7 +23,7 @@ from ..params import ModelOpt, EditsJsonOpt, SectionsPathOpt, ResumeArg, JobArg,
 
 
 # * Generate edits.json for resume tailoring using AI model & job requirements
-@app.command()
+@app.command(help="Generate edits.json with AI-powered resume tailoring for job requirements")
 @handle_loom_error
 def generate(
     ctx: typer.Context,

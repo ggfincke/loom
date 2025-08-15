@@ -31,7 +31,7 @@ from ...loom_io import read_docx
 
 
 # * Apply edits from JSON to resume document & generate tailored output
-@app.command()
+@app.command(help="Apply edits from JSON to resume document & generate tailored output")
 @handle_loom_error
 def apply(
     ctx: typer.Context,

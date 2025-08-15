@@ -15,7 +15,7 @@ from ..app import app
 # * Sub-app for config commands; registered on root app
 config_app = typer.Typer(
     rich_markup_mode="rich", 
-    help=f"[{LoomColors.ACCENT_SECONDARY}]Manage Loom settings stored in ~/.loom/config.json[/]"
+    help=f"[{LoomColors.ACCENT_SECONDARY}]Manage Loom settings[/]"
 )
 app.add_typer(config_app, name="config")
 
