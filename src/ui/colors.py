@@ -17,7 +17,7 @@ THEMES = {
         "#9932cc",  # dark orchid
         "#8a2be2",  # blue violet
     ],
-    "blue_teal": [
+    "deep_blue": [
         "#4a90e2",  # sky blue
         "#357abd",  # medium blue
         "#2563eb",  # royal blue
@@ -25,7 +25,7 @@ THEMES = {
         "#1e40af",  # dark blue
         "#0891b2",  # teal
     ],
-    "cyber_aqua": [
+    "cyber_neon": [
         "#00ffff",  # pure cyan (electric)
         "#00ccff",  # bright sky cyan
         "#0099ff",  # electric blue
@@ -49,6 +49,102 @@ THEMES = {
         "#90EE90",  # light green
         "#ADFF2F",  # green yellow/lime
     ],
+    "volcanic_fire": [
+        "#FFD700",  # gold
+        "#FFA500",  # orange
+        "#FF6347",  # tomato
+        "#FF4500",  # orange red
+        "#DC143C",  # crimson
+        "#8B0000",  # dark red
+    ],
+    "arctic_ice": [
+        "#F0F8FF",  # alice blue
+        "#E6F3FF",  # light blue
+        "#B0E0E6",  # powder blue
+        "#87CEEB",  # sky blue
+        "#4682B4",  # steel blue
+        "#2F4F4F",  # dark slate gray
+    ],
+    "synthwave_retro": [
+        "#FF00FF",  # magenta
+        "#FF0080",  # deep pink
+        "#8000FF",  # electric violet
+        "#4000FF",  # electric indigo
+        "#0080FF",  # electric blue
+        "#00FFFF",  # cyan
+    ],
+    "autumn_harvest": [
+        "#FFE4B5",  # moccasin
+        "#DEB887",  # burlywood
+        "#D2691E",  # chocolate
+        "#CD853F",  # peru
+        "#A0522D",  # sienna
+        "#8B4513",  # saddle brown
+    ],
+    "galaxy_nebula": [
+        "#E6E6FA",  # lavender
+        "#DDA0DD",  # plum
+        "#DA70D6",  # orchid
+        "#9370DB",  # medium purple
+        "#6A5ACD",  # slate blue
+        "#483D8B",  # dark slate blue
+    ],
+    "desert_sand": [
+        "#FFF8DC",  # cornsilk
+        "#F5DEB3",  # wheat
+        "#DEB887",  # burlywood
+        "#D2B48C",  # tan
+        "#BC8F8F",  # rosy brown
+        "#A0522D",  # sienna
+    ],
+    "midnight_purple": [
+        "#E6E6FA",  # lavender
+        "#C8A2C8",  # lilac
+        "#9966CC",  # amethyst
+        "#6A0DAD",  # blue violet
+        "#4B0082",  # indigo
+        "#2E0054",  # dark indigo
+    ],
+    "ruby_crimson": [
+        "#FFB6C1",  # light pink
+        "#FF69B4",  # hot pink
+        "#FF1493",  # deep pink
+        "#DC143C",  # crimson
+        "#B22222",  # fire brick
+        "#8B0000",  # dark red
+    ],
+    "emerald_mint": [
+        "#98FB98",  # pale green
+        "#00FA9A",  # medium spring green
+        "#00FF7F",  # spring green
+        "#00CED1",  # dark turquoise
+        "#20B2AA",  # light sea green
+        "#008B8B",  # dark cyan
+    ],
+    "steel_silver": [
+        "#F8F8FF",  # ghost white
+        "#E6E6FA",  # lavender
+        "#D3D3D3",  # light gray
+        "#A9A9A9",  # dark gray
+        "#708090",  # slate gray
+        "#2F4F4F",  # dark slate gray
+    ],
+    "copper_bronze": [
+        "#FFDAB9",  # peach puff
+        "#DEB887",  # burlywood
+        "#CD853F",  # peru
+        "#B8860B",  # dark goldenrod
+        "#A0522D",  # sienna
+        "#8B4513",  # saddle brown
+    ],
+    "lavender_mist": [
+        "#F8F8FF",  # ghost white
+        "#E6E6FA",  # lavender
+        "#DDA0DD",  # plum
+        "#BA55D3",  # medium orchid
+        "#9370DB",  # medium purple
+        "#663399",  # rebecca purple
+    ],
 }
 
 # * load active theme colors from settings
@@ -57,11 +153,11 @@ def get_active_theme() -> list[str]:
         # ! import here to avoid circular dependency w/ settings
         from ..config.settings import settings_manager
         settings = settings_manager.load()
-        theme_name = getattr(settings, 'theme', 'blue_teal')
-        return THEMES.get(theme_name, THEMES["blue_teal"])
+        theme_name = getattr(settings, 'theme', 'deep_blue')
+        return THEMES.get(theme_name, THEMES["deep_blue"])
     except ImportError:
         # fallback if settings not available
-        return THEMES["blue_teal"]
+        return THEMES["deep_blue"]
 
 # active theme (set dynamically)
 GRADIENT_COLORS = get_active_theme()

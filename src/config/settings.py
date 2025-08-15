@@ -37,7 +37,7 @@ class LoomSettings:
     risk: str = "ask"
     
     # theme setting
-    theme: str = "blue_teal"
+    theme: str = "deep_blue"
     
     @property
     def resume_path(self) -> Path:
