@@ -263,6 +263,29 @@ def update_gradient_colors():
     global GRADIENT_COLORS
     GRADIENT_COLORS = get_active_theme()
 
+
+# * RGB color interpolation helper functions for natural gradients
+def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
+    hex_color = hex_color.lstrip("#")
+    return (int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16))
+
+
+def _rgb_to_hex(rgb: tuple[int, int, int]) -> str:
+    return f"#{rgb[0]:02x}{rgb[1]:02x}{rgb[2]:02x}"
+
+
+def _lerp(a: float, b: float, t: float) -> float:
+    return a + (b - a) * t
+
+
+def _lerp_color(a_hex: str, b_hex: str, t: float) -> str:
+    ar, ag, ab = _hex_to_rgb(a_hex)
+    br, bg, bb = _hex_to_rgb(b_hex)
+    cr = int(round(_lerp(ar, br, t)))
+    cg = int(round(_lerp(ag, bg, t)))
+    cb = int(round(_lerp(ab, bb, t)))
+    return _rgb_to_hex((cr, cg, cb))
+
 # semantic color mappings for consistent theming  
 class LoomColors:
     @classmethod
@@ -294,35 +317,59 @@ class LoomColors:
     ARROW = ACCENT_SECONDARY
 
 
-# * create gradient text by applying colors to each character
-def gradient_text(text: str, colors: list[str] | None = None) -> Text:
+# * create natural gradient text w/ smooth RGB color interpolation
+def natural_gradient(text: str, colors: list[str] | None = None) -> Text:
     if colors is None:
         colors = get_active_theme()
     
     if not text or not colors:
         return Text(text)
     
-    result = Text()
-    color_count = len(colors)
+    if len(colors) < 2:
+        return Text(text, style=colors[0] if colors else "white")
     
-    # apply gradient across characters
+    result = Text()
+    n = len(text)
+    n_stops = len(colors)
+    
     for i, char in enumerate(text):
-        color_idx = int((i / max(1, len(text) - 1)) * (color_count - 1))
-        color_idx = min(color_idx, color_count - 1)
-        result.append(char, style=colors[color_idx])
+        if n == 1:
+            result.append(char, style=colors[0])
+            continue
+            
+        # position along the text (0.0 to 1.0)
+        pos = i / (n - 1)
+        
+        # map position to gradient segments
+        seg_pos = pos * (n_stops - 1)
+        idx = int(seg_pos)
+        
+        if idx >= n_stops - 1:
+            color = colors[-1]
+        else:
+            # interpolation factor between current & next color
+            t = seg_pos - idx
+            color = _lerp_color(colors[idx], colors[idx + 1], t)
+        
+        result.append(char, style=color)
     
     return result
 
 
+# * create gradient text by applying colors to each character (deprecated - use natural_gradient)
+def gradient_text(text: str, colors: list[str] | None = None) -> Text:
+    return natural_gradient(text, colors)
+
+
 # create gradient effect for success messages  
 def success_gradient(text: str) -> Text:
-    return gradient_text(text, [LoomColors.SUCCESS_BRIGHT, LoomColors.SUCCESS_MEDIUM, LoomColors.SUCCESS_DIM])
+    return natural_gradient(text, [LoomColors.SUCCESS_BRIGHT, LoomColors.SUCCESS_MEDIUM, LoomColors.SUCCESS_DIM])
 
 
 # create gradient effect for accent text
 def accent_gradient(text: str) -> Text:
     colors = get_active_theme()
-    return gradient_text(text, [colors[0], colors[2], colors[4]])
+    return natural_gradient(text, [colors[0], colors[2], colors[4]])
 
 
 # * generate Rich theme configuration w/ current colors
