@@ -36,6 +36,9 @@ class LoomSettings:
     # risk management setting
     risk: str = "ask"
     
+    # theme setting
+    theme: str = "blue_teal"
+    
     @property
     def resume_path(self) -> Path:
         return Path(self.data_dir) / self.resume_filename
