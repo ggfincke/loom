@@ -7,7 +7,7 @@ from pathlib import Path
 from ..loom_io.console import console
 
 
-# * Display the Loom banner w/ smooth pink/purple gradient styling
+# * Display the Loom banner w/ smooth gradient styling
 def show_loom_art() -> None:
     console.print()
     candidates = [
@@ -17,18 +17,12 @@ def show_loom_art() -> None:
     banner_path = next((p for p in candidates if p.exists()), None)
     if banner_path:
         banner = banner_path.read_text(encoding="utf-8")
-        # apply smooth pink/purple gradient to each line
+        # apply smooth gradient to each line
         lines = banner.strip().split('\n')
         
-        # gradient colors from bright pink to deep purple
-        gradient_colors = [
-            "#ff69b4",  # hot pink
-            "#ff1493",  # deep pink
-            "#da70d6",  # orchid
-            "#ba55d3",  # medium orchid
-            "#9932cc",  # dark orchid
-            "#8a2be2",  # blue violet
-        ]
+        # use centralized gradient colors for consistency
+        from .colors import GRADIENT_COLORS
+        gradient_colors = GRADIENT_COLORS
         
         for i, line in enumerate(lines):
             if line.strip():

@@ -1,5 +1,5 @@
 # src/ai/types.py
-# Shared types for AI clients and functionality
+# Shared types for AI clients & functionality
 
 from typing import Optional
 

@@ -1,5 +1,5 @@
 # src/ai/__init__.py
-# AI model clients and related functionality
+# AI model clients & related functionality
 
 from .prompts import build_sectionizer_prompt, build_generate_prompt
 from .clients.openai_client import run_generate

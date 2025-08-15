@@ -22,12 +22,12 @@ from ..loom_io.console import console
 from ..loom_io.types import Lines
 from ..core.pipeline import diff_lines
 from ..ui.colors import styled_checkmark, styled_arrow, LoomColors, success_gradient
+from ..ui import UI
+import typer
 
 
-# * Validate required CLI arguments & raise typer.BadParameter if missing
+# * validate required CLI arguments & raise typer.BadParameter if missing
 def validate_required_args(**kwargs) -> None:
-    import typer
-
     for _, (value, description) in kwargs.items():
         if not value:
             raise typer.BadParameter(
@@ -35,11 +35,9 @@ def validate_required_args(**kwargs) -> None:
             )
 
 
-# * Context manager to build UI progress & yield (ui, progress, task)
+# * context manager to build UI progress & yield (ui, progress, task)
 @contextmanager
 def setup_ui_with_progress(task_description: str, total: int):
-    from ..ui import UI
-
     ui = UI()
     with ui.build_progress() as progress:
         ui.progress = progress
@@ -47,7 +45,7 @@ def setup_ui_with_progress(task_description: str, total: int):
         yield ui, progress, task
 
 
-# Read resume lines & job text w/ progress updates
+# read resume lines & job text w/ progress updates
 def load_resume_and_job(
     resume_path: Path, job_path: Path, progress, task
 ) -> tuple[Lines, str]:
@@ -62,8 +60,8 @@ def load_resume_and_job(
     return lines, job_text
 
 
+# load sections JSON string if available
 def load_sections(sections_path: Path | None, progress, task) -> str | None:
-    """Load sections JSON string if available."""
     progress.update(task, description="Loading sections data...")
     sections_json_str = None
     if sections_path and Path(sections_path).exists():
@@ -72,8 +70,8 @@ def load_sections(sections_path: Path | None, progress, task) -> str | None:
     return sections_json_str
 
 
+# load edits JSON object from file
 def load_edits_json(edits_path: Path, progress, task) -> dict:
-    """Load edits JSON object from file."""
     progress.update(task, description="Loading edits JSON...")
     edits_obj = read_json_safe(edits_path)
     progress.advance(task)
@@ -83,7 +81,7 @@ def load_edits_json(edits_path: Path, progress, task) -> dict:
 def persist_edits_json(
     edits: dict, out_path: Path, progress, task, description: str = "Writing edits JSON..."
 ) -> None:
-    """Persist edits JSON to disk with progress update."""
+    # persist edits JSON to disk w/ progress update
     progress.update(task, description=description)
     write_json_safe(edits, out_path)
     progress.advance(task)
@@ -103,7 +101,7 @@ def report_result(result_type: str, settings: LoomSettings | None = None, **path
         console.print(f"   Edits {arrow} {paths['edits_path']}", style="loom.accent2")
         console.print(f"   Resume {arrow} {paths['output_path']}", style="loom.accent2") 
         if settings:
-            console.print(f"   Diff {arrow} {settings.diff_path}", style="dim")
+            console.print(f"   Diff {arrow} {settings.diff_path}", style="progress.path")
     elif result_type == "apply":
         format_msg = (
             f" (formatting preserved via {paths.get('preserve_mode', 'unknown')} mode)"

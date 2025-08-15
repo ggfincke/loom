@@ -1,5 +1,5 @@
 # src/ai/prompts.py
-# Prompt templates for AI-powered resume sectionizing and tailoring operations
+# Prompt templates for AI-powered resume sectionizing & tailoring operations
 
 # build sectionizer prompt for LLM
 def build_sectionizer_prompt(resume_with_line_numbers: str) -> str:

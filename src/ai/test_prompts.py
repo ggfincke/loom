@@ -1,5 +1,5 @@
 # src/ai/test_prompts.py
-# Test prompts for purposeful fail cases to validate error handling and system robustness
+# Test prompts for purposeful fail cases to validate error handling & system robustness
 
 # deliberately produces malformed JSON output
 def build_invalid_json_prompt(resume_with_line_numbers: str) -> str:
@@ -40,7 +40,7 @@ def build_conflicting_edits_prompt(job_info: str, resume_with_line_numbers: str)
         f"Resume:\n{resume_with_line_numbers}\n"
     )
 
-# generates replace_line operations with newline characters
+# generates replace_line operations w/ newline characters
 def build_newline_in_replace_line_prompt(job_info: str, resume_with_line_numbers: str) -> str:
     return (
         "You are a resume editor. Generate replace_line operations that contain "
@@ -67,7 +67,7 @@ def build_missing_fields_prompt(job_info: str, resume_with_line_numbers: str) ->
         f"Resume:\n{resume_with_line_numbers}\n"
     )
 
-# generates operations with invalid operation types
+# generates operations w/ invalid operation types
 def build_invalid_operation_types_prompt(job_info: str, resume_with_line_numbers: str) -> str:
     return (
         "You are a resume editor. Generate edit operations with invalid "
@@ -81,7 +81,7 @@ def build_invalid_operation_types_prompt(job_info: str, resume_with_line_numbers
         f"Resume:\n{resume_with_line_numbers}\n"
     )
 
-# generates edits with incorrect current_snippet values
+# generates edits w/ incorrect current_snippet values
 def build_wrong_current_snippet_prompt(job_info: str, resume_with_line_numbers: str) -> str:
     return (
         "You are a resume editor. Generate edit operations where the "
@@ -136,7 +136,7 @@ def build_empty_response_prompt(resume_with_line_numbers: str) -> str:
         f"Resume:\n{resume_with_line_numbers}\n"
     )
 
-# wraps valid-looking JSON in code fences and extra prose
+# wraps valid-looking JSON in code fences & extra prose
 def build_code_fence_wrapped_json_prompt(job_info: str, resume_with_line_numbers: str) -> str:
     return (
         "You are a resume editor. Return the edits JSON but wrap it in Markdown code fences "
@@ -177,7 +177,7 @@ def build_stringified_numbers_prompt(job_info: str, resume_with_line_numbers: st
         f"Resume:\n{resume_with_line_numbers}\n"
     )
 
-# emits Unicode control chars and invalid separators in string fields
+# emits Unicode control chars & invalid separators in string fields
 def build_control_chars_prompt(job_info: str, resume_with_line_numbers: str) -> str:
     return (
         "You are a resume editor. Intentionally include control characters in string values, such as:\n"
@@ -188,7 +188,7 @@ def build_control_chars_prompt(job_info: str, resume_with_line_numbers: str) -> 
         f"Resume:\n{resume_with_line_numbers}\n"
     )
 
-# massively oversized output to test max-ops and payload limits
+# massively oversized output to test max-ops & payload limits
 def build_too_many_ops_prompt(job_info: str, resume_with_line_numbers: str, target_ops: int = 500) -> str:
     return (
         "You are a resume editor. Produce an extremely large number of tiny edits.\n"
