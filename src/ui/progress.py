@@ -6,7 +6,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 from pathlib import Path
 
-from ..loom_io import read_docx, read_text, read_json_safe
+from ..loom_io import read_resume, read_text, read_json_safe
 from ..loom_io.types import Lines
 from . import UI
 
@@ -26,7 +26,7 @@ def load_resume_and_job(
     resume_path: Path, job_path: Path, progress, task
 ) -> tuple[Lines, str]:
     progress.update(task, description="Reading resume document...")
-    lines = read_docx(resume_path)
+    lines = read_resume(resume_path)
     progress.advance(task)
 
     progress.update(task, description="Reading job description...")

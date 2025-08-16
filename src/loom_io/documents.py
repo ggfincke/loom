@@ -1,5 +1,5 @@
 # src/loom_io/documents.py
-# Document I/O operations for reading and writing DOCX files with formatting preservation
+# Document I/O operations for reading & writing DOCX files with formatting preservation, plus basic LaTeX/text support
 
 from pathlib import Path
 from docx import Document
@@ -28,6 +28,26 @@ def read_docx_with_formatting(path: Path) -> Tuple[Lines, Any, Dict[int, Paragra
 def read_docx(path: Path) -> Lines:
     lines, _, _ = read_docx_with_formatting(path)
     return lines
+
+# read LaTeX (.tex) file as numbered non-empty lines (basic support)
+def read_latex(path: Path) -> Lines:
+    text = Path(path).read_text(encoding="utf-8")
+    lines: Lines = {}
+    line_number = 1
+    for raw in text.splitlines():
+        t = raw.strip()
+        if t:
+            lines[line_number] = t
+            line_number += 1
+    return lines
+
+# read resume by extension (.docx or .tex)
+def read_resume(path: Path) -> Lines:
+    suffix = path.suffix.lower()
+    if suffix == ".tex":
+        return read_latex(path)
+    # default to DOCX handling
+    return read_docx(path)
 
 # apply edits to document with different preservation modes
 def apply_edits_to_docx(original_path: Path, new_lines: Lines, output_path: Path, 
@@ -245,6 +265,11 @@ def write_docx(lines: Lines, output_path: Path) -> None:
     for line_num in sorted(lines.keys()):
         doc.add_paragraph(lines[line_num])
     doc.save(str(output_path))
+
+# write numbered lines back to a plain text file (e.g., .tex or .txt)
+def write_text_lines(lines: Lines, output_path: Path) -> None:
+    ordered = "\n".join(f"{text}" for _, text in sorted(lines.items()))
+    Path(output_path).write_text(ordered, encoding="utf-8")
 
 # number lines in a resume
 def number_lines(resume: Lines) -> str:

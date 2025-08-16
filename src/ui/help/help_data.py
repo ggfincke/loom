@@ -84,7 +84,7 @@ OPTION_HELP = {
     "resume": OptionHelp(
         name="resume_path",
         type_name="PATH",
-        description="Path to resume .docx",
+        description="Path to resume (.docx or .tex)",
         required=True,
         config_key="resume_path",
     ),
@@ -132,7 +132,7 @@ OPTION_HELP = {
     "output_resume": OptionHelp(
         name="--output-resume",
         type_name="PATH",
-        description="Where to write the tailored resume .docx",
+        description="Where to write the tailored resume (.docx or .tex)",
         aliases=["-r"],
         default="<output_dir>/tailored_resume.docx",
         config_key="output_dir",

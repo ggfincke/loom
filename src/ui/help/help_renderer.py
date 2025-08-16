@@ -171,6 +171,7 @@ class HelpRenderer:
             Text("loom sectionize resume.docx --out-json sections.json", style="white"),
             Text("loom tailor job.txt resume.docx --edits-only", style="white"),
             Text("loom tailor resume.docx --apply --output-resume tailored_resume.docx", style="white"),
+            Text("loom tailor job.txt resume.tex --output-resume tailored_resume.tex", style="white"),
             Text(""),
             Text("# Configure defaults to simplify commands", style=f"dim {self.theme_colors[2]}"),
             Text("loom config set data_dir /path/to/job_applications", style="white"),

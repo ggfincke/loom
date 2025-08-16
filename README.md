@@ -126,6 +126,10 @@ For better targeting, first parse your resume into sections:
 ```bash
 loom sectionize resume.docx --out-json sections.json
 loom tailor job_description.txt resume.docx --sections-path sections.json
+
+# LaTeX (.tex) resumes are supported for reading/writing plain text
+loom sectionize resume.tex --out-json sections.json
+loom tailor job_description.txt resume.tex --output-resume tailored_resume.tex
 ```
 
 This command:
@@ -162,8 +166,8 @@ loom --help
 - Install deps: `pip install -r requirements.txt`
 - Install CLI (editable): `pip install -e .` (provides `loom` command)
 - Smoke tests:
-  - Sectionize: `loom sectionize path/to/resume.docx --out-json sections.json`
-  - Tailor: `loom tailor job.txt path/to/resume.docx --sections-path sections.json --edits-json edits.json`
+  - Sectionize: `loom sectionize path/to/resume.docx --out-json sections.json` (or `.tex`)
+  - Tailor: `loom tailor job.txt path/to/resume.docx --sections-path sections.json --edits-json edits.json` (or `.tex` with `--output-resume out.tex`)
 
 ## Configuration Management
 

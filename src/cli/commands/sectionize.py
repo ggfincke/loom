@@ -8,7 +8,7 @@ import typer
 
 from ...ai.prompts import build_sectionizer_prompt
 from ...ai.clients import run_generate
-from ...loom_io import read_docx, number_lines, write_json_safe
+from ...loom_io import read_resume, number_lines, write_json_safe
 from ...core.exceptions import handle_loom_error
 
 from ..app import app
@@ -25,7 +25,7 @@ from ...ui.help.help_data import command_help
     name="sectionize",
     description="Parse resume document into structured sections using AI",
     long_description=(
-        "Analyzes your resume (.docx) and identifies distinct sections such as "
+        "Analyzes your resume (.docx or .tex) & identifies distinct sections such as "
         "SUMMARY, EXPERIENCE, and EDUCATION. Produces a machine-readable JSON map "
         "used to target edits precisely in later steps.\n\n"
         "Defaults: paths come from config when omitted (see 'loom config')."
@@ -85,7 +85,7 @@ def sectionize(
         task,
     ):
         progress.update(task, description="Reading resume document...")
-        lines = read_docx(resume_path)
+        lines = read_resume(resume_path)
         progress.advance(task)
 
         progress.update(task, description="Numbering lines...")
@@ -115,4 +115,3 @@ def sectionize(
         progress.advance(task)
 
     report_result("sections", sections_path=out_json)
-

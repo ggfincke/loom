@@ -6,7 +6,13 @@ from __future__ import annotations
 from pathlib import Path
 
 from ..config.settings import LoomSettings
-from ..loom_io import write_json_safe, apply_edits_to_docx, write_docx, ensure_parent
+from ..loom_io import (
+    write_json_safe,
+    apply_edits_to_docx,
+    write_docx,
+    write_text_lines,
+    ensure_parent,
+)
 from ..loom_io.console import console
 from ..loom_io.types import Lines
 from ..core.pipeline import diff_lines
@@ -38,12 +44,16 @@ def report_result(result_type: str, settings: LoomSettings | None = None, **path
         if settings:
             console.print(f"   Diff {arrow} {settings.diff_path}", style="progress.path")
     elif result_type == "apply":
-        format_msg = (
-            f" (formatting preserved via {paths.get('preserve_mode', 'unknown')} mode)"
-            if paths.get("preserve_formatting")
-            else " (plain text)"
-        )
-        console.print(checkmark, success_gradient(f"Wrote DOCX{format_msg}"), arrow, f"{paths['output_path']}")
+        out_path = Path(paths['output_path'])
+        if out_path.suffix.lower() == ".docx":
+            format_msg = (
+                f" (formatting preserved via {paths.get('preserve_mode', 'unknown')} mode)"
+                if paths.get("preserve_formatting")
+                else " (plain text)"
+            )
+            console.print(checkmark, success_gradient(f"Wrote DOCX{format_msg}"), arrow, f"{out_path}")
+        else:
+            console.print(checkmark, success_gradient("Wrote text"), arrow, f"{out_path}")
         if settings:
             console.print(checkmark, f"Diff {arrow} {settings.diff_path}", style="loom.accent2")
     elif result_type == "plan":
@@ -73,10 +83,14 @@ def write_output_with_diff(
 
     # write output
     progress.update(task, description="Writing tailored resume...")
-    if preserve_formatting:
-        apply_edits_to_docx(
-            resume_path, new_lines, output_path, preserve_mode=preserve_mode
-        )
+    suffix = output_path.suffix.lower()
+    if suffix == ".docx":
+        if preserve_formatting:
+            apply_edits_to_docx(
+                resume_path, new_lines, output_path, preserve_mode=preserve_mode
+            )
+        else:
+            write_docx(new_lines, output_path)
     else:
-        write_docx(new_lines, output_path)
+        write_text_lines(new_lines, output_path)
     progress.advance(task)
