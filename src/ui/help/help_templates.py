@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 
 @dataclass
@@ -23,8 +23,10 @@ class OptionHelp:
     name: str
     type_name: str
     description: str
-    default: str | None = None
+    default: Optional[str] = None
     required: bool = False
+    aliases: Optional[List[str]] = None
+    config_key: Optional[str] = None
 
 
 # command help templates w/ rich descriptions & examples
@@ -33,14 +35,15 @@ COMMAND_HELP = {
         name="sectionize",
         description="Parse resume document into structured sections using AI",
         long_description=(
-            "Analyzes your resume document and identifies distinct sections like "
-            "SUMMARY, EXPERIENCE, EDUCATION, etc. Creates a JSON mapping that "
-            "enables precise targeting during the tailoring process."
+            "Analyzes your resume (.docx) and identifies distinct sections such as "
+            "SUMMARY, EXPERIENCE, and EDUCATION. Produces a machine-readable JSON map "
+            "used to target edits precisely in later steps.\n\n"
+            "Defaults: paths come from config when omitted (see 'loom config')."
         ),
         examples=[
             "loom sectionize resume.docx --out-json sections.json",
-            "loom sectionize my_resume.docx  # Uses config defaults for output",
-            "loom sectionize resume.docx --model gpt-4o  # Use specific model",
+            "loom sectionize my_resume.docx  # uses config defaults",
+            "loom sectionize resume.docx --model gpt-4o-mini",
         ],
         see_also=["generate", "tailor", "config"],
     ),
@@ -49,14 +52,16 @@ COMMAND_HELP = {
         name="generate", 
         description="Generate edits.json with AI-powered resume tailoring for job requirements",
         long_description=(
-            "Analyzes a job description against your resume and generates precise "
-            "line-by-line edits to optimize your resume for the specific role. "
-            "Outputs edits in JSON format for review before application."
+            "Compares a job description against your resume and proposes precise, "
+            "line-oriented edits optimized for the role. Outputs edits in JSON for "
+            "review or later application.\n\n"
+            "Argument/option precedence: CLI > config defaults. When not provided, "
+            "paths and model fall back to your saved settings (see 'loom config')."
         ),
         examples=[
-            "loom generate job_posting.txt resume.docx --out-json edits.json",
+            "loom generate job.txt resume.docx --edits-json edits.json",
             "loom generate job.txt resume.docx --sections-path sections.json",
-            "loom generate job.txt resume.docx --model gpt-4o-mini",
+            "loom generate job.txt resume.docx -m gpt-4o-mini --risk med --on-error ask",
         ],
         see_also=["apply", "tailor", "sectionize"],
     ),
@@ -65,14 +70,14 @@ COMMAND_HELP = {
         name="apply",
         description="Apply edits from JSON to resume document & generate tailored output", 
         long_description=(
-            "Takes an edits JSON file (from 'generate' command) and applies all "
-            "modifications to your resume document. Preserves original formatting "
-            "while making precise content changes."
+            "Applies an edits JSON (from 'generate' or 'plan') to your resume and writes "
+            "a tailored .docx. Supports preserving original formatting with configurable "
+            "modes."
         ),
         examples=[
-            "loom apply edits.json resume.docx --output tailored_resume.docx",
-            "loom apply edits.json resume.docx --no-preserve-formatting",
-            "loom apply edits.json resume.docx  # Uses config defaults",
+            "loom apply --edits-json edits.json resume.docx --output-resume tailored.docx",
+            "loom apply -e edits.json resume.docx --no-preserve-formatting",
+            "loom apply -e edits.json resume.docx -r output/tailored.docx",
         ],
         see_also=["generate", "tailor"],
     ),
@@ -81,13 +86,13 @@ COMMAND_HELP = {
         name="tailor",
         description="Complete end-to-end resume tailoring: generate edits & apply in one step",
         long_description=(
-            "Combines 'generate' and 'apply' into a single workflow. Analyzes the "
-            "job description, generates edits, and produces a tailored resume "
-            "document ready for submission."
+            "Runs generation and apply in one pass: analyzes the job description, "
+            "produces edits, then writes a tailored resume. Accepts the same safety "
+            "and formatting controls as 'generate'/'apply'."
         ),
         examples=[
-            "loom tailor job_posting.txt resume.docx",
-            "loom tailor job.txt resume.docx --output custom_name.docx", 
+            "loom tailor job.txt resume.docx",
+            "loom tailor job.txt resume.docx --output-resume custom_name.docx", 
             "loom tailor job.txt resume.docx --sections-path sections.json",
             "loom tailor job.txt resume.docx --no-preserve-formatting",
         ],
@@ -100,12 +105,13 @@ COMMAND_HELP = {
         long_description=(
             "Experimental command that uses a multi-step planning approach for "
             "resume tailoring. Provides more detailed reasoning and step-by-step "
-            "edit generation for complex tailoring scenarios."
+            "edit generation for complex tailoring scenarios. Accepts the same "
+            "options as 'generate' for risk and validation policies."
         ),
         examples=[
-            "loom plan job_posting.txt resume.docx",
+            "loom plan job.txt resume.docx",
             "loom plan job.txt resume.docx --sections-path sections.json",
-            "loom plan job.txt resume.docx --out-json planned_edits.json",
+            "loom plan job.txt resume.docx --edits-json planned_edits.json",
         ],
         see_also=["tailor", "generate"],
     ),
@@ -114,9 +120,9 @@ COMMAND_HELP = {
         name="config",
         description="Manage Loom settings & configuration",
         long_description=(
-            "Configure default directories, file names, AI model, and visual themes "
-            "to streamline your workflow. Settings are persisted and reduce the need "
-            "for command-line arguments."
+            "Configure default directories, file names, AI model, and visual theme. "
+            "Settings persist to ~/.loom/config.json and are used when CLI arguments "
+            "are omitted."
         ),
         examples=[
             "loom config  # Show all current settings",
@@ -135,55 +141,91 @@ COMMAND_HELP = {
 
 # option help metadata for consistent descriptions
 OPTION_HELP = {
-    "resume_path": OptionHelp(
+    # positional args
+    "resume": OptionHelp(
         name="resume_path",
         type_name="PATH",
-        description="Path to resume DOCX file",
+        description="Path to resume .docx",
         required=True,
+        config_key="resume_path",
     ),
-    "job_path": OptionHelp(
-        name="job_path", 
+    "job": OptionHelp(
+        name="job_path",
         type_name="PATH",
         description="Path to job description text file",
         required=True,
+        config_key="job_path",
     ),
-    "out_json": OptionHelp(
-        name="--out-json",
-        type_name="PATH",
-        description="Output path for JSON file",
-    ),
-    "output": OptionHelp(
-        name="--output",
-        type_name="PATH", 
-        description="Output path for tailored resume DOCX",
+
+    # shared options
+    "model": OptionHelp(
+        name="--model",
+        type_name="TEXT",
+        description="OpenAI model to use (e.g., gpt-4o, gpt-4o-mini)",
+        aliases=["-m"],
+        default="from config: model",
+        config_key="model",
     ),
     "sections_path": OptionHelp(
         name="--sections-path",
         type_name="PATH",
-        description="Path to sections JSON file (from sectionize)",
+        description="Path to sections JSON (from 'sectionize')",
+        aliases=["-s"],
+        default="from config: sections_path",
+        config_key="sections_path",
     ),
-    "edits_path": OptionHelp(
-        name="edits_path",
+    "edits_json": OptionHelp(
+        name="--edits-json",
         type_name="PATH",
-        description="Path to edits JSON file",
-        required=True,
+        description="Path to edits JSON (read/write depending on command)",
+        aliases=["-e"],
+        default="from config: edits_path",
+        config_key="edits_path",
     ),
-    "model": OptionHelp(
-        name="--model",
-        type_name="TEXT",
-        description="OpenAI model to use (gpt-4o, gpt-4o-mini, etc.)",
+    "out_json": OptionHelp(
+        name="--out-json",
+        type_name="PATH",
+        description="Where to write sections JSON",
+        aliases=["-o"],
+        default="from config: sections_path",
+        config_key="sections_path",
+    ),
+    "output_resume": OptionHelp(
+        name="--output-resume",
+        type_name="PATH",
+        description="Where to write the tailored resume .docx",
+        aliases=["-r"],
+        default="<output_dir>/tailored_resume.docx",
+        config_key="output_dir",
+    ),
+    "risk": OptionHelp(
+        name="--risk",
+        type_name="CHOICE",
+        description="Validation strictness for edits: low | med | high | strict",
+        default="med",
+    ),
+    "on_error": OptionHelp(
+        name="--on-error",
+        type_name="CHOICE",
+        description="Policy when validation finds issues: ask | retry | manual | fail:soft | fail:hard",
+        default="ask",
     ),
     "preserve_formatting": OptionHelp(
         name="--preserve-formatting/--no-preserve-formatting",
         type_name="FLAG",
-        description="Preserve original document formatting",
-        default="True",
+        description="Preserve original DOCX formatting (fonts, styles, etc.)",
+        default="true",
     ),
     "preserve_mode": OptionHelp(
         name="--preserve-mode",
         type_name="CHOICE",
-        description="How to preserve formatting (styles, replace, hybrid)",
-        default="styles",
+        description="Formatting approach: in_place (best preservation) | rebuild (new doc)",
+        default="in_place",
+    ),
+    "plan": OptionHelp(
+        name="--plan",
+        type_name="INT",
+        description="Planning mode: omit for plan-only; set N to cap steps",
     ),
 }
 

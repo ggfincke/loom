@@ -44,7 +44,13 @@ def plan(
     on_error: ValidationPolicy | None = OnErrorOpt(),
     model: str | None = ModelOpt(),
     sections_path: Path | None = SectionsPathOpt(),
+    help: bool = typer.Option(False, "--help", "-h", help="Show help message and exit."),
 ) -> None:
+    # detect help flag & show custom help
+    if help:
+        from .help import show_command_help
+        show_command_help("plan")
+        ctx.exit()
     settings = ctx.obj
     resolver = ArgResolver(settings)
 

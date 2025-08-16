@@ -25,7 +25,13 @@ def sectionize(
     resume_path: Path | None = ResumeArg(),
     out_json: Path | None = OutJsonOpt(),
     model: str | None = ModelOpt(),
+    help: bool = typer.Option(False, "--help", "-h", help="Show help message and exit."),
 ) -> None:
+    # detect help flag & show custom help
+    if help:
+        from .help import show_command_help
+        show_command_help("sectionize")
+        ctx.exit()
     settings = ctx.obj
     resolver = ArgResolver(settings)
 

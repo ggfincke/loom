@@ -13,7 +13,7 @@ from typing import Any
 from ...loom_io.console import console
 from ..colors import accent_gradient, get_active_theme
 from ..ascii_art import show_loom_art
-from .help_templates import get_command_help
+from .help_templates import get_command_help, get_option_help
 
 
 # * Custom help renderer for branded CLI help screens w/ Rich styling & theme integration
@@ -44,7 +44,7 @@ class HelpRenderer:
         console.print()
         
         # help note
-        help_note = f"[{self.theme_colors[0]}]Run 'loom <command> --help' for detailed command options[/]"
+        help_note = f"[{self.theme_colors[0]}]Run 'loom <command> -h' (or --help) for detailed options[/]"
         console.print(help_note)
         console.print()
         
@@ -87,8 +87,8 @@ class HelpRenderer:
         console.print(usage_panel)
         console.print()
         
-        # options table (simplified for now, since we don't have easy access to typer command objects)
-        self._render_command_options_simplified(command_name)
+        # detailed options table using our template metadata
+        self._render_command_options_detailed(command_name)
         console.print()
         
         # command-specific examples from templates
@@ -168,8 +168,8 @@ class HelpRenderer:
             Text(""),
             Text("# Step-by-step workflow", style=f"dim {self.theme_colors[2]}"),
             Text("loom sectionize resume.docx --out-json sections.json", style="white"),
-            Text("loom generate job.txt resume.docx --out-json edits.json", style="white"),
-            Text("loom apply edits.json resume.docx --output tailored_resume.docx", style="white"),
+            Text("loom generate job.txt resume.docx --edits-json edits.json", style="white"),
+            Text("loom apply --edits-json edits.json resume.docx --output-resume tailored_resume.docx", style="white"),
             Text(""),
             Text("# Configure defaults to simplify commands", style=f"dim {self.theme_colors[2]}"),
             Text("loom config set data_dir /path/to/job_applications", style="white"),
@@ -245,56 +245,58 @@ class HelpRenderer:
         
         console.print(table)
     
-    # render simplified options table for command
-    def _render_command_options_simplified(self, command_name: str) -> None:
-        # define common options per command
+    # render detailed options table for command from template metadata
+    def _render_command_options_detailed(self, command_name: str) -> None:
+        # map commands to option keys defined in help_templates.OPTION_HELP
         options_map = {
             "sectionize": [
-                ("resume_path", "PATH", "Path to resume DOCX file", True),
-                ("--out-json", "PATH", "Output path for sections JSON", False),
-                ("--model", "TEXT", "OpenAI model to use", False),
+                ("resume", True),
+                ("out_json", False),
+                ("model", False),
             ],
             "generate": [
-                ("job_path", "PATH", "Path to job description text file", True),
-                ("resume_path", "PATH", "Path to resume DOCX file", True),
-                ("--out-json", "PATH", "Output path for edits JSON", False),
-                ("--sections-path", "PATH", "Path to sections JSON file", False),
-                ("--model", "TEXT", "OpenAI model to use", False),
+                ("job", True),
+                ("resume", True),
+                ("edits_json", False),
+                ("sections_path", False),
+                ("model", False),
+                ("risk", False),
+                ("on_error", False),
             ],
             "apply": [
-                ("edits_path", "PATH", "Path to edits JSON file", True),
-                ("resume_path", "PATH", "Path to resume DOCX file", True),
-                ("--output", "PATH", "Output path for tailored resume", False),
-                ("--preserve-formatting/--no-preserve-formatting", "FLAG", "Preserve document formatting", False),
-                ("--preserve-mode", "CHOICE", "Formatting preservation mode", False),
+                ("resume", True),
+                ("edits_json", False),
+                ("output_resume", False),
+                ("preserve_formatting", False),
+                ("preserve_mode", False),
+                ("risk", False),
+                ("on_error", False),
             ],
             "tailor": [
-                ("job_path", "PATH", "Path to job description text file", True),
-                ("resume_path", "PATH", "Path to resume DOCX file", True),
-                ("--output", "PATH", "Output path for tailored resume", False),
-                ("--sections-path", "PATH", "Path to sections JSON file", False),
-                ("--model", "TEXT", "OpenAI model to use", False),
-                ("--preserve-formatting/--no-preserve-formatting", "FLAG", "Preserve document formatting", False),
-                ("--preserve-mode", "CHOICE", "Formatting preservation mode", False),
+                ("job", True),
+                ("resume", True),
+                ("output_resume", False),
+                ("sections_path", False),
+                ("model", False),
+                ("edits_json", False),
+                ("preserve_formatting", False),
+                ("preserve_mode", False),
+                ("risk", False),
+                ("on_error", False),
             ],
             "plan": [
-                ("job_path", "PATH", "Path to job description text file", True),
-                ("resume_path", "PATH", "Path to resume DOCX file", True),
-                ("--out-json", "PATH", "Output path for edits JSON", False),
-                ("--sections-path", "PATH", "Path to sections JSON file", False),
-                ("--model", "TEXT", "OpenAI model to use", False),
+                ("job", True),
+                ("resume", True),
+                ("edits_json", False),
+                ("sections_path", False),
+                ("model", False),
+                ("risk", False),
+                ("on_error", False),
+                ("plan", False),
             ],
-            "config": [
-                ("key", "TEXT", "Setting key to get/set", False),
-                ("value", "TEXT", "Setting value (for set command)", False),
-                ("--help", "FLAG", "Show command help", False),
-            ],
+            "config": [],
         }
-        
-        if command_name not in options_map:
-            console.print("[dim]No options available for this command.[/]")
-            return
-            
+
         table = Table(
             title="Options",
             title_style=f"bold {self.theme_colors[0]}",
@@ -302,16 +304,35 @@ class HelpRenderer:
             show_header=True,
             padding=(0, 1)
         )
-        table.add_column("Option", style=f"bold {self.theme_colors[0]}", width=25)
-        table.add_column("Type", style=self.theme_colors[2], width=8)
+        table.add_column("Option", style=f"bold {self.theme_colors[0]}", width=30)
+        table.add_column("Type", style=self.theme_colors[2], width=10)
         table.add_column("Description", style="white")
-        
-        for option, type_name, description, required in options_map[command_name]:
+        table.add_column("Default", style="dim")
+
+        entries = options_map.get(command_name, [])
+        if not entries:
+            console.print("[dim]No options available for this command.[/]")
+            return
+
+        for key, required in entries:
+            meta = get_option_help(key)
+            if not meta:
+                # fallback minimal row
+                table.add_row(key + (" *" if required else ""), "", "", "")
+                continue
+            # compose option name incl aliases
+            name = meta.name
+            if meta.aliases:
+                alias_str = ", ".join(meta.aliases)
+                name = f"{name}, {alias_str}"
             if required:
-                option = f"{option} *"
-                description = f"{description} (required)"
-            table.add_row(option, type_name, description)
-        
+                name = f"{name} *"
+            # description
+            desc = meta.description + (" (required)" if required else "")
+            # default
+            default = meta.default or ""
+            table.add_row(name, meta.type_name, desc, default)
+
         console.print(table)
     
     # render examples from template data

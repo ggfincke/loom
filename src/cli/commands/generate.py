@@ -34,7 +34,13 @@ def generate(
     job: Path | None = JobArg(),
     risk: RiskLevel | None = RiskOpt(),
     on_error: ValidationPolicy | None = OnErrorOpt(),
+    help: bool = typer.Option(False, "--help", "-h", help="Show help message and exit."),
 ) -> None:
+    # detect help flag & show custom help
+    if help:
+        from .help import show_command_help
+        show_command_help("generate")
+        ctx.exit()
     settings = ctx.obj
     resolver = ArgResolver(settings)
 

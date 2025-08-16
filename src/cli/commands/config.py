@@ -39,7 +39,16 @@ def _coerce_value(raw: str):
 
 # * default callback: show current settings w/ styled output when no subcommand provided
 @config_app.callback(invoke_without_command=True)
-def config_callback(ctx: typer.Context) -> None:
+def config_callback(
+    ctx: typer.Context,
+    help: bool = typer.Option(False, "--help", "-h", help="Show help message and exit."),
+) -> None:
+    # detect help flag & show custom help
+    if help:
+        from .help import show_command_help
+        show_command_help("config")
+        ctx.exit()
+    
     if ctx.invoked_subcommand is None:
         data = settings_manager.list_settings()
         

@@ -42,7 +42,13 @@ def apply(
     on_error: ValidationPolicy | None = OnErrorOpt(),
     preserve_formatting: bool = PreserveFormattingOpt(),
     preserve_mode: str = PreserveModeOpt(),
+    help: bool = typer.Option(False, "--help", "-h", help="Show help message and exit."),
 ) -> None:
+    # detect help flag & show custom help
+    if help:
+        from .help import show_command_help
+        show_command_help("apply")
+        ctx.exit()
     settings = ctx.obj
     resolver = ArgResolver(settings)
 
