@@ -10,6 +10,7 @@ import typer
 import json
 from .constants import ValidationPolicy
 from .exceptions import ValidationError
+from ..ai.models import SUPPORTED_MODELS, validate_model
 
 
 # validation outcome for strategy results
@@ -94,7 +95,7 @@ class ModelRetryStrategy(ValidationStrategy):
             error_warnings = ["Model change not available (not a TTY):"] + warnings
             raise ValidationError(error_warnings, recoverable=False)
         
-        # common model options
+        # supported model options
         model_options = [
             ("1", "gpt-5", "GPT-5 (latest, most capable)"),
             ("2", "gpt-5-mini", "GPT-5 Mini (latest generation, cost-efficient)"),
@@ -126,7 +127,12 @@ class ModelRetryStrategy(ValidationStrategy):
             elif choice in ['5']:
                 selected_model = "gpt-4o-mini"
             elif choice.startswith('gpt-'):
-                selected_model = choice
+                # validate the model using our allow-list
+                if validate_model(choice):
+                    selected_model = choice
+                else:
+                    ui.print(f"Model '{choice}' is not supported. Supported models: {', '.join(SUPPORTED_MODELS)}")
+                    continue
             else:
                 ui.print("Invalid choice. Please enter a number (1-5) or valid model name.")
                 continue

@@ -78,7 +78,7 @@ def ModelOpt():
         None,
         "--model",
         "-m",
-        help="OpenAI model (e.g., gpt-5, gpt-5-mini, gpt-5-nano); defaults to config",
+        help="OpenAI model (see 'loom --help' for supported models); defaults to config",
     )
 
 

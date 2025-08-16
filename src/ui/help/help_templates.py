@@ -43,7 +43,7 @@ COMMAND_HELP = {
         examples=[
             "loom sectionize resume.docx --out-json sections.json",
             "loom sectionize my_resume.docx  # uses config defaults",
-            "loom sectionize resume.docx --model gpt-4o-mini",
+            "loom sectionize resume.docx --model gpt-5-mini",
         ],
         see_also=["generate", "tailor", "config"],
     ),
@@ -61,7 +61,7 @@ COMMAND_HELP = {
         examples=[
             "loom generate job.txt resume.docx --edits-json edits.json",
             "loom generate job.txt resume.docx --sections-path sections.json",
-            "loom generate job.txt resume.docx -m gpt-4o-mini --risk med --on-error ask",
+            "loom generate job.txt resume.docx -m gpt-5-mini --risk med --on-error ask",
         ],
         see_also=["apply", "tailor", "sectionize"],
     ),
@@ -126,7 +126,7 @@ COMMAND_HELP = {
         ),
         examples=[
             "loom config  # Show all current settings",
-            "loom config set model gpt-4o",
+            "loom config set model gpt-5 # Set default AI model",
             "loom config set data_dir /path/to/job_applications", 
             "loom config set resume_filename my_resume.docx",
             "loom config themes  # Interactive theme selector",
@@ -161,7 +161,7 @@ OPTION_HELP = {
     "model": OptionHelp(
         name="--model",
         type_name="TEXT",
-        description="OpenAI model to use (e.g., gpt-4o, gpt-4o-mini)",
+        description="OpenAI model to use (see 'loom --help' for supported models)",
         aliases=["-m"],
         default="from config: model",
         config_key="model",
@@ -258,7 +258,7 @@ WORKFLOW_HELP = {
             "loom config themes  # Choose your preferred visual theme",
             "loom config set data_dir /path/to/job_applications",
             "loom config set output_dir /path/to/tailored_resumes", 
-            "loom config set model gpt-4o  # Set your preferred AI model",
+            "loom config set model gpt-5-mini",
             "loom config set resume_filename my_standard_resume.docx",
         ],
     },
