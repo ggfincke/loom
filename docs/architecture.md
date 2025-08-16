@@ -4,7 +4,7 @@ This document explains how the Loom CLI tool works internally - its architecture
 
 ## Overview
 
-Loom is a Python CLI application built with Typer that uses OpenAI's Responses API to intelligently tailor resumes to job descriptions. The tool operates through a pipeline architecture with two main phases: **sectionization** (parsing) and **tailoring** (editing).
+Loom is a Python CLI application built with Typer that uses AI providers (OpenAI, Anthropic/Claude, or local Ollama) to intelligently tailor resumes to job descriptions. The tool operates through a pipeline architecture with two main phases: **sectionization** (parsing) and **tailoring** (editing).
 
 ## Project Structure
 
@@ -12,7 +12,10 @@ Loom is a Python CLI application built with Typer that uses OpenAI's Responses A
 src/
 ├── main.py                # Entry point (delegates to cli.app)
 ├── ai/
-│   ├── clients/openai_client.py  # OpenAI API integration and response handling
+│   ├── clients/openai_client.py  # OpenAI API integration
+│   ├── clients/claude_client.py  # Anthropic Claude integration
+│   ├── clients/ollama_client.py  # Local Ollama integration
+│   └── clients/factory.py        # Provider selection
 │   ├── prompts.py         # Prompt engineering for AI interactions
 │   ├── test_prompts.py    # Prompt sanity helpers
 │   └── types.py           # AI result types
@@ -51,7 +54,7 @@ src/
     ├── ui.py              # Progress/input utilities
     ├── help/              # Enhanced help system
     │   ├── help_renderer.py # Custom help rendering
-    │   └── help_templates.py # Help content templates
+    │   └── help_data.py     # Help content & metadata
     └── quick/             # Quick usage utilities
         └── quick_usage.py # Quick command shortcuts
 ```
@@ -118,14 +121,14 @@ Handles all document I/O operations:
 
 Key data structure: `Lines = Dict[int, str]` - maps line numbers to text content.
 
-### 4. AI Integration (`src/ai/clients/openai_client.py`, `src/ai/prompts.py`)
+### 4. AI Integration (`src/ai/clients/*`, `src/ai/prompts.py`)
 
-**OpenAI Client**:
-- Loads environment variables and API keys
-- Handles GPT-5 vs other model differences (temperature parameter)
-- Uses OpenAI Responses API for structured JSON output
-- Strips markdown code blocks from responses
-- Validates JSON parsing with detailed error messages
+**Providers**:
+- OpenAI: Uses Responses-like APIs for structured JSON output
+- Anthropic (Claude): Compatible JSON responses with policy handling
+- Ollama: Local models discovered dynamically; JSON enforced in prompts
+
+All providers normalize to a consistent JSON edit schema with robust parsing and error messages.
 
 **Prompt Engineering**:
 - **Sectionizer Prompt**: Analyzes resume structure, identifies sections with confidence scores, detects subsections (experience items, projects, education)
@@ -210,7 +213,7 @@ UI components are separated into focused modules:
 ## AI Integration Strategy
 
 ### Structured Output
-Uses OpenAI Responses API for guaranteed JSON structure rather than parsing free-form text.
+Uses provider integrations that enforce JSON structure (via Responses-style calls or prompt constraints) rather than parsing free-form text.
 
 ### Prompt Engineering
 - **Constraints**: Strict rules about truthfulness, evidence-based editing
@@ -219,7 +222,7 @@ Uses OpenAI Responses API for guaranteed JSON structure rather than parsing free
 - **Safety**: Multiple validation layers and user confirmation
 
 ### Model Flexibility
-Supports different OpenAI models with feature detection (GPT-5 temperature handling).
+Supports OpenAI, Anthropic (Claude), and local Ollama models with feature detection and availability checks. The `loom models` command lists usable models by provider.
 
 ## Configuration Philosophy
 
@@ -241,7 +244,7 @@ CLI arguments override settings, which override hardcoded defaults.
 4. **Validation Rules**: Extend validation logic in `core/validation.py`
 5. **CLI Commands**: Add new command modules in `cli/commands/`
 6. **UI Themes**: Add new color schemes in `ui/colors.py`
-7. **Help Templates**: Extend help content in `ui/help/help_templates.py`
+7. **Help Content**: Extend help content in `ui/help/help_data.py`
 8. **Interactive Features**: Add new UI components in `ui/` package
 
 This architecture provides a solid foundation for resume tailoring while maintaining flexibility for future enhancements. The modular design allows for easy extension of both core functionality and user experience features.

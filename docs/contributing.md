@@ -14,12 +14,13 @@ Thanks for your interest in improving Loom! This guide outlines the workflow and
 1. Create env: `conda create -n loom python=3.12 && conda activate loom`
 2. Install deps: `pip install -r requirements.txt`
 3. Install CLI (editable): `pip install -e .` (gives the `loom` command)
-4. Configure `.env` with `OPENAI_API_KEY` (do not commit this)
+4. Configure `.env` with `OPENAI_API_KEY` and optionally `ANTHROPIC_API_KEY` (do not commit these). For local models, run an Ollama server.
 
 ## Smoke Tests
 
 - Basic help: `loom --help` (verify enhanced help system displays correctly)
 - Theme system: `loom config themes` (verify interactive theme selector works)
+- Models list: `loom models` (verify provider detection and lists)
 - Sectionize: `loom sectionize path/to/resume.docx --out-json sections.json`
 - Tailor: `loom tailor job.txt path/to/resume.docx --sections-path sections.json --edits-json edits.json`
 
@@ -31,7 +32,7 @@ Thanks for your interest in improving Loom! This guide outlines the workflow and
 
 ## Security & Configuration
 
-- Never commit secrets. Keep `OPENAI_API_KEY` in `.env`.
+- Never commit secrets. Keep `OPENAI_API_KEY` & `ANTHROPIC_API_KEY` in `.env`.
 - Settings persist at `~/.loom/config.json`. Prefer `settings_manager` for reads/writes; do not hard-code defaults.
 - Validate paths and file types in `loom_io/` before processing.
 

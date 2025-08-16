@@ -15,11 +15,18 @@ This document provides comprehensive usage instructions for the Loom resume tail
 
 2. **API Configuration**:
    ```bash
-   # Set your OpenAI API key
-   export OPENAI_API_KEY="your-api-key-here"
+   # Set your provider API keys (as needed)
+   export OPENAI_API_KEY="your-openai-key-here"
+   export ANTHROPIC_API_KEY="your-anthropic-key-here"  # optional, for Claude
    
    # Or create a .env file in the project root
-   echo "OPENAI_API_KEY=your-api-key-here" > .env
+   cat > .env << 'EOF'
+   OPENAI_API_KEY=your-openai-key-here
+   ANTHROPIC_API_KEY=your-anthropic-key-here
+   EOF
+   
+   # Ollama: run a local server and pull a model (no API key required)
+   #   brew install ollama && ollama serve && ollama pull deepseek-r1:14b
    ```
 
 3. **Verify Installation**:
@@ -80,6 +87,7 @@ loom tailor
 # Access enhanced help system
 loom --help
 loom sectionize --help
+loom models            # List available models by provider
 ```
 
 ## Core Workflows
@@ -146,7 +154,7 @@ loom sectionize [RESUME_PATH] [OPTIONS]
 
 **Options:**
 - `--out-json PATH`: Output path for sections JSON file
-- `--model TEXT`: OpenAI model to use
+- `--model TEXT`: Model to use (see `loom models`)
 - `--help`: Show enhanced command help
 
 **Example Output:** Creates a JSON file with identified resume sections, subsections, and confidence scores.
@@ -162,10 +170,10 @@ loom tailor [JOB_PATH] [RESUME_PATH] [OPTIONS]
 
 **Options:**
 - `--sections-path PATH`: Path to existing sections JSON
-- `--out-docx PATH`: Output path for tailored resume
-- `--out-json PATH`: Save generated edits as JSON
-- `--model TEXT`: OpenAI model to use
-- `--policy TEXT`: Error handling policy (ask|fail|retry|manual)
+- `--output-resume PATH`: Output path for tailored resume (.docx or .tex)
+- `--edits-json PATH`: Save generated edits as JSON
+- `--model TEXT`: Model to use (OpenAI/Claude/Ollama)
+- `--on-error TEXT`: Error handling policy (ask|retry|manual|fail|fail:soft|fail:hard)
 - `--risk TEXT`: Validation risk level (low|med|high|strict)
 - `--help`: Show enhanced command help
 
@@ -181,8 +189,8 @@ loom generate [JOB_PATH] [RESUME_PATH] [OPTIONS]
 **Options:**
 - `--sections-path PATH`: Path to sections JSON file
 - `--out-json PATH`: Output path for edits JSON
-- `--model TEXT`: OpenAI model to use
-- `--policy TEXT`: Error handling policy
+- `--model TEXT`: Model to use (see `loom models`)
+- `--on-error TEXT`: Error handling policy
 - `--risk TEXT`: Validation risk level
 
 ### `loom apply`
@@ -195,8 +203,8 @@ loom apply [RESUME_PATH] [EDITS_PATH] [OPTIONS]
 ```
 
 **Options:**
-- `--out-docx PATH`: Output path for tailored resume
-- `--policy TEXT`: Error handling policy
+- `--output-resume PATH`: Output path for tailored resume (.docx or .tex)
+- `--on-error TEXT`: Error handling policy
 - `--risk TEXT`: Validation risk level
 
 ### `loom config`
@@ -230,7 +238,7 @@ Control how Loom handles validation errors:
 - `manual`: Allow manual intervention and continuation
 
 ```bash
-loom tailor job.txt resume.docx --policy retry
+loom tailor job.txt resume.docx --on-error retry
 ```
 
 ### Risk Levels
@@ -248,17 +256,19 @@ loom tailor job.txt resume.docx --risk high
 
 ### Model Selection
 
-Choose different OpenAI models:
+Choose models from OpenAI, Anthropic (Claude), or local Ollama. See `loom models` for availability.
 
 ```bash
-# Use GPT-4 Omni (recommended for quality)
+# OpenAI examples
 loom tailor job.txt resume.docx --model gpt-4o
+loom tailor job.txt resume.docx --model gpt-5-mini
 
-# Use GPT-4 Omni Mini (faster, cheaper)
-loom tailor job.txt resume.docx --model gpt-4o-mini
+# Claude examples
+loom tailor job.txt resume.docx --model claude-sonnet-4
+loom tailor job.txt resume.docx --model claude-3-5-haiku-20241022
 
-# Use GPT-3.5 Turbo (legacy)
-loom tailor job.txt resume.docx --model gpt-3.5-turbo
+# Ollama example (ensure server running and model pulled)
+loom tailor job.txt resume.docx --model deepseek-r1:14b
 ```
 
 ## File Organization
