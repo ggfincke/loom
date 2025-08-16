@@ -29,9 +29,27 @@ This document provides comprehensive usage instructions for the Loom resume tail
 
 ## Configuration Management
 
-Loom supports persistent configuration to streamline your workflow. Settings are read from `~/.loom/config.json`.
+Loom supports persistent configuration to streamline your workflow. Settings are read from `~/.loom/config.json` and can be managed via CLI.
 
-### Initial Configuration
+### Using the CLI
+
+```bash
+# Show config location
+loom config path
+
+# List settings
+loom config list
+
+# Get / Set specific values (values are JSON-coerced)
+loom config get model
+loom config set model "gpt-4o"
+loom config set temperature 0.2
+
+# Reset to defaults
+loom config reset
+```
+
+### Editing JSON Directly
 
 Create or edit `~/.loom/config.json` to set defaults:
 

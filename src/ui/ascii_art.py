@@ -1,24 +1,41 @@
 # src/ui/ascii_art.py
-# Banner/art display utilities for CLI
+# banner & art display utilities for CLI
 
 from __future__ import annotations
 
 from pathlib import Path
+from rich.text import Text
 from ..loom_io.console import console
+from .colors import get_active_theme, natural_gradient
 
-
-# * Display the Loom banner if found in new or legacy location
-def show_loom_art() -> None:
+# * Display the Loom banner w/ smooth gradient styling  
+def show_loom_art(theme_colors: list[str] | None = None) -> None:
+    console.print()
     candidates = [
+        Path(__file__).parent / "banner.txt",
         Path(__file__).parent / "assets" / "banner.txt",
-        # legacy location before reorg
-        Path(__file__).resolve().parents[2] / "cli" / "banner.txt",
     ]
     banner_path = next((p for p in candidates if p.exists()), None)
-    if banner_path:
-        banner = banner_path.read_text(encoding="utf-8")
-        console.print(banner)
+
+    # choose 3-stop gradient from theme for nice blending
+    if theme_colors is not None:
+        theme = theme_colors
     else:
-        console.print(
-            "LOOM - Smart, precise resume tailoring in seconds", style="bold cyan"
-        )
+        theme = get_active_theme()
+    
+    stops = [c for i, c in enumerate(theme) if i in (0, 2, 4)]
+    if len(stops) < 2:
+        # fallback if theme is short
+        stops = theme[:2]
+
+    if banner_path:
+        art = banner_path.read_text(encoding="utf-8").splitlines()
+        out = Text()
+        for line in art:
+            out.append(natural_gradient(line, stops))
+            out.append("\n")
+        console.print(out)
+    else:
+        # simple fallback title w/ gradient
+        title = "LOOM - Smart, precise resume tailoring in seconds"
+        console.print(natural_gradient(title, stops))

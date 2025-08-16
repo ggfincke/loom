@@ -4,3 +4,4 @@ python-dotenv
 typer
 rich
 setuptools
+simple-term-menu

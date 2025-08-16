@@ -18,14 +18,20 @@ from ..params import ResumeArg, OutJsonOpt, ModelOpt
 
 
 # * Parse resume document into structured sections using AI sectionizer
-@app.command()
+@app.command(help="Parse resume document into structured sections using AI")
 @handle_loom_error
 def sectionize(
     ctx: typer.Context,
     resume_path: Path | None = ResumeArg(),
     out_json: Path | None = OutJsonOpt(),
     model: str | None = ModelOpt(),
+    help: bool = typer.Option(False, "--help", "-h", help="Show help message and exit."),
 ) -> None:
+    # detect help flag & show custom help
+    if help:
+        from .help import show_command_help
+        show_command_help("sectionize")
+        ctx.exit()
     settings = ctx.obj
     resolver = ArgResolver(settings)
 

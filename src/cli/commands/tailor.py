@@ -35,7 +35,7 @@ from ..params import (
 
 
 # * Complete end-to-end resume tailoring: generate edits & apply to create tailored resume
-@app.command()
+@app.command(help="Complete end-to-end resume tailoring: generate edits & apply in one step")
 @handle_loom_error
 def tailor(
     ctx: typer.Context,
@@ -49,7 +49,13 @@ def tailor(
     on_error: ValidationPolicy | None = OnErrorOpt(),
     preserve_formatting: bool = PreserveFormattingOpt(),
     preserve_mode: str = PreserveModeOpt(),
+    help: bool = typer.Option(False, "--help", "-h", help="Show help message and exit."),
 ) -> None:
+    # detect help flag & show custom help
+    if help:
+        from .help import show_command_help
+        show_command_help("tailor")
+        ctx.exit()
     settings = ctx.obj
     resolver = ArgResolver(settings)
 

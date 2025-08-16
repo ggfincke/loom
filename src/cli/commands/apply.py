@@ -31,7 +31,7 @@ from ...loom_io import read_docx
 
 
 # * Apply edits from JSON to resume document & generate tailored output
-@app.command()
+@app.command(help="Apply edits from JSON to resume document & generate tailored output")
 @handle_loom_error
 def apply(
     ctx: typer.Context,
@@ -42,7 +42,13 @@ def apply(
     on_error: ValidationPolicy | None = OnErrorOpt(),
     preserve_formatting: bool = PreserveFormattingOpt(),
     preserve_mode: str = PreserveModeOpt(),
+    help: bool = typer.Option(False, "--help", "-h", help="Show help message and exit."),
 ) -> None:
+    # detect help flag & show custom help
+    if help:
+        from .help import show_command_help
+        show_command_help("apply")
+        ctx.exit()
     settings = ctx.obj
     resolver = ArgResolver(settings)
 

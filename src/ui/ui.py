@@ -10,6 +10,7 @@ from rich.text import Text
 
 from ..loom_io.console import console
 from .pausable_timer import PausableTimer
+from .colors import LoomColors
 
 
 # elapsed time column that freezes while UI is in input mode
@@ -59,19 +60,20 @@ class UI:
 
     # prompt user for input, safely pausing progress display if needed
     # when a Progress is active, route via its console so the prompt renders correctly beneath the live display
-    def ask(self, prompt: str, *, default: str | None = "f") -> str | None:
+    def ask(self, prompt: str, *, default: str | None = "s") -> str | None:
         if not self.console.is_interactive:
-            self.console.print("[dim]Input unavailable; defaulting to soft-fail[/]")
+            self.console.print("[dim]Input unavailable; defaulting to (s)oft-fail[/]")
             return default
         try:
             with self.input_mode():
-                return self.console.input(prompt)
+                styled_prompt = f"[loom.accent]{prompt}[/]"
+                return self.console.input(styled_prompt)
         except (EOFError, KeyboardInterrupt):
-            self.console.print("\nInput interrupted, defaulting to soft-fail")
+            self.console.print("\n[warning]Input interrupted, defaulting to (s)oft-fail[/]")
             return default
         # pragma: no cover - defensive
         except Exception as e:
-            self.console.print(f"\nUnexpected error: {e}, defaulting to soft-fail")
+            self.console.print(f"\n[error]Unexpected error: {e}, defaulting to (s)oft-fail[/]")
             return default
 
     # print to console with rich formatting
@@ -87,7 +89,7 @@ class UI:
         # fresh timer each progress session so elapsed resets correctly
         self._timer = PausableTimer()
         self.progress = Progress(
-            SpinnerColumn(),
+            SpinnerColumn(spinner_name="dots", style=LoomColors.ACCENT_SECONDARY),
             TextColumn("[progress.description]{task.description}"),
             PausableElapsedColumn(self._timer),
             refresh_per_second=8,

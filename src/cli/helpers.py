@@ -21,12 +21,13 @@ from ..loom_io import (
 from ..loom_io.console import console
 from ..loom_io.types import Lines
 from ..core.pipeline import diff_lines
+from ..ui.colors import styled_checkmark, styled_arrow, LoomColors, success_gradient
+from ..ui import UI
+import typer
 
 
-# * Validate required CLI arguments & raise typer.BadParameter if missing
+# * validate required CLI arguments & raise typer.BadParameter if missing
 def validate_required_args(**kwargs) -> None:
-    import typer
-
     for _, (value, description) in kwargs.items():
         if not value:
             raise typer.BadParameter(
@@ -34,11 +35,9 @@ def validate_required_args(**kwargs) -> None:
             )
 
 
-# * Context manager to build UI progress & yield (ui, progress, task)
+# * context manager to build UI progress & yield (ui, progress, task)
 @contextmanager
 def setup_ui_with_progress(task_description: str, total: int):
-    from ..ui import UI
-
     ui = UI()
     with ui.build_progress() as progress:
         ui.progress = progress
@@ -46,7 +45,7 @@ def setup_ui_with_progress(task_description: str, total: int):
         yield ui, progress, task
 
 
-# Read resume lines & job text w/ progress updates
+# read resume lines & job text w/ progress updates
 def load_resume_and_job(
     resume_path: Path, job_path: Path, progress, task
 ) -> tuple[Lines, str]:
@@ -61,8 +60,8 @@ def load_resume_and_job(
     return lines, job_text
 
 
+# load sections JSON string if available
 def load_sections(sections_path: Path | None, progress, task) -> str | None:
-    """Load sections JSON string if available."""
     progress.update(task, description="Loading sections data...")
     sections_json_str = None
     if sections_path and Path(sections_path).exists():
@@ -71,8 +70,8 @@ def load_sections(sections_path: Path | None, progress, task) -> str | None:
     return sections_json_str
 
 
+# load edits JSON object from file
 def load_edits_json(edits_path: Path, progress, task) -> dict:
-    """Load edits JSON object from file."""
     progress.update(task, description="Loading edits JSON...")
     edits_obj = read_json_safe(edits_path)
     progress.advance(task)
@@ -82,7 +81,7 @@ def load_edits_json(edits_path: Path, progress, task) -> dict:
 def persist_edits_json(
     edits: dict, out_path: Path, progress, task, description: str = "Writing edits JSON..."
 ) -> None:
-    """Persist edits JSON to disk with progress update."""
+    # persist edits JSON to disk w/ progress update
     progress.update(task, description=description)
     write_json_safe(edits, out_path)
     progress.advance(task)
@@ -90,31 +89,32 @@ def persist_edits_json(
 
 # * Report results consistently across commands to the console
 def report_result(result_type: str, settings: LoomSettings | None = None, **paths) -> None:
+    checkmark = styled_checkmark()
+    arrow = styled_arrow()
+    
     if result_type == "sections":
-        console.print(f"✅ Wrote sections to {paths['sections_path']}", style="green")
+        console.print(checkmark, success_gradient("Wrote sections to"), f"{paths['sections_path']}")
     elif result_type == "edits":
-        console.print(f"✅ Wrote edits -> {paths['edits_path']}", style="green")
+        console.print(checkmark, success_gradient("Wrote edits"), arrow, f"{paths['edits_path']}")
     elif result_type == "tailor":
-        console.print("✅ Complete tailoring finished", style="green")
-        console.print(f"   Edits -> {paths['edits_path']}", style="dim")
-        console.print(f"   Resume -> {paths['output_path']}", style="dim")
+        console.print(checkmark, success_gradient("Complete tailoring finished"))
+        console.print(f"   Edits {arrow} {paths['edits_path']}", style="loom.accent2")
+        console.print(f"   Resume {arrow} {paths['output_path']}", style="loom.accent2") 
         if settings:
-            console.print(f"   Diff -> {settings.diff_path}", style="dim")
+            console.print(f"   Diff {arrow} {settings.diff_path}", style="progress.path")
     elif result_type == "apply":
         format_msg = (
             f" (formatting preserved via {paths.get('preserve_mode', 'unknown')} mode)"
             if paths.get("preserve_formatting")
             else " (plain text)"
         )
-        console.print(
-            f"✅ Wrote DOCX{format_msg} -> {paths['output_path']}", style="green"
-        )
+        console.print(checkmark, success_gradient(f"Wrote DOCX{format_msg}"), arrow, f"{paths['output_path']}")
         if settings:
-            console.print(f"✅ Diff -> {settings.diff_path}", style="dim")
+            console.print(checkmark, f"Diff {arrow} {settings.diff_path}", style="loom.accent2")
     elif result_type == "plan":
-        console.print(f"✅ Wrote edits -> {paths['edits_path']}", style="green")
+        console.print(checkmark, success_gradient("Wrote edits"), arrow, f"{paths['edits_path']}")
         if settings:
-            console.print(f"✅ Plan -> {settings.plan_path}", style="dim")
+            console.print(checkmark, f"Plan {arrow} {settings.plan_path}", style="loom.accent2")
 
 
 # * Generate diff & write tailored resume output w/ formatting preservation

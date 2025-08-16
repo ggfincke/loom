@@ -78,7 +78,7 @@ def ModelOpt():
         None,
         "--model",
         "-m",
-        help="OpenAI model name",
+        help="OpenAI model (e.g., gpt-5, gpt-5-mini, gpt-5-nano); defaults to config",
     )
 
 
@@ -117,7 +117,7 @@ def EditsJsonOpt():
         None,
         "--edits-json",
         "-e",
-        help="Path to edits.json (read or write depending on command)",
+        help="Path to edits.json (read/write); defaults to config edits_path",
         resolve_path=True,
     )
 
@@ -127,7 +127,7 @@ def SectionsPathOpt():
         None,
         "--sections-path",
         "-s",
-        help="Optional sections.json path",
+        help="Path to sections.json; defaults to config sections_path",
         resolve_path=True,
     )
 
@@ -166,7 +166,7 @@ def OutJsonOpt():
         None,
         "--out-json",
         "-o",
-        help="Where to write the sections JSON",
+        help="Where to write sections JSON; defaults to config sections_path",
         resolve_path=True,
     )
 
@@ -176,7 +176,6 @@ def OutputResumeOpt():
         None,
         "--output-resume",
         "-r",
-        help="Path to write the tailored resume .docx",
+        help="Path to write tailored resume .docx; defaults to <output_dir>/tailored_resume.docx",
         resolve_path=True,
     )
-
