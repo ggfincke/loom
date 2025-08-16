@@ -1,5 +1,5 @@
 # src/loom_io/documents.py
-# Document I/O operations for reading and writing DOCX files with formatting preservation
+# Document I/O operations for reading & writing DOCX files with formatting preservation, plus basic LaTeX/text support
 
 from pathlib import Path
 from docx import Document
@@ -7,8 +7,10 @@ from docx.text.paragraph import Paragraph
 from docx.oxml import OxmlElement
 from typing import Dict, Tuple, Any, List, Set
 from .types import Lines
+from ..core.exceptions import LaTeXError
+from ..core.validation import validate_basic_latex_syntax
 
-# read docx file & return both text content & document object
+# * Read DOCX file & return text content w/ document object
 def read_docx_with_formatting(path: Path) -> Tuple[Lines, Any, Dict[int, Paragraph]]:
     doc = Document(str(path))
     lines = {}
@@ -24,81 +26,157 @@ def read_docx_with_formatting(path: Path) -> Tuple[Lines, Any, Dict[int, Paragra
 
     return lines, doc, paragraph_map
 
-# read docx file & return text content (backward compatibility)
+# * Read DOCX file & return text content (backward compatibility)
 def read_docx(path: Path) -> Lines:
     lines, _, _ = read_docx_with_formatting(path)
     return lines
 
-# apply edits to document with different preservation modes
+# * Read LaTeX (.tex) file as numbered lines (basic support)
+def read_latex(path: Path) -> Lines:
+    try:
+        text = Path(path).read_text(encoding="utf-8")
+    except UnicodeDecodeError as e:
+        raise LaTeXError(f"Cannot decode LaTeX file {path}: {e}")
+    except Exception as e:
+        raise LaTeXError(f"Cannot read LaTeX file {path}: {e}")
+    
+    # validate basic LaTeX syntax
+    if not validate_basic_latex_syntax(text):
+        raise LaTeXError(f"Invalid LaTeX syntax detected in {path}")
+    
+    lines: Lines = {}
+    line_number = 1
+    for raw in text.splitlines():
+        t = raw.strip()
+        if t:
+            lines[line_number] = t
+            line_number += 1
+    return lines
+
+# * Read LaTeX (.tex) file w/ structure preservation
+def read_latex_with_structure(path: Path) -> Lines:
+    try:
+        text = Path(path).read_text(encoding="utf-8")
+    except UnicodeDecodeError as e:
+        raise LaTeXError(f"Cannot decode LaTeX file {path}: {e}")
+    except Exception as e:
+        raise LaTeXError(f"Cannot read LaTeX file {path}: {e}")
+    
+    # validate basic LaTeX syntax
+    if not validate_basic_latex_syntax(text):
+        raise LaTeXError(f"Invalid LaTeX syntax detected in {path}")
+    
+    lines: Lines = {}
+    line_number = 1
+    
+    for raw in text.splitlines():
+        # preserve important structural elements even if "empty"
+        t = raw.strip()
+        
+        # preserve important LaTeX constructs
+        if (t.startswith('%') or  # comments
+            t.startswith('\\documentclass') or
+            t.startswith('\\usepackage') or
+            t.startswith('\\begin{') or
+            t.startswith('\\end{') or
+            t.startswith('\\section') or
+            t.startswith('\\subsection') or
+            t.startswith('\\item') or
+            (t and not t.isspace())):
+            lines[line_number] = t
+            line_number += 1
+        # preserve strategic empty lines
+        elif raw == '' and line_number > 1:
+            # add empty line for structural spacing
+            prev_line = lines.get(line_number - 1, '')
+            if (prev_line.startswith('\\end{') or 
+                prev_line.startswith('\\section') or
+                prev_line.startswith('\\subsection')):
+                lines[line_number] = ''
+                line_number += 1
+    
+    return lines
+
+# * Read resume by file extension (.docx or .tex)
+def read_resume(path: Path, preserve_structure: bool = False) -> Lines:
+    suffix = path.suffix.lower()
+    if suffix == ".tex":
+        if preserve_structure:
+            return read_latex_with_structure(path)
+        return read_latex(path)
+    # use DOCX handling as default
+    return read_docx(path)
+
+# * Apply edits to document w/ different preservation modes
 def apply_edits_to_docx(original_path: Path, new_lines: Lines, output_path: Path, 
                         preserve_mode: str = "in_place") -> None:
-    # preserve_mode: "in_place" (better formatting preservation) or "rebuild" (faster)
+    # preserve_mode: "in_place" (better formatting) or "rebuild" (faster)
     if preserve_mode == "in_place":
         _apply_edits_in_place(original_path, new_lines, output_path)
-    else:  # rebuild mode
+    else:  # use rebuild mode
         _apply_edits_rebuild(original_path, new_lines, output_path)
 
 def _apply_edits_in_place(original_path: Path, new_lines: Lines, output_path: Path) -> None:
-    # edit document in-place to preserve all formatting, styles, headers, footers
+    # edit document in-place to preserve formatting & styles
     
-    # reuse existing reader to build lines and paragraph map
+    # reuse existing reader for lines & paragraph map
     lines, doc, paragraph_map = read_docx_with_formatting(original_path)
     
-    # compute modifications / additions / deletions once
+    # compute modifications, additions, deletions
     modifications, additions, deletions = _categorize_edits(lines, new_lines)
     
-    # apply deletions from end to beginning
+    # apply deletions from end to start
     for line_num in sorted(deletions, reverse=True):
         if line_num in paragraph_map:
             para = paragraph_map[line_num]
             p_element = para._element
             p_element.getparent().remove(p_element)
     
-    # apply modifications while preserving run-level formatting
+    # apply modifications preserving run formatting
     for line_num, new_text in modifications.items():
         if line_num in paragraph_map:
             para = paragraph_map[line_num]
             _set_paragraph_text_preserving_format(para, new_text)
     
-    # group additions by insert position
+    # group additions by insertion position
     additions_by_position: Dict[int | None, List[Tuple[int, str]]] = {}
     for insert_after, line_num, text in additions:
         if insert_after not in additions_by_position:
             additions_by_position[insert_after] = []
         additions_by_position[insert_after].append((line_num, text))
     
-    # sort each group by line number
+    # sort groups by line number
     for position in additions_by_position:
         additions_by_position[position].sort(key=lambda x: x[0])
     
-    # insert new paragraphs
-    # sort only numeric positions (None is handled separately)
+    # insert new paragraph content
+    # sort numeric positions only
     numeric_positions = sorted([p for p in additions_by_position.keys() if p is not None], reverse=True)
     
-    # insert after specified paragraphs (from bottom up so indices remain valid)
+    # insert after paragraphs bottom-up
     for insert_after in numeric_positions:
         reference_para = paragraph_map.get(insert_after)
         if not reference_para:
             continue
         for line_num, text in reversed(additions_by_position[insert_after]):
             new_para = _insert_paragraph_after(reference_para, text)
-            # copy style from reference paragraph
+            # copy reference paragraph style
             if reference_para.style:
                 new_para.style = reference_para.style
     
-    # insert at beginning (reverse so final order is ascending)
+    # insert at beginning in reverse order
     if None in additions_by_position:
         for line_num, text in reversed(additions_by_position[None]):
             new_para = doc.add_paragraph(text)
             doc.element.body.insert(0, new_para._element)
     
-    # save modified document
+    # persist modified document
     doc.save(str(output_path))
 
 def _insert_paragraph_after(paragraph: Paragraph, text: str) -> Paragraph:
-    # insert new paragraph after given paragraph (python-docx safe)
+    # insert paragraph after given one (python-docx safe)
     new_p = OxmlElement("w:p")
-    # insert immediately after the reference paragraph
+    # insert after reference paragraph
     paragraph._p.addnext(new_p)
     new_para = Paragraph(new_p, paragraph._parent)
     if text:
@@ -106,7 +184,7 @@ def _insert_paragraph_after(paragraph: Paragraph, text: str) -> Paragraph:
     return new_para
 
 def _copy_run_formatting(source_run, target_run) -> None:
-    # copy common run-level formatting if present
+    # copy run-level formatting if available
     if not source_run:
         return
     if source_run.font:
@@ -130,7 +208,7 @@ def _copy_run_formatting(source_run, target_run) -> None:
         target_run.style = source_run.style
 
 def _set_paragraph_text_preserving_format(target_para: Paragraph, new_text: str, template_para: Paragraph | None = None) -> None:
-    # set new text while preserving first-run formatting from template
+    # set text preserving first-run formatting
     template = template_para if template_para is not None else target_para
     template_run = template.runs[0] if template.runs else None
     target_para.clear()
@@ -139,7 +217,7 @@ def _set_paragraph_text_preserving_format(target_para: Paragraph, new_text: str,
         _copy_run_formatting(template_run, new_run)
 
 def _categorize_edits(original_lines: Dict[int, str], new_lines: Lines):
-    # categorize edits into modifications, additions, deletions
+    # categorize edits by type
     modifications: Dict[int, str] = {}
     additions: List[Tuple[int | None, int, str]] = []
     deletions: Set[int] = set()
@@ -147,17 +225,17 @@ def _categorize_edits(original_lines: Dict[int, str], new_lines: Lines):
     original_set = set(original_lines.keys())
     new_set = set(new_lines.keys())
     
-    # lines to modify (exist in both but changed)
+    # identify modified lines
     for line_num in sorted(new_set):
         if line_num in original_set and new_lines[line_num] != original_lines[line_num]:
             modifications[line_num] = new_lines[line_num]
     
-    # lines to delete (exist in original but not in new)
+    # identify deleted lines
     for line_num in original_set:
         if line_num not in new_set:
             deletions.add(line_num)
     
-    # lines to add (exist in new but not in original)
+    # identify added lines
     for line_num in sorted(new_set):
         if line_num not in original_set:
             insert_after = None
@@ -171,59 +249,59 @@ def _categorize_edits(original_lines: Dict[int, str], new_lines: Lines):
     return modifications, additions, deletions
 
 def _apply_edits_rebuild(original_path: Path, new_lines: Lines, output_path: Path) -> None:
-    # rebuild document from scratch (faster but may lose some formatting)
-    # read original document
+    # rebuild document from scratch (faster)
+    # load original document
     lines, _, paragraph_map = read_docx_with_formatting(original_path)
     
-    # sort line numbers for processing
+    # sort line numbers for iteration
     sorted_line_nums = sorted(new_lines.keys())
     max_original_line = max(lines.keys()) if lines else 0
     
-    # track paragraphs to keep and their new content
+    # track paragraphs & their content
     paragraphs_to_process = []
     
     for line_num in sorted_line_nums:
         new_text = new_lines[line_num]
         
         if line_num <= max_original_line and line_num in paragraph_map:
-            # existing paragraph, preserve formatting
+            # preserve existing paragraph formatting
             para = paragraph_map[line_num]
             paragraphs_to_process.append(('modify', para, new_text))
         else:
-            # new paragraph not in original
+            # create new paragraph
             paragraphs_to_process.append(('new', None, new_text))
     
-    # create new document with edits
+    # create document w/ edits
     new_doc = Document()
     
-    # note: document styles cannot be copied, will use defaults
+    # note: document styles use defaults
     
-    # process paragraphs in order
+    # process paragraphs sequentially
     for action, original_para, new_text in paragraphs_to_process:
         if action == 'modify' and original_para:
-            # preserve formatting from original
+            # preserve original formatting
             new_para = new_doc.add_paragraph()
             
-            # copy paragraph-level formatting
+            # copy paragraph formatting
             if original_para.style:
                 new_para.style = original_para.style
             if original_para.paragraph_format:
                 _copy_paragraph_format(original_para.paragraph_format, new_para.paragraph_format)
             
-            # preserve character-level formatting via runs
+            # preserve character formatting via runs
             if original_para.runs:
                 _set_paragraph_text_preserving_format(new_para, new_text, template_para=original_para)
             else:
                 new_para.text = new_text
         else:
-            # new paragraph without formatting reference
+            # create paragraph w/o formatting reference
             new_doc.add_paragraph(new_text)
     
-    # save modified document
+    # persist modified document
     new_doc.save(str(output_path))
 
 def _copy_paragraph_format(source_format, target_format):
-    # best-effort copy of paragraph formatting properties
+    # copy paragraph formatting properties
     for prop in dir(source_format):
         if prop.startswith('_'):
             continue
@@ -236,20 +314,21 @@ def _copy_paragraph_format(source_format, target_format):
         try:
             setattr(target_format, prop, value)
         except Exception:
-            # some properties might be read-only or unsupported
+            # handle read-only or unsupported properties
             pass
 
-# write text to docx file (creates plain document)
+# * Write text to DOCX file (creates plain document)
 def write_docx(lines: Lines, output_path: Path) -> None:
     doc = Document()
     for line_num in sorted(lines.keys()):
         doc.add_paragraph(lines[line_num])
     doc.save(str(output_path))
 
-# number lines in a resume
-def number_lines(resume: Lines) -> str:
-    return "\n".join(f"{i:>4} {text}" for i, text in sorted(resume.items()))
+# * Write numbered lines to plain text file (.tex or .txt)
+def write_text_lines(lines: Lines, output_path: Path) -> None:
+    ordered = "\n".join(f"{text}" for _, text in sorted(lines.items()))
+    Path(output_path).write_text(ordered, encoding="utf-8")
 
-# read text from file
+# * Read text from file
 def read_text(path: Path) -> str:
     return Path(path).read_text(encoding="utf-8")

@@ -1,4 +1,6 @@
 openai
+anthropic
+ollama
 python-docx
 python-dotenv
 typer

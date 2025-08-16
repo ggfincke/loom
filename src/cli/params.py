@@ -52,7 +52,7 @@ def _normalize_validation_policy(value: str | None) -> ValidationPolicy:
 def ResumeArg():
     return typer.Argument(
         None,
-        help="Path to resume .docx",
+        help="Path to resume (.docx or .tex)",
         exists=True,
         file_okay=True,
         dir_okay=False,
@@ -78,7 +78,7 @@ def ModelOpt():
         None,
         "--model",
         "-m",
-        help="OpenAI model (e.g., gpt-5, gpt-5-mini, gpt-5-nano); defaults to config",
+        help="OpenAI model (see 'loom --help' for supported models); defaults to config",
     )
 
 
@@ -176,6 +176,6 @@ def OutputResumeOpt():
         None,
         "--output-resume",
         "-r",
-        help="Path to write tailored resume .docx; defaults to <output_dir>/tailored_resume.docx",
+        help="Path to write tailored resume (.docx or .tex); defaults to <output_dir>/tailored_resume.docx",
         resolve_path=True,
     )

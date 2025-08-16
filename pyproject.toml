@@ -1,3 +1,19 @@
 [build-system]
 requires = ["setuptools>=64", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "loom"
+version = "0.1.0"
+description = "Tailor resumes using the OpenAI Responses API"
+requires-python = ">=3.12"
+dependencies = [
+    "typer",
+    "python-docx",
+    "openai",
+    "python-dotenv",
+    "rich",
+]
+
+[project.scripts]
+loom = "src.main:app"

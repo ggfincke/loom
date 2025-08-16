@@ -2,80 +2,122 @@
 # Core processing pipeline for edit generation, validation, & application
 
 from typing import List
-from ..loom_io import number_lines
 import difflib
 import json
 from datetime import datetime, timezone
 from .exceptions import AIError, EditError, JSONParsingError
 from .constants import RiskLevel
 from ..ai.prompts import build_generate_prompt, build_edit_prompt
-from ..ai.clients.openai_client import run_generate
+from ..ai.clients import run_generate
 
 from ..loom_io.types import Lines
 
+# ! Import debug functions only when needed to avoid circular imports
+def _debug_ai(message: str):
+    try:
+        from .debug import debug_ai
+        debug_ai(message)
+    except ImportError:
+        pass
+
+def _debug_error(error: Exception, context: str = ""):
+    try:
+        from .debug import debug_error
+        debug_error(error, context)
+    except ImportError:
+        pass
+
 # * Generate edits.json for resume using AI model w/ job description & sections context
 def generate_edits(resume_lines: Lines, job_text: str, sections_json: str | None, model: str) -> dict:
+    _debug_ai(f"Starting edit generation - Model: {model}, Resume lines: {len(resume_lines)}, Job text: {len(job_text)} chars")
     
     # generate edits
     created_at = datetime.now(timezone.utc).isoformat()
     prompt = build_generate_prompt(job_text, number_lines(resume_lines), model, created_at, sections_json)
+    _debug_ai(f"Generated prompt: {len(prompt)} characters")
+    
     result = run_generate(prompt, model)
     
     # handle JSON parsing errors
     if not result.success:
+        _debug_error(Exception(result.error), f"AI generation failed for model {model}")
         # create a trimmed snippet from problematic JSON
-        lines = result.json_text.split('\n')
+        lines = result.json_text.split('\n') if result.json_text else []
         if len(lines) > 5:
             snippet = '\n'.join(lines[:5]) + '\n...'
         else:
             snippet = result.json_text
-        raise JSONParsingError(f"AI generated invalid JSON:\n{snippet}\nError: {result.error}")
+        error_msg = f"AI generated invalid JSON using model '{model}':\n{snippet}\nError: {result.error}"
+        if result.raw_text and result.raw_text != result.json_text:
+            error_msg += f"\nFull raw response: {result.raw_text[:300]}{'...' if len(result.raw_text) > 300 else ''}"
+        raise JSONParsingError(error_msg)
     
     edits = result.data
+    _debug_ai(f"AI generation successful - received {len(str(edits))} chars of JSON data")
+    _debug_ai(f"JSON structure: {list(edits.keys()) if isinstance(edits, dict) else type(edits).__name__}")
     
     # validate response structure
     if not isinstance(edits, dict):
-        raise AIError("AI response is not a valid JSON object")
+        raise AIError(f"AI response is not a valid JSON object (got {type(edits).__name__}) for model '{model}'")
     
     if edits.get("version") != 1:
-        raise AIError(f"Invalid or missing version in AI response: {edits.get('version')}")
+        _debug_ai(f"Full JSON response: {str(edits)[:500]}{'...' if len(str(edits)) > 500 else ''}")
+        raise AIError(f"Invalid or missing version in AI response: {edits.get('version')} (expected 1) for model '{model}'")
     
     if "meta" not in edits or "ops" not in edits:
-        raise AIError("AI response missing required 'meta' or 'ops' fields")
-        
+        missing_fields = []
+        if "meta" not in edits:
+            missing_fields.append("meta")
+        if "ops" not in edits:
+            missing_fields.append("ops")
+        raise AIError(f"AI response missing required fields: {', '.join(missing_fields)} for model '{model}'")
+    
+    _debug_ai(f"Edit generation completed successfully - {len(edits.get('ops', []))} operations generated")
     return edits
 
 # * Generate corrected edits based on validation warnings
 def generate_corrected_edits(current_edits_json: str, resume_lines: Lines, job_text: str, sections_json: str | None, model: str, validation_warnings: List[str]) -> dict:
-    
+    _debug_ai(f"Starting edit correction - Model: {model}, Warnings: {len(validation_warnings)}")
     
     created_at = datetime.now(timezone.utc).isoformat()
     prompt = build_edit_prompt(job_text, number_lines(resume_lines), current_edits_json, validation_warnings, model, created_at, sections_json)
+    _debug_ai(f"Generated correction prompt: {len(prompt)} characters")
     
     result = run_generate(prompt, model)
     
     # handle JSON parsing errors
     if not result.success:
+        _debug_error(Exception(result.error), f"AI correction failed for model {model}")
         # create a trimmed snippet from problematic JSON
-        lines = result.json_text.split('\n')
+        lines = result.json_text.split('\n') if result.json_text else []
         if len(lines) > 5:
             snippet = '\n'.join(lines[:5]) + '\n...'
         else:
             snippet = result.json_text
-        raise JSONParsingError(f"AI generated invalid JSON during correction:\n{snippet}\nError: {result.error}")
+        error_msg = f"AI generated invalid JSON during correction using model '{model}':\n{snippet}\nError: {result.error}"
+        if result.raw_text and result.raw_text != result.json_text:
+            error_msg += f"\nFull raw response: {result.raw_text[:300]}{'...' if len(result.raw_text) > 300 else ''}"
+        raise JSONParsingError(error_msg)
     
     edits = result.data
+    _debug_ai(f"AI correction successful - received {len(str(edits))} chars of JSON data")
     
     # validate response structure
     if not isinstance(edits, dict):
-        raise AIError("AI response is not a valid JSON object")
+        raise AIError(f"AI response is not a valid JSON object (got {type(edits).__name__}) during correction for model '{model}'")
     
     if edits.get("version") != 1:
-        raise AIError(f"Invalid or missing version in AI response: {edits.get('version')}")
+        raise AIError(f"Invalid or missing version in AI response: {edits.get('version')} (expected 1) during correction for model '{model}'")
     
     if "meta" not in edits or "ops" not in edits:
-        raise AIError("AI response missing required 'meta' or 'ops' fields")
-        
+        missing_fields = []
+        if "meta" not in edits:
+            missing_fields.append("meta")
+        if "ops" not in edits:
+            missing_fields.append("ops")
+        raise AIError(f"AI response missing required fields: {', '.join(missing_fields)} during correction for model '{model}'")
+    
+    _debug_ai(f"Edit correction completed successfully - {len(edits.get('ops', []))} operations generated")
     return edits
 
 # * Apply edits to resume lines & return new lines dict
@@ -194,195 +236,8 @@ def diff_lines(old: Lines, new: Lines) -> str:
     
     return "".join(difflib.unified_diff(old_list, new_list, fromfile="old", tofile="new"))
 
-# * Validate edits.json structure & ops
-def validate_edits(edits: dict, resume_lines: Lines, risk: RiskLevel) -> List[str]:
-    warnings = []
-    
-    # check ops exists & is non-empty list
-    if "ops" not in edits:
-        warnings.append("Missing 'ops' field in edits")
-        return warnings
-    
-    ops = edits["ops"]
-    if not isinstance(ops, list):
-        warnings.append("'ops' field must be a list")
-        return warnings
-    
-    if len(ops) == 0:
-        warnings.append("'ops' list is empty")
-        return warnings
-    
-    # track line usage to detect conflicts
-    line_usage = {}
-    
-    for i, op in enumerate(ops):
-        if not isinstance(op, dict):
-            warnings.append(f"Op {i}: must be an object")
-            continue
-        
-        op_type = op.get("op")
-        if not op_type:
-            warnings.append(f"Op {i}: missing 'op' field")
-            continue
-        
-        # validate each op type & required fields
-        if op_type == "replace_line":
-            if "line" not in op:
-                warnings.append(f"Op {i}: replace_line missing 'line' field")
-                continue
-            if "text" not in op:
-                warnings.append(f"Op {i}: replace_line missing 'text' field")
-                continue
-            
-            line = op["line"]
-            if not isinstance(line, int) or line < 1:
-                warnings.append(f"Op {i}: 'line' must be integer >= 1")
-                continue
-            
-            if not isinstance(op["text"], str):
-                warnings.append(f"Op {i}: 'text' must be string")
-                continue
-            
-            # block multiline replace_line operations
-            if "\n" in op["text"]:
-                warnings.append(f"Op {i}: replace_line text contains newline; use replace_range")
-                continue
-            
-            # check line bounds
-            if line not in resume_lines:
-                warnings.append(f"Op {i}: line {line} not in resume bounds")
-                continue
-                
-            # check for conflicts
-            if line in line_usage:
-                warnings.append(f"Op {i}: duplicate operation on line {line}")
-            line_usage[line] = op_type
-        
-        elif op_type == "replace_range":
-            if "start" not in op or "end" not in op or "text" not in op:
-                warnings.append(f"Op {i}: replace_range missing required fields (start, end, text)")
-                continue
-            
-            start, end = op["start"], op["end"]
-            if not isinstance(start, int) or not isinstance(end, int):
-                warnings.append(f"Op {i}: start and end must be integers")
-                continue
-            
-            if start < 1 or end < 1 or start > end:
-                warnings.append(f"Op {i}: invalid range {start}-{end}")
-                continue
-            
-            if not isinstance(op["text"], str):
-                warnings.append(f"Op {i}: 'text' must be string")
-                continue
-            
-            # check line bounds
-            for line in range(start, end + 1):
-                if line not in resume_lines:
-                    warnings.append(f"Op {i}: line {line} not in resume bounds")
-                    break
-            
-            # validate line count mismatch in replace_range
-            # use split("\n") instead of splitlines() to handle empty strings correctly
-            if op["text"]:
-                text_line_count = len(op["text"].split("\n"))
-            else:
-                # empty text is treated as single line
-                text_line_count = 1  
-            range_line_count = end - start + 1
-            if text_line_count != range_line_count:
-                msg = f"Op {i}: replace_range line count mismatch ({range_line_count} -> {text_line_count})"
-                if risk in [RiskLevel.MED, RiskLevel.HIGH, RiskLevel.STRICT]:
-                    warnings.append(msg + " (will cause line collisions)")
-                else:
-                    warnings.append(msg)
-            
-            # check for conflicts in range
-            for line in range(start, end + 1):
-                if line in line_usage:
-                    warnings.append(f"Op {i}: duplicate operation on line {line}")
-                    break
-            for line in range(start, end + 1):
-                line_usage[line] = op_type
-        
-        elif op_type == "insert_after":
-            if "line" not in op or "text" not in op:
-                warnings.append(f"Op {i}: insert_after missing required fields (line, text)")
-                continue
-            
-            line = op["line"]
-            if not isinstance(line, int) or line < 1:
-                warnings.append(f"Op {i}: 'line' must be integer >= 1")
-                continue
-            
-            if not isinstance(op["text"], str):
-                warnings.append(f"Op {i}: 'text' must be string")
-                continue
-            
-            # check line bounds
-            if line not in resume_lines:
-                warnings.append(f"Op {i}: line {line} not in resume bounds")
-                continue
-        
-        elif op_type == "delete_range":
-            if "start" not in op or "end" not in op:
-                warnings.append(f"Op {i}: delete_range missing required fields (start, end)")
-                continue
-            
-            start, end = op["start"], op["end"]
-            if not isinstance(start, int) or not isinstance(end, int):
-                warnings.append(f"Op {i}: start and end must be integers")
-                continue
-            
-            if start < 1 or end < 1 or start > end:
-                warnings.append(f"Op {i}: invalid range {start}-{end}")
-                continue
-            
-            # check line bounds
-            for line in range(start, end + 1):
-                if line not in resume_lines:
-                    warnings.append(f"Op {i}: line {line} not in resume bounds")
-                    break
-            
-            # check for conflicts in range
-            for line in range(start, end + 1):
-                if line in line_usage:
-                    warnings.append(f"Op {i}: duplicate operation on line {line}")
-                    break
-            for line in range(start, end + 1):
-                line_usage[line] = op_type
-        
-        else:
-            warnings.append(f"Op {i}: unknown operation type '{op_type}'")
-    
-    # detect cross-op conflicts: insert_after on a line later deleted
-    delete_ranges = [(op["start"], op["end"]) for op in ops if op.get("op") == "delete_range"]
-    for i, op in enumerate(ops):
-        if op.get("op") == "insert_after":
-            ln = op["line"]
-            if any(s <= ln <= e for s, e in delete_ranges):
-                warnings.append(f"Op {i}: insert_after on line {ln} that is deleted by a delete_range")
-    
-    # detect overlaps between delete_range & replace_range
-    replace_ranges = [(op["start"], op["end"]) for op in ops if op.get("op") == "replace_range"]
-    for i, op in enumerate(ops):
-        if op.get("op") == "delete_range":
-            s, e = op["start"], op["end"]
-            if any(not (e2 < s or s2 > e) for (s2, e2) in replace_ranges):
-                warnings.append(f"Op {i}: delete_range overlaps a replace_range; split or reorder ops")
-    
-    # detect multiple insert_after on the same line
-    seen_inserts = set()
-    for i, op in enumerate(ops):
-        if op.get("op") == "insert_after":
-            ln = op["line"]
-            if ln in seen_inserts:
-                warnings.append(f"Op {i}: multiple insert_after on line {ln}")
-            seen_inserts.add(ln)
-    
-    return warnings
 
-# get primary line num for an operation
+# * Get primary line number for operation
 def _get_op_line(op: dict) -> int:
     if "line" in op:
         return op["line"]
@@ -391,4 +246,8 @@ def _get_op_line(op: dict) -> int:
     else:
         return 0
 
+# ! Moved from loom_io.documents to avoid circular imports
+# * Number lines in resume
+def number_lines(resume: Lines) -> str:
+    return "\n".join(f"{i:>4} {text}" for i, text in sorted(resume.items()))
 

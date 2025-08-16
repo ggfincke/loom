@@ -10,13 +10,9 @@ from ...core.constants import RiskLevel, ValidationPolicy
 from ...core.exceptions import handle_loom_error
 
 from ..app import app
-from ..helpers import (
-    setup_ui_with_progress,
-    load_edits_json,
-    report_result,
-    validate_required_args,
-    write_output_with_diff,
-)
+from ..helpers import validate_required_args
+from ...ui.progress import setup_ui_with_progress, load_edits_json
+from ...ui.reporting import report_result, write_output_with_diff
 from ..logic import ArgResolver, apply_edits_core
 from ..params import (
     ResumeArg,
@@ -27,7 +23,7 @@ from ..params import (
     PreserveFormattingOpt,
     PreserveModeOpt,
 )
-from ...loom_io import read_docx
+from ...loom_io import read_resume
 
 
 # * Apply edits from JSON to resume document & generate tailored output
@@ -83,7 +79,7 @@ def apply(
     ):
         # read resume
         progress.update(task, description="Reading resume document...")
-        lines = read_docx(resume)
+        lines = read_resume(resume)
         progress.advance(task)
 
         # read edits
@@ -114,4 +110,3 @@ def apply(
         preserve_formatting=preserve_formatting,
         preserve_mode=preserve_mode,
     )
-

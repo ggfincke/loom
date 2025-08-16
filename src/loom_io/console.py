@@ -6,25 +6,18 @@ from rich.console import Console
 # single console instance used by all modules for consistent output & progress coordination
 console = Console()
 
-# * Initialize gradient theme after colors module is available
-def _initialize_theme():
-    from ..ui.colors import get_loom_theme
-    console.push_theme(get_loom_theme())
-
-# * Refresh console theme with current settings
+# * Refresh console theme with current settings (imported from ui module)
 def refresh_theme():
     try:
-        from ..ui.colors import get_loom_theme
-        # pop existing theme and push new one
-        if console._theme_stack:
-            console.pop_theme()
-        console.push_theme(get_loom_theme())
+        from ..ui.console_theme import refresh_theme as _refresh_theme
+        _refresh_theme()
     except ImportError:
         pass
 
-# lazy theme initialization to avoid circular imports
+# lazy theme initialization moved to ui.console_theme module
 try:
-    _initialize_theme()
+    from ..ui.console_theme import auto_initialize_theme
+    auto_initialize_theme()
 except ImportError:
-    # theme will be set later when colors module is available
+    # theme will be set later when ui module is available
     pass

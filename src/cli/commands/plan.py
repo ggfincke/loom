@@ -10,14 +10,9 @@ from ...core.constants import RiskLevel, ValidationPolicy
 from ...core.exceptions import handle_loom_error
 
 from ..app import app
-from ..helpers import (
-    setup_ui_with_progress,
-    load_resume_and_job,
-    load_sections,
-    persist_edits_json,
-    report_result,
-    validate_required_args,
-)
+from ..helpers import validate_required_args
+from ...ui.progress import setup_ui_with_progress, load_resume_and_job, load_sections
+from ...ui.reporting import persist_edits_json, report_result
 from ..logic import ArgResolver, generate_edits_core
 from ..params import (
     ResumeArg,
@@ -29,9 +24,26 @@ from ..params import (
     ModelOpt,
     SectionsPathOpt,
 )
+from ...ui.help.help_data import command_help
 
 
 # * Generate edits w/ step-by-step planning & validation workflow
+@command_help(
+    name="plan",
+    description="Generate edits with step-by-step planning workflow (experimental)",
+    long_description=(
+        "Experimental command that uses a multi-step planning approach for "
+        "resume tailoring. Provides more detailed reasoning and step-by-step "
+        "edit generation for complex tailoring scenarios. Accepts the same "
+        "options as 'tailor' for risk and validation policies."
+    ),
+    examples=[
+        "loom plan job.txt resume.docx",
+        "loom plan job.txt resume.docx --sections-path sections.json",
+        "loom plan job.txt resume.docx --edits-json planned_edits.json",
+    ],
+    see_also=["tailor"],
+)
 @app.command(help="Generate edits with step-by-step planning workflow (experimental)")
 @handle_loom_error
 def plan(
