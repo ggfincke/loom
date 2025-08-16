@@ -45,6 +45,9 @@ loom config get model
 loom config set model "gpt-4o"
 loom config set temperature 0.2
 
+# Interactive theme selector
+loom config themes
+
 # Reset to defaults
 loom config reset
 ```
@@ -73,6 +76,10 @@ loom sectionize
 loom generate
 loom apply
 loom tailor
+
+# Access enhanced help system
+loom --help
+loom sectionize --help
 ```
 
 ## Core Workflows
@@ -140,7 +147,7 @@ loom sectionize [RESUME_PATH] [OPTIONS]
 **Options:**
 - `--out-json PATH`: Output path for sections JSON file
 - `--model TEXT`: OpenAI model to use
-- `--help`: Show command help
+- `--help`: Show enhanced command help
 
 **Example Output:** Creates a JSON file with identified resume sections, subsections, and confidence scores.
 
@@ -160,7 +167,7 @@ loom tailor [JOB_PATH] [RESUME_PATH] [OPTIONS]
 - `--model TEXT`: OpenAI model to use
 - `--policy TEXT`: Error handling policy (ask|fail|retry|manual)
 - `--risk TEXT`: Validation risk level (low|med|high|strict)
-- `--help`: Show command help
+- `--help`: Show enhanced command help
 
 ### `loom generate`
 
@@ -192,9 +199,24 @@ loom apply [RESUME_PATH] [EDITS_PATH] [OPTIONS]
 - `--policy TEXT`: Error handling policy
 - `--risk TEXT`: Validation risk level
 
-### Configuration
+### `loom config`
 
-Loom reads defaults from `~/.loom/config.json`. Edit this file to change paths, filenames, and model defaults.
+Manage Loom settings & configuration including visual themes.
+
+**Usage:**
+```bash
+loom config [SUBCOMMAND] [OPTIONS]
+```
+
+**Subcommands:**
+- `list`: Show all current settings
+- `get KEY`: Get specific setting value
+- `set KEY VALUE`: Set specific setting
+- `themes`: Interactive theme selector
+- `path`: Show config file location
+- `reset`: Reset all settings to defaults
+
+**Configuration File:** Loom reads defaults from `~/.loom/config.json`. Edit this file to change paths, filenames, model defaults, and theme preferences.
 
 ## Advanced Usage
 
@@ -266,6 +288,12 @@ loom tailor job.txt resume.docx --model gpt-3.5-turbo
 
 ## Tips & Best Practices
 
+### Initial Setup
+
+1. **Configure Defaults**: Use `loom config` to set up your directories and preferences once
+2. **Choose Theme**: Use `loom config themes` to select a visual theme that works well in your terminal
+3. **Test Help System**: Run `loom --help` to verify the enhanced help display works correctly
+
 ### Resume Preparation
 
 1. **Use Standard Sections**: Ensure your resume has clear section headers (Summary, Experience, Education, Skills, etc.)
@@ -300,6 +328,11 @@ loom tailor job.txt resume.docx --model gpt-3.5-turbo
 - Ensure files have proper extensions (.docx, .txt)
 - Use absolute paths if relative paths fail
 
+**Display/theme issues:**
+- Try `loom config themes` to select a different theme
+- Verify your terminal supports color output
+- Use `loom --help-raw` for basic Typer help if enhanced help fails
+
 **OpenAI API errors:**
 - Verify your API key is set correctly
 - Check your OpenAI account has credits
@@ -317,8 +350,10 @@ loom tailor job.txt resume.docx --model gpt-3.5-turbo
 
 ### Getting Help
 
-- Use `loom --help` for general help
+- Use `loom --help` for enhanced general help with visual styling
 - Use `loom [command] --help` for command-specific help
+- Use `loom --help-raw` for basic Typer help if enhanced help has issues
+- Use `loom config themes` to adjust visual appearance
 - Check your JSON config at `~/.loom/config.json`
 - Review generated files (sections.json, edits.json) to debug issues
 
@@ -327,8 +362,9 @@ loom tailor job.txt resume.docx --model gpt-3.5-turbo
 Once you're comfortable with basic usage:
 
 1. Set up your configuration for streamlined workflows
-2. Experiment with different models and risk levels
-3. Create templates for common job types
-4. Build a library of tailored resumes for different roles
+2. Customize your visual theme with `loom config themes`
+3. Experiment with different models and risk levels
+4. Create templates for common job types
+5. Build a library of tailored resumes for different roles
 
 For advanced usage and extending Loom's capabilities, see the architecture documentation.

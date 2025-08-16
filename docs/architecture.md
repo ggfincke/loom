@@ -14,12 +14,22 @@ src/
 ├── ai/
 │   ├── clients/openai_client.py  # OpenAI API integration and response handling
 │   ├── prompts.py         # Prompt engineering for AI interactions
+│   ├── test_prompts.py    # Prompt sanity helpers
 │   └── types.py           # AI result types
 ├── cli/
 │   ├── app.py             # Typer app + command registration
-│   ├── commands/          # Command modules (sectionize/generate/apply/tailor/plan)
 │   ├── helpers.py         # CLI-layer orchestration + I/O glue
-│   └── params.py          # Argument and option definitions
+│   ├── logic.py           # CLI business logic coordination
+│   ├── params.py          # Argument and option definitions
+│   ├── typer_styles.py    # Custom Typer styling & theme integration
+│   └── commands/          # Individual command modules
+│       ├── sectionize.py  # Resume section parsing command
+│       ├── generate.py    # Edit generation command
+│       ├── apply.py       # Edit application command
+│       ├── tailor.py      # End-to-end tailoring command
+│       ├── plan.py        # Planning workflow command
+│       ├── config.py      # Configuration management command
+│       └── help.py        # Enhanced help system
 ├── config/
 │   └── settings.py        # Settings manager (~/.loom/config.json)
 ├── core/
@@ -33,24 +43,40 @@ src/
 │   ├── generics.py        # Generic file helpers (json/text)
 │   └── types.py           # I/O type definitions
 └── ui/
-    ├── ascii_art.py       # Banner display
-    └── ui.py              # Progress/input utilities
+    ├── ascii_art.py       # Banner display functionality
+    ├── banner.txt         # ASCII art banner
+    ├── colors.py          # Color scheme definitions
+    ├── pausable_timer.py  # Timer utilities
+    ├── theme_selector.py  # Interactive theme selection
+    ├── ui.py              # Progress/input utilities
+    ├── help/              # Enhanced help system
+    │   ├── help_renderer.py # Custom help rendering
+    │   └── help_templates.py # Help content templates
+    └── quick/             # Quick usage utilities
+        └── quick_usage.py # Quick command shortcuts
 ```
 
 ## Core Architecture
 
 ### 1. CLI Layer (`src/cli/app.py` and `src/cli/commands/*`)
-The application uses Typer for command-line interface with Rich for progress display. Commands:
+The application uses Typer for command-line interface with Rich for progress display and custom theming. Commands:
 
 - `sectionize`: Parses resume into structured sections
 - `generate`: Creates edits JSON from job description + resume
 - `apply`: Applies existing edits to produce tailored resume
 - `tailor`: End-to-end: generate+apply to produce tailored resume
 - `plan`: Planning-based edit generation
+- `config`: Configuration management with theme selection
+
+The CLI features an enhanced help system with:
+- Custom branded help screens with gradient styling
+- Theme-aware color schemes and visual styling
+- Interactive theme selector (`config themes`)
+- Contextual help templates and improved UX
 
 Each command follows a consistent pattern:
 1. Load settings and validate inputs
-2. Create Rich progress tracker
+2. Create Rich progress tracker with theme-aware styling
 3. Execute pipeline operations with progress updates
 4. Handle validation warnings
 5. Write outputs and display success messages
@@ -113,13 +139,20 @@ Manages persistent user preferences:
 - **Property methods**: Dynamic path construction from base settings
 - **CRUD operations**: get, set, reset, list settings
 
-### 6. CLI Types (`src/cli/params.py`)
-Uses Python typing with Typer annotations for:
+### 6. CLI Enhancement (`src/cli/` and `src/ui/`)
+**CLI Types (`src/cli/params.py`)**:
 - Argument validation (file existence, readability)
 - Path resolution and type checking
 - Help text generation
 - Default value management
 - Optional parameter handling
+
+**UI System (`src/ui/`)**:
+- **Theme Management**: Interactive theme selection with persistent preferences
+- **Custom Help**: Branded help screens with gradient styling and improved UX
+- **Visual Elements**: ASCII art banners, color schemes, and styling consistency
+- **Progress Indicators**: Rich-based progress tracking with theme integration
+- **Quick Access**: Shortcuts and utility functions for common workflows
 
 ## Data Flow
 
@@ -162,9 +195,17 @@ Configurable error handling (`ask|fail|fail:soft|fail:hard|manual|retry`) allows
 - Basic functionality works without sections.json
 - Sections data enables more targeted editing
 - Risk levels provide granular validation control
+- Theme system provides visual customization without affecting functionality
 
 ### 5. Immutable Transformations
 Line dictionaries are copied, not modified in place. Operations return new state rather than mutating existing state.
+
+### 6. Modular UI Architecture
+UI components are separated into focused modules:
+- **Theming**: Centralized color schemes and visual styling
+- **Help System**: Branded help screens with custom rendering
+- **Progress Display**: Rich-based progress tracking with theme integration
+- **Interactive Elements**: Theme selector, quick access utilities
 
 ## AI Integration Strategy
 
@@ -194,10 +235,13 @@ CLI arguments override settings, which override hardcoded defaults.
 
 ## Extensibility Points
 
-1. **New Edit Operations**: Add operation types in `pipeline.py`
-2. **Additional Prompts**: Extend prompt templates in `prompts.py`
-3. **Document Formats**: Add readers/writers in `document.py`
-4. **Validation Rules**: Extend validation logic in `pipeline.py`
-5. **CLI Commands**: Add new commands in `cli.py`
+1. **New Edit Operations**: Add operation types in `core/pipeline.py`
+2. **Additional Prompts**: Extend prompt templates in `ai/prompts.py`
+3. **Document Formats**: Add readers/writers in `loom_io/documents.py`
+4. **Validation Rules**: Extend validation logic in `core/validation.py`
+5. **CLI Commands**: Add new command modules in `cli/commands/`
+6. **UI Themes**: Add new color schemes in `ui/colors.py`
+7. **Help Templates**: Extend help content in `ui/help/help_templates.py`
+8. **Interactive Features**: Add new UI components in `ui/` package
 
-This architecture provides a solid foundation for resume tailoring while maintaining flexibility for future enhancements.
+This architecture provides a solid foundation for resume tailoring while maintaining flexibility for future enhancements. The modular design allows for easy extension of both core functionality and user experience features.

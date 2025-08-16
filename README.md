@@ -42,13 +42,15 @@ src/
 │   ├── helpers.py           # Shared CLI helpers (I/O glue, reporting)
 │   ├── logic.py             # CLI orchestration around core pipeline
 │   ├── params.py            # Argument/option definitions
-│   ├── banner.txt           # ASCII art
-│   └── commands/
-│       ├── sectionize.py
-│       ├── generate.py
-│       ├── apply.py
-│       ├── tailor.py
-│       └── plan.py
+│   ├── typer_styles.py      # Custom Typer styling & theme integration
+│   └── commands/            # Individual command modules
+│       ├── sectionize.py    # Resume section parsing command
+│       ├── generate.py      # Edit generation command
+│       ├── apply.py         # Edit application command
+│       ├── tailor.py        # End-to-end tailoring command
+│       ├── plan.py          # Planning workflow command
+│       ├── config.py        # Configuration management command
+│       └── help.py          # Enhanced help system
 ├── config/                  # ⚙️ Settings & persistence
 │   └── settings.py          # Settings manager (~/.loom/config.json)
 ├── core/                    # 🎯 Pure business logic (no I/O)
@@ -61,10 +63,19 @@ src/
 │   ├── generics.py          # Generic fs/json helpers
 │   ├── console.py           # Rich console utilities
 │   └── types.py             # I/O-related types
-└── ui/                      # ✨ Progress, input, timers, art
-    ├── ascii_art.py
-    ├── pausable_timer.py
-    └── ui.py
+├── ui/                      # ✨ Progress, input, timers, art & theming
+│   ├── ascii_art.py         # Banner display functionality
+│   ├── banner.txt           # ASCII art banner
+│   ├── colors.py            # Color scheme definitions
+│   ├── pausable_timer.py    # Timer utilities
+│   ├── theme_selector.py    # Interactive theme selection
+│   ├── ui.py                # Progress & input utilities
+│   ├── help/                # Enhanced help system
+│   │   ├── help_renderer.py # Custom help rendering
+│   │   └── help_templates.py # Help content templates
+│   └── quick/               # Quick usage utilities
+│       └── quick_usage.py   # Quick command shortcuts
+└── main.py                  # Entry point
 ```
 
 ## Key Features
@@ -119,7 +130,8 @@ After setting up your configuration, you can run commands with minimal arguments
 # Set up your defaults once
 loom config set data_dir ~/Documents/resumes
 loom config set resume_filename my_resume.docx
-loom config set model gpt-4o
+loom config set model gpt-5-mini
+loom config themes                 # Interactive theme selector
 
 # Then run commands without repeating paths
 loom sectionize                    # Uses configured resume and output locations
@@ -157,7 +169,10 @@ loom config list
 
 # Get or set a specific setting
 loom config get model
-loom config set model gpt-5-mini
+loom config set model gpt-4o
+
+# Interactive theme selection
+loom config themes
 
 # Reset to defaults
 loom config reset

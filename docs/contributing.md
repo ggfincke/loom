@@ -5,6 +5,7 @@ Thanks for your interest in improving Loom! This guide outlines the workflow and
 ## Workflow
 
 - Use Python 3.12 and follow PEP 8 with 4-space indents; add type hints in new/modified code.
+- Follow `docs/comment-style.md` exactly - single-line comments only, use `&` instead of "and", place comments above code.
 - Keep `core/` pure (no I/O). CLI/UI lives under `cli/` and `ui/`. File/JSON ops under `loom_io/`.
 - Small, focused changes only; avoid drive-by fixes unrelated to your PR.
 
@@ -17,6 +18,8 @@ Thanks for your interest in improving Loom! This guide outlines the workflow and
 
 ## Smoke Tests
 
+- Basic help: `loom --help` (verify enhanced help system displays correctly)
+- Theme system: `loom config themes` (verify interactive theme selector works)
 - Sectionize: `loom sectionize path/to/resume.docx --out-json sections.json`
 - Tailor: `loom tailor job.txt path/to/resume.docx --sections-path sections.json --edits-json edits.json`
 
@@ -34,11 +37,16 @@ Thanks for your interest in improving Loom! This guide outlines the workflow and
 
 ## Style Notes
 
-- Match existing naming: modules/files `snake_case.py`; classes `PascalCase`; functions/vars `snake_case`; constants `UPPER_SNAKE_CASE`.
-- Prefer `black` and `ruff` locally (not enforced in repo).
+- **Naming**: modules/files `snake_case.py`; classes `PascalCase`; functions/vars `snake_case`; constants `UPPER_SNAKE_CASE`.
+- **Comments**: Follow `docs/comment-style.md` - semantic tags (`# *`, `# !`, `# ?`, `# todo`), use `&` instead of "and".
+- **File headers**: Required format: `# src/path/filename.py` followed by brief description.
+- **Formatters**: Prefer `black` and `ruff` locally (not enforced in repo).
 
 ## Folder Conventions
 
-- Source under `src/`; docs under `docs/`; sample inputs in `data/`; generated artifacts in `output/` (git-ignored).
+- **Source**: `src/` w/ packages `ai/`, `cli/`, `config/`, `core/`, `loom_io/`, `ui/`.
+- **Docs**: `docs/` for architecture, contributing, instructions; enhanced help system in `ui/help/`.
+- **Data**: Sample inputs in `data/`; generated artifacts in `output/` (git-ignored).
+- **Config**: Local settings at `~/.loom/config.json`; environment variables via `.env`.
 
 Appreciate your contributions!
