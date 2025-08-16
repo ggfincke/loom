@@ -2,7 +2,6 @@
 # Core processing pipeline for edit generation, validation, & application
 
 from typing import List
-from ..loom_io import number_lines
 import difflib
 import json
 from datetime import datetime, timezone
@@ -13,7 +12,7 @@ from ..ai.clients import run_generate
 
 from ..loom_io.types import Lines
 
-# ! import debug functions only when needed to avoid circular imports
+# ! Import debug functions only when needed to avoid circular imports
 def _debug_ai(message: str):
     try:
         from .debug import debug_ai
@@ -237,195 +236,8 @@ def diff_lines(old: Lines, new: Lines) -> str:
     
     return "".join(difflib.unified_diff(old_list, new_list, fromfile="old", tofile="new"))
 
-# * Validate edits.json structure & ops
-def validate_edits(edits: dict, resume_lines: Lines, risk: RiskLevel) -> List[str]:
-    warnings = []
-    
-    # check ops exists & is non-empty list
-    if "ops" not in edits:
-        warnings.append("Missing 'ops' field in edits")
-        return warnings
-    
-    ops = edits["ops"]
-    if not isinstance(ops, list):
-        warnings.append("'ops' field must be a list")
-        return warnings
-    
-    if len(ops) == 0:
-        warnings.append("'ops' list is empty")
-        return warnings
-    
-    # track line usage to detect conflicts
-    line_usage = {}
-    
-    for i, op in enumerate(ops):
-        if not isinstance(op, dict):
-            warnings.append(f"Op {i}: must be an object")
-            continue
-        
-        op_type = op.get("op")
-        if not op_type:
-            warnings.append(f"Op {i}: missing 'op' field")
-            continue
-        
-        # validate each op type & required fields
-        if op_type == "replace_line":
-            if "line" not in op:
-                warnings.append(f"Op {i}: replace_line missing 'line' field")
-                continue
-            if "text" not in op:
-                warnings.append(f"Op {i}: replace_line missing 'text' field")
-                continue
-            
-            line = op["line"]
-            if not isinstance(line, int) or line < 1:
-                warnings.append(f"Op {i}: 'line' must be integer >= 1")
-                continue
-            
-            if not isinstance(op["text"], str):
-                warnings.append(f"Op {i}: 'text' must be string")
-                continue
-            
-            # block multiline replace_line operations
-            if "\n" in op["text"]:
-                warnings.append(f"Op {i}: replace_line text contains newline; use replace_range")
-                continue
-            
-            # check line bounds
-            if line not in resume_lines:
-                warnings.append(f"Op {i}: line {line} not in resume bounds")
-                continue
-                
-            # check for conflicts
-            if line in line_usage:
-                warnings.append(f"Op {i}: duplicate operation on line {line}")
-            line_usage[line] = op_type
-        
-        elif op_type == "replace_range":
-            if "start" not in op or "end" not in op or "text" not in op:
-                warnings.append(f"Op {i}: replace_range missing required fields (start, end, text)")
-                continue
-            
-            start, end = op["start"], op["end"]
-            if not isinstance(start, int) or not isinstance(end, int):
-                warnings.append(f"Op {i}: start and end must be integers")
-                continue
-            
-            if start < 1 or end < 1 or start > end:
-                warnings.append(f"Op {i}: invalid range {start}-{end}")
-                continue
-            
-            if not isinstance(op["text"], str):
-                warnings.append(f"Op {i}: 'text' must be string")
-                continue
-            
-            # check line bounds
-            for line in range(start, end + 1):
-                if line not in resume_lines:
-                    warnings.append(f"Op {i}: line {line} not in resume bounds")
-                    break
-            
-            # validate line count mismatch in replace_range
-            # use split("\n") instead of splitlines() to handle empty strings correctly
-            if op["text"]:
-                text_line_count = len(op["text"].split("\n"))
-            else:
-                # empty text is treated as single line
-                text_line_count = 1  
-            range_line_count = end - start + 1
-            if text_line_count != range_line_count:
-                msg = f"Op {i}: replace_range line count mismatch ({range_line_count} -> {text_line_count})"
-                if risk in [RiskLevel.MED, RiskLevel.HIGH, RiskLevel.STRICT]:
-                    warnings.append(msg + " (will cause line collisions)")
-                else:
-                    warnings.append(msg)
-            
-            # check for conflicts in range
-            for line in range(start, end + 1):
-                if line in line_usage:
-                    warnings.append(f"Op {i}: duplicate operation on line {line}")
-                    break
-            for line in range(start, end + 1):
-                line_usage[line] = op_type
-        
-        elif op_type == "insert_after":
-            if "line" not in op or "text" not in op:
-                warnings.append(f"Op {i}: insert_after missing required fields (line, text)")
-                continue
-            
-            line = op["line"]
-            if not isinstance(line, int) or line < 1:
-                warnings.append(f"Op {i}: 'line' must be integer >= 1")
-                continue
-            
-            if not isinstance(op["text"], str):
-                warnings.append(f"Op {i}: 'text' must be string")
-                continue
-            
-            # check line bounds
-            if line not in resume_lines:
-                warnings.append(f"Op {i}: line {line} not in resume bounds")
-                continue
-        
-        elif op_type == "delete_range":
-            if "start" not in op or "end" not in op:
-                warnings.append(f"Op {i}: delete_range missing required fields (start, end)")
-                continue
-            
-            start, end = op["start"], op["end"]
-            if not isinstance(start, int) or not isinstance(end, int):
-                warnings.append(f"Op {i}: start and end must be integers")
-                continue
-            
-            if start < 1 or end < 1 or start > end:
-                warnings.append(f"Op {i}: invalid range {start}-{end}")
-                continue
-            
-            # check line bounds
-            for line in range(start, end + 1):
-                if line not in resume_lines:
-                    warnings.append(f"Op {i}: line {line} not in resume bounds")
-                    break
-            
-            # check for conflicts in range
-            for line in range(start, end + 1):
-                if line in line_usage:
-                    warnings.append(f"Op {i}: duplicate operation on line {line}")
-                    break
-            for line in range(start, end + 1):
-                line_usage[line] = op_type
-        
-        else:
-            warnings.append(f"Op {i}: unknown operation type '{op_type}'")
-    
-    # detect cross-op conflicts: insert_after on a line later deleted
-    delete_ranges = [(op["start"], op["end"]) for op in ops if op.get("op") == "delete_range"]
-    for i, op in enumerate(ops):
-        if op.get("op") == "insert_after":
-            ln = op["line"]
-            if any(s <= ln <= e for s, e in delete_ranges):
-                warnings.append(f"Op {i}: insert_after on line {ln} that is deleted by a delete_range")
-    
-    # detect overlaps between delete_range & replace_range
-    replace_ranges = [(op["start"], op["end"]) for op in ops if op.get("op") == "replace_range"]
-    for i, op in enumerate(ops):
-        if op.get("op") == "delete_range":
-            s, e = op["start"], op["end"]
-            if any(not (e2 < s or s2 > e) for (s2, e2) in replace_ranges):
-                warnings.append(f"Op {i}: delete_range overlaps a replace_range; split or reorder ops")
-    
-    # detect multiple insert_after on the same line
-    seen_inserts = set()
-    for i, op in enumerate(ops):
-        if op.get("op") == "insert_after":
-            ln = op["line"]
-            if ln in seen_inserts:
-                warnings.append(f"Op {i}: multiple insert_after on line {ln}")
-            seen_inserts.add(ln)
-    
-    return warnings
 
-# get primary line num for an operation
+# * Get primary line number for operation
 def _get_op_line(op: dict) -> int:
     if "line" in op:
         return op["line"]
@@ -434,4 +246,8 @@ def _get_op_line(op: dict) -> int:
     else:
         return 0
 
+# ! Moved from loom_io.documents to avoid circular imports
+# * Number lines in resume
+def number_lines(resume: Lines) -> str:
+    return "\n".join(f"{i:>4} {text}" for i, text in sorted(resume.items()))
 

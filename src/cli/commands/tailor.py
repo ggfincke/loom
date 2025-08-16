@@ -69,13 +69,13 @@ def tailor(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose debug output"),
     help: bool = typer.Option(False, "--help", "-h", help="Show help message and exit."),
 ) -> None:
-    # detect help flag & show custom help
+    # detect help flag & display custom help
     if help:
         from .help import show_command_help
         show_command_help("tailor")
         ctx.exit()
     
-    # enable debug mode if verbose flag is set
+    # enable debug mode if verbose
     if verbose:
         enable_debug()
     else:
@@ -90,7 +90,7 @@ def tailor(
     settings = ctx.obj
     resolver = ArgResolver(settings)
 
-    # resolve args w/ settings defaults
+    # resolve args using settings defaults
     common_resolved = resolver.resolve_common(
         job=job,
         resume=resume,
@@ -112,9 +112,9 @@ def tailor(
     risk_enum: RiskLevel = option_resolved["risk"]
     on_error_policy: ValidationPolicy = option_resolved["on_error"]
 
-    # validate required arguments based on mode
+    # validate required arguments by mode
     if apply:
-        # apply mode: only need resume, edits_json, output_resume
+        # apply mode: require resume, edits_json, output_resume
         validate_required_args(
             resume=(resume, "Resume path"),
             output_resume=(
@@ -123,14 +123,14 @@ def tailor(
             ),
         )
     elif edits_only:
-        # edits-only mode: need job, resume, model (no output_resume required)
+        # edits-only mode: require job, resume, model
         validate_required_args(
             job=(job, "Job description path"),
             resume=(resume, "Resume path"),
             model=(model, "Model (provide --model or set in config)"),
         )
     else:
-        # full tailor mode: need everything
+        # full tailor mode: require all parameters
         validate_required_args(
             job=(job, "Job description path"),
             resume=(resume, "Resume path"),
@@ -141,24 +141,24 @@ def tailor(
             ),
         )
 
-    # type assertions after validation
+    # assert types after validation
     assert resume is not None
     assert edits_json is not None
     
     if not apply:
-        # job & model required for generation modes
+        # job & model required for generation
         assert job is not None
         assert model is not None
     
     if not edits_only:
-        # output_resume required for application modes
+        # output_resume required for application
         assert output_resume is not None
 
     if apply:
-        # apply mode: read existing edits & apply to resume
+        # apply mode: read edits & apply to resume
         assert output_resume is not None
         
-        from ...loom_io import read_docx
+        from ...loom_io import read_resume
         from ...ui.progress import load_edits_json
         
         with setup_ui_with_progress("Applying edits...", total=5) as (
@@ -168,7 +168,7 @@ def tailor(
         ):
             # read resume
             progress.update(task, description="Reading resume document...")
-            lines = read_docx(resume)
+            lines = read_resume(resume)
             progress.advance(task)
 
             # read edits
@@ -193,7 +193,7 @@ def tailor(
             )
             
     elif edits_only:
-        # edits-only mode: generate edits but don't apply
+        # edits-only mode: generate edits only
         assert job is not None
         assert model is not None
         
@@ -226,7 +226,7 @@ def tailor(
             persist_edits_json(edits, edits_json, progress, task)
             
     else:
-        # full tailor mode: generate edits & apply
+        # full tailor mode: generate & apply edits
         assert job is not None
         assert model is not None
         assert output_resume is not None
@@ -279,7 +279,7 @@ def tailor(
                 task,
             )
 
-    # report results based on mode
+    # generate results report by mode
     if apply:
         report_result(
             "apply",

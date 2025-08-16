@@ -13,8 +13,8 @@ from ..core.pipeline import (
     generate_edits,
     generate_corrected_edits,
     apply_edits,
-    validate_edits,
 )
+from ..core.validation import validate_edits
 from ..core.exceptions import EditError
 from ..core.validation import handle_validation_error
 
@@ -76,16 +76,16 @@ def generate_edits_core(
     policy: ValidationPolicy,
     ui,
 ) -> dict:
-    # generate initial edits
+    # create initial edits using AI
     edits = generate_edits(
         resume_lines=resume_lines, job_text=job_text, sections_json=sections_json, model=model
     )
 
-    # immediately persist edits so manual mode has a file to work with
+    # persist edits immediately for manual editing
     settings.loom_dir.mkdir(exist_ok=True)
     settings.edits_path.write_text(__import__("json").dumps(edits, indent=2), encoding="utf-8")
 
-    # validate with a closure that can be updated
+    # validate using updatable closure
     current_edits = [edits]
 
     def validate_current():
@@ -96,13 +96,13 @@ def generate_edits_core(
         )
 
     def edit_edits_and_update(validation_warnings):
-        # read current edits from file
+        # load current edits from disk
         if settings.edits_path.exists():
             current_edits_json = settings.edits_path.read_text(encoding="utf-8")
         else:
             raise EditError("No existing edits file found for correction")
 
-        # call the pipeline to generate corrected edits
+        # generate corrected edits via pipeline
         new_edits = generate_corrected_edits(
             current_edits_json,
             resume_lines,
@@ -111,14 +111,14 @@ def generate_edits_core(
             model,
             validation_warnings,
         )
-        # update the current edits being validated
+        # update current edits for validation
         current_edits[0] = new_edits
         return new_edits
 
     def reload_from_disk(data):
         current_edits[0] = data
 
-    # validate
+    # perform validation
     result = handle_validation_error(
         settings,
         validate_fn=validate_current,
@@ -128,7 +128,7 @@ def generate_edits_core(
         ui=ui,
     )
 
-    # if result, there was a regeneration
+    # handle regeneration result if present
     if isinstance(result, dict):
         edits = result
     elif edits is None:
@@ -146,7 +146,7 @@ def apply_edits_core(
     policy: ValidationPolicy,
     ui,
 ) -> Lines:
-    # use mutable container for edits to support reload functionality
+    # use mutable container for reload support
     current = [edits]
 
     def validate_current():
@@ -155,7 +155,7 @@ def apply_edits_core(
     def reload_from_disk(data):
         current[0] = data
 
-    # pre-apply validation
+    # validate before applying edits
     handle_validation_error(
         settings,
         validate_fn=validate_current,
@@ -164,6 +164,5 @@ def apply_edits_core(
         ui=ui,
     )
 
-    # apply edits
+    # execute edit application
     return apply_edits(resume_lines, current[0])
-

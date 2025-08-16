@@ -8,7 +8,8 @@ import typer
 
 from ...ai.prompts import build_sectionizer_prompt
 from ...ai.clients import run_generate
-from ...loom_io import read_resume, number_lines, write_json_safe
+from ...loom_io import read_resume, write_json_safe
+from ...core.pipeline import number_lines
 from ...core.exceptions import handle_loom_error
 
 from ..app import app

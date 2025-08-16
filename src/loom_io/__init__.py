@@ -7,7 +7,6 @@ from .documents import (
     read_latex,
     write_docx, 
     write_text_lines,
-    number_lines, 
     read_text,
     read_docx_with_formatting,
     apply_edits_to_docx
@@ -21,7 +20,6 @@ __all__ = [
     "read_latex",
     "write_docx", 
     "write_text_lines",
-    "number_lines",
     "read_text",
     "read_docx_with_formatting",
     "apply_edits_to_docx",
