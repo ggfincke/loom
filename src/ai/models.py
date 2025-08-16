@@ -1,8 +1,11 @@
 # src/ai/models.py
-# AI model validation & allow-list for Loom CLI (OpenAI & Claude)
+# AI model validation & allow-list for Loom CLI (OpenAI, Claude & Ollama)
 
-from typing import List, Optional
+import os
+from typing import List, Optional, Dict, Tuple, Any
 import typer
+from dotenv import load_dotenv
+from .clients.ollama_client import get_available_models as get_ollama_available_models, is_ollama_available as check_ollama_available
 
 # supported OpenAI models
 OPENAI_MODELS: List[str] = [
@@ -66,21 +69,57 @@ def resolve_model_alias(model: str) -> str:
     # return original if no alias found
     return model
 
-# check if model is in the supported list
-def validate_model(model: str) -> bool:
-    return model in SUPPORTED_MODELS
+# * Model validation checking all providers
+def validate_model(model: str) -> Tuple[bool, Optional[str]]:
+    # check static lists first
+    if model in OPENAI_MODELS:
+        if check_openai_api_key():
+            return True, "openai"
+        else:
+            return False, "openai_key_missing"
+    
+    if model in CLAUDE_MODELS:
+        if check_claude_api_key():
+            return True, "claude"
+        else:
+            return False, "claude_key_missing"
+    
+    # check dynamic Ollama models
+    ollama_models = get_ollama_models()
+    if model in ollama_models:
+        return True, "ollama"
+    
+    # check if Ollama is available but model not found
+    if is_ollama_available():
+        return False, "ollama_model_missing"
+    
+    # model not found anywhere
+    return False, "model_not_found"
 
-# detect if model is OpenAI or Claude
-def is_openai_model(model: str) -> bool:
-    return model in OPENAI_MODELS
-
-def is_claude_model(model: str) -> bool:
-    return model in CLAUDE_MODELS
-
-# generate friendly error message for unsupported models
+# * Generate comprehensive error message for unsupported models
 def get_model_error_message(invalid_model: str) -> str:
-    openai_list = ", ".join(OPENAI_MODELS)
-    claude_list = ", ".join(CLAUDE_MODELS)
+    _, provider_status = validate_model(invalid_model)
+    
+    if provider_status == "openai_key_missing":
+        return f"Model '{invalid_model}' requires OPENAI_API_KEY environment variable to be set."
+    elif provider_status == "claude_key_missing":
+        return f"Model '{invalid_model}' requires ANTHROPIC_API_KEY environment variable to be set."
+    elif provider_status == "ollama_model_missing":
+        available_ollama = get_ollama_models()
+        if available_ollama:
+            return f"Model '{invalid_model}' not found in Ollama. Available local models: {', '.join(available_ollama)}"
+        else:
+            return f"Model '{invalid_model}' not found in Ollama. No local models available."
+    
+    # comprehensive model listing
+    providers = get_models_by_provider()
+    message_parts = [f"Model '{invalid_model}' is not available.\n"]
+    
+    for provider_name, info in providers.items():
+        if info["available"] and info["models"]:
+            message_parts.append(f"Available {provider_name.upper()} models: {', '.join(info['models'])}")
+        elif info["models"]:
+            message_parts.append(f"{provider_name.upper()} models (requires {info['requirement']}): {', '.join(info['models'])}")
     
     # show popular aliases for easier discovery
     alias_examples = [
@@ -88,14 +127,21 @@ def get_model_error_message(invalid_model: str) -> str:
         "claude-haiku-3.5", "gpt4o", "gpt5"
     ]
     alias_list = ", ".join(alias_examples)
+    message_parts.append(f"Popular aliases: {alias_list}")
     
-    return (
-        f"Model '{invalid_model}' is not supported.\n"
-        f"Supported OpenAI models: {openai_list}\n"
-        f"Supported Claude models: {claude_list}\n"
-        f"Popular aliases: {alias_list}\n"
-        f"Recommended: claude-sonnet-4 (Claude, high capability) or gpt-5-mini (OpenAI, cost-efficient)"
-    )
+    # add recommendation based on what's available
+    if is_ollama_available():
+        ollama_models = get_ollama_models()
+        if ollama_models:
+            message_parts.append(f"Recommended local model: {ollama_models[0]}")
+    elif check_claude_api_key():
+        message_parts.append("Recommended: claude-sonnet-4 (high capability)")
+    elif check_openai_api_key():
+        message_parts.append("Recommended: gpt-5-mini (cost-efficient)")
+    else:
+        message_parts.append("Recommended: Install Ollama for local models or set API keys for external providers")
+    
+    return "\n".join(message_parts)
 
 # * Validate model & show error if invalid; returns resolved model name if valid
 def ensure_valid_model(model: Optional[str]) -> Optional[str]:
@@ -105,11 +151,66 @@ def ensure_valid_model(model: Optional[str]) -> Optional[str]:
     # resolve alias first
     resolved_model = resolve_model_alias(model)
     
-    if not validate_model(resolved_model):
+    valid, _ = validate_model(resolved_model)
+    if not valid:
         typer.echo(get_model_error_message(model), err=True)
         raise typer.Exit(1)
     
     return resolved_model
+
+# * Check if API keys are available for external providers
+def check_openai_api_key() -> bool:
+    load_dotenv()
+    return bool(os.getenv("OPENAI_API_KEY"))
+
+def check_claude_api_key() -> bool:
+    load_dotenv()
+    return bool(os.getenv("ANTHROPIC_API_KEY"))
+
+# * Get available Ollama models dynamically
+def get_ollama_models() -> List[str]:
+    try:
+        return get_ollama_available_models()
+    except Exception:
+        return []
+
+# * Check if Ollama is available
+def is_ollama_available() -> bool:
+    try:
+        return check_ollama_available()
+    except Exception:
+        return False
+
+# * Get all supported models w/ availability status
+def get_models_by_provider() -> Dict[str, Dict[str, Any]]:
+    return {
+        "openai": {
+            "models": OPENAI_MODELS,
+            "available": check_openai_api_key(),
+            "requirement": "OPENAI_API_KEY environment variable"
+        },
+        "claude": {
+            "models": CLAUDE_MODELS,
+            "available": check_claude_api_key(),
+            "requirement": "ANTHROPIC_API_KEY environment variable"
+        },
+        "ollama": {
+            "models": get_ollama_models(),
+            "available": is_ollama_available(),
+            "requirement": "Ollama server running locally"
+        }
+    }
+
+# detect if model is from any provider
+def is_openai_model(model: str) -> bool:
+    return model in OPENAI_MODELS
+
+def is_claude_model(model: str) -> bool:
+    return model in CLAUDE_MODELS
+
+def is_ollama_model(model: str) -> bool:
+    ollama_models = get_ollama_models()
+    return model in ollama_models
 
 # get the recommended default model
 def get_default_model() -> str:

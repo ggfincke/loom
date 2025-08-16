@@ -128,7 +128,8 @@ class ModelRetryStrategy(ValidationStrategy):
                 selected_model = "gpt-4o-mini"
             elif choice.startswith('gpt-'):
                 # validate the model using our allow-list
-                if validate_model(choice):
+                valid, _ = validate_model(choice)
+                if valid:
                     selected_model = choice
                 else:
                     ui.print(f"Model '{choice}' is not supported. Supported models: {', '.join(SUPPORTED_MODELS)}")

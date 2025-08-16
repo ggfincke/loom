@@ -8,17 +8,12 @@ import typer
 
 from ...core.constants import RiskLevel, ValidationPolicy
 from ...core.exceptions import handle_loom_error
+from ...core.debug import enable_debug, disable_debug
 
 from ..app import app
-from ..helpers import (
-    setup_ui_with_progress,
-    load_resume_and_job,
-    load_sections,
-    persist_edits_json,
-    report_result,
-    validate_required_args,
-    write_output_with_diff,
-)
+from ..helpers import validate_required_args
+from ...ui.progress import setup_ui_with_progress, load_resume_and_job, load_sections
+from ...ui.reporting import persist_edits_json, report_result, write_output_with_diff
 from ..logic import ArgResolver, generate_edits_core, apply_edits_core
 from ...ui.help.help_data import command_help
 from ..params import (
@@ -71,6 +66,7 @@ def tailor(
     preserve_mode: str = PreserveModeOpt(),
     edits_only: bool = typer.Option(False, "--edits-only", help="Generate edits JSON only (don't apply)"),
     apply: bool = typer.Option(False, "--apply", help="Apply existing edits JSON to resume"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose debug output"),
     help: bool = typer.Option(False, "--help", "-h", help="Show help message and exit."),
 ) -> None:
     # detect help flag & show custom help
@@ -78,6 +74,12 @@ def tailor(
         from .help import show_command_help
         show_command_help("tailor")
         ctx.exit()
+    
+    # enable debug mode if verbose flag is set
+    if verbose:
+        enable_debug()
+    else:
+        disable_debug()
     
     # validate mutually exclusive flags
     if edits_only and apply:
@@ -157,7 +159,7 @@ def tailor(
         assert output_resume is not None
         
         from ...loom_io import read_docx
-        from ..helpers import load_edits_json
+        from ...ui.progress import load_edits_json
         
         with setup_ui_with_progress("Applying edits...", total=5) as (
             ui,
