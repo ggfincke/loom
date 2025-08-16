@@ -7,7 +7,7 @@ from pathlib import Path
 import typer
 
 from ...ai.prompts import build_sectionizer_prompt
-from ...ai.clients.openai_client import run_generate
+from ...ai.clients import run_generate
 from ...loom_io import read_docx, number_lines, write_json_safe
 from ...core.exceptions import handle_loom_error
 

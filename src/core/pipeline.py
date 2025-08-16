@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from .exceptions import AIError, EditError, JSONParsingError
 from .constants import RiskLevel
 from ..ai.prompts import build_generate_prompt, build_edit_prompt
-from ..ai.clients.openai_client import run_generate
+from ..ai.clients import run_generate
 
 from ..loom_io.types import Lines
 

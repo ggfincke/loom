@@ -1,4 +1,5 @@
 openai
+anthropic
 python-docx
 python-dotenv
 typer
