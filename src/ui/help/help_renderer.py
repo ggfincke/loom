@@ -13,7 +13,7 @@ from typing import Any
 from ...loom_io.console import console
 from ..colors import accent_gradient, get_active_theme
 from ..ascii_art import show_loom_art
-from .help_templates import get_command_help, get_option_help
+from .help_data import get_command_help, get_option_help, get_command_metadata
 
 
 # * Custom help renderer for branded CLI help screens w/ Rich styling & theme integration
@@ -59,8 +59,11 @@ class HelpRenderer:
     def render_command_help(self, command_name: str, command: Any = None) -> None:
         console.print()
         
-        # get command help from templates
-        cmd_help = get_command_help(command_name)
+        # try to get command help from metadata system first, fall back to templates
+        cmd_help = get_command_metadata(command_name)
+        if not cmd_help:
+            cmd_help = get_command_help(command_name)
+        
         if not cmd_help:
             console.print(f"[red]No help available for command: {command_name}[/]")
             return
@@ -106,8 +109,6 @@ class HelpRenderer:
         core_commands = [
             ("sectionize", "Parse resume into structured sections"),
             ("tailor", "Complete end-to-end resume tailoring"),
-            ("generate", "Generate edits.json for job requirements"),
-            ("apply", "Apply edits to resume document"),
         ]
         
         utility_commands = [
@@ -168,8 +169,8 @@ class HelpRenderer:
             Text(""),
             Text("# Step-by-step workflow", style=f"dim {self.theme_colors[2]}"),
             Text("loom sectionize resume.docx --out-json sections.json", style="white"),
-            Text("loom generate job.txt resume.docx --edits-json edits.json", style="white"),
-            Text("loom apply --edits-json edits.json resume.docx --output-resume tailored_resume.docx", style="white"),
+            Text("loom tailor job.txt resume.docx --edits-only", style="white"),
+            Text("loom tailor resume.docx --apply --output-resume tailored_resume.docx", style="white"),
             Text(""),
             Text("# Configure defaults to simplify commands", style=f"dim {self.theme_colors[2]}"),
             Text("loom config set data_dir /path/to/job_applications", style="white"),
@@ -283,6 +284,8 @@ class HelpRenderer:
                 ("preserve_mode", False),
                 ("risk", False),
                 ("on_error", False),
+                ("edits_only", False),
+                ("apply", False),
             ],
             "plan": [
                 ("job", True),

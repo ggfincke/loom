@@ -45,9 +45,7 @@ src/
 │   ├── typer_styles.py      # Custom Typer styling & theme integration
 │   └── commands/            # Individual command modules
 │       ├── sectionize.py    # Resume section parsing command
-│       ├── generate.py      # Edit generation command
-│       ├── apply.py         # Edit application command
-│       ├── tailor.py        # End-to-end tailoring command
+│       ├── tailor.py        # Main tailoring command (with --edits-only, --apply flags)
 │       ├── plan.py          # Planning workflow command
 │       ├── config.py        # Configuration management command
 │       └── help.py          # Enhanced help system
@@ -90,37 +88,50 @@ src/
 
 ## Usage
 
-Loom provides two main commands for resume tailoring:
+Loom provides a streamlined workflow centered around the `tailor` command:
+
+### Quick Start
+
+The fastest way to tailor your resume:
+
+```bash
+loom tailor job_description.txt my_resume.docx
+```
+
+This generates edits and applies them in one step, creating a tailored resume.
+
+### Tailor Command Options
+
+The `tailor` command supports different modes:
+
+**Full workflow (default):** Generate edits and apply them
+```bash
+loom tailor job_description.txt resume.docx --output-resume tailored_resume.docx
+```
+
+**Generate edits only:** Create edits JSON but don't apply
+```bash
+loom tailor job_description.txt resume.docx --edits-only
+```
+
+**Apply existing edits:** Apply previously generated edits
+```bash
+loom tailor resume.docx --apply --output-resume tailored_resume.docx
+```
 
 ### Sectionize Command
 
-Parse a resume (.docx) into structured sections:
+For better targeting, first parse your resume into sections:
 
 ```bash
-loom sectionize path/to/resume.docx --out-json sections.json
+loom sectionize resume.docx --out-json sections.json
+loom tailor job_description.txt resume.docx --sections-path sections.json
 ```
 
 This command:
 - Analyzes your resume document
 - Identifies and categorizes different sections (e.g., Summary, Experience, Skills)
-- Outputs structured section data to a JSON file
-
-### Tailor Command
-
-Generate targeted edits for your resume based on a job description:
-
-```bash
-loom tailor job_description.txt path/to/resume.docx \
-  --sections-path sections.json \
-  --edits-json edits.json \
-  --output-resume tailored_resume.docx
-```
-
-This command:
-- Takes a job description text file as input
-- Analyzes your resume sections (from the sectionize output)
-- Generates line-by-line edits to tailor your resume
-- Outputs surgical editing instructions to optimize your resume for the specific job
+- Outputs structured section data for more precise edits
 
 ### Streamlined Workflow with Configuration
 

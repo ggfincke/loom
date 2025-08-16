@@ -15,9 +15,26 @@ from ..app import app
 from ..helpers import setup_ui_with_progress, report_result, validate_required_args
 from ..logic import ArgResolver
 from ..params import ResumeArg, OutJsonOpt, ModelOpt
+from ...ui.help.help_data import command_help
 
 
 # * Parse resume document into structured sections using AI sectionizer
+@command_help(
+    name="sectionize",
+    description="Parse resume document into structured sections using AI",
+    long_description=(
+        "Analyzes your resume (.docx) and identifies distinct sections such as "
+        "SUMMARY, EXPERIENCE, and EDUCATION. Produces a machine-readable JSON map "
+        "used to target edits precisely in later steps.\n\n"
+        "Defaults: paths come from config when omitted (see 'loom config')."
+    ),
+    examples=[
+        "loom sectionize resume.docx --out-json sections.json",
+        "loom sectionize my_resume.docx  # uses config defaults",
+        "loom sectionize resume.docx --model gpt-4o-mini",
+    ],
+    see_also=["tailor", "config"],
+)
 @app.command(help="Parse resume document into structured sections using AI")
 @handle_loom_error
 def sectionize(

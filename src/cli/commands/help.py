@@ -8,7 +8,7 @@ from typing import Any
 
 from ..app import app
 from ...ui.help.help_renderer import HelpRenderer
-from ...ui.help.help_templates import COMMAND_HELP
+from ...ui.help.help_data import COMMAND_HELP
 from ...loom_io.console import console
 
 

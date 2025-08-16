@@ -13,6 +13,7 @@ from ...ui.colors import styled_checkmark, success_gradient, LoomColors, THEMES,
 from ..app import app
 from ...ui.theme_selector import interactive_theme_selector
 from ...ui.ascii_art import show_loom_art
+from ...ui.help.help_data import command_help
 
 # * Sub-app for config commands; registered on root app
 config_app = typer.Typer(
@@ -38,6 +39,26 @@ def _coerce_value(raw: str):
         return raw
 
 # * default callback: show current settings w/ styled output when no subcommand provided
+@command_help(
+    name="config",
+    description="Manage Loom settings & configuration",
+    long_description=(
+        "Configure default directories, file names, AI model, and visual theme. "
+        "Settings persist to ~/.loom/config.json and are used when CLI arguments "
+        "are omitted."
+    ),
+    examples=[
+        "loom config  # Show all current settings",
+        "loom config set model gpt-4o  # Set default AI model",
+        "loom config set data_dir /path/to/job_applications", 
+        "loom config set resume_filename my_resume.docx",
+        "loom config themes  # Interactive theme selector",
+        "loom config get model  # Get specific setting",
+        "loom config reset  # Reset all to defaults",
+        "loom config path  # Show config file location",
+    ],
+    see_also=["tailor"],
+)
 @config_app.callback(invoke_without_command=True)
 def config_callback(
     ctx: typer.Context,
