@@ -1,6 +1,6 @@
 # Loom Architecture & Internal Design
 
-This document explains how the Loom CLI tool works internally - its architecture, organization, data flow, and how components work together.
+This document explains how Loom is structured & built: its architecture, data flow, key modules, & the design decisions behind them.
 
 ## Overview
 
@@ -24,7 +24,6 @@ src/
 │   ├── helpers.py         # CLI-layer orchestration + I/O glue
 │   ├── logic.py           # CLI business logic coordination
 │   ├── params.py          # Argument and option definitions
-│   ├── typer_styles.py    # Custom Typer styling & theme integration
 │   └── commands/          # Individual command modules
 │       ├── sectionize.py  # Resume section parsing command
 │       ├── generate.py    # Edit generation command
@@ -49,6 +48,10 @@ src/
     ├── ascii_art.py       # Banner display functionality
     ├── banner.txt         # ASCII art banner
     ├── colors.py          # Color scheme definitions
+    ├── typer_styles.py    # Custom Typer styling & theme integration
+    ├── console_theme.py   # Rich theme wiring
+    ├── progress.py        # Progress indicators
+    ├── reporting.py       # Output & diff reporting
     ├── pausable_timer.py  # Timer utilities
     ├── theme_selector.py  # Interactive theme selection
     ├── ui.py              # Progress/input utilities
@@ -62,7 +65,7 @@ src/
 ## Core Architecture
 
 ### 1. CLI Layer (`src/cli/app.py` and `src/cli/commands/*`)
-The application uses Typer for command-line interface with Rich for progress display and custom theming. Commands:
+Typer-based CLI w/ Rich for progress & custom theming. Commands:
 
 - `sectionize`: Parses resume into structured sections
 - `generate`: Creates edits JSON from job description + resume
@@ -71,13 +74,13 @@ The application uses Typer for command-line interface with Rich for progress dis
 - `plan`: Planning-based edit generation
 - `config`: Configuration management with theme selection
 
-The CLI features an enhanced help system with:
+Enhanced help system:
 - Custom branded help screens with gradient styling
 - Theme-aware color schemes and visual styling
 - Interactive theme selector (`config themes`)
 - Contextual help templates and improved UX
 
-Each command follows a consistent pattern:
+Command execution pattern:
 1. Load settings and validate inputs
 2. Create Rich progress tracker with theme-aware styling
 3. Execute pipeline operations with progress updates
@@ -85,7 +88,7 @@ Each command follows a consistent pattern:
 5. Write outputs and display success messages
 
 ### 2. Pipeline Layer (`pipeline.py`)
-The core processing engine that handles:
+Core processing engine:
 
 **Edit Generation (`generate_edits`)**:
 - Builds AI prompts using job description and resume
@@ -112,50 +115,45 @@ The core processing engine that handles:
 - Warning generation and policy enforcement
 
 ### 3. Document Layer (`src/loom_io/documents.py`)
-Handles all document I/O operations:
+Document I/O operations:
 
 - **DOCX Reading**: Extracts text from Word documents into line-numbered dict
 - **DOCX Writing**: Reconstructs Word documents from line dict
 - **Line Numbering**: Converts line dict to numbered text format for AI
 - **Text/JSON I/O**: Utility functions for file operations
 
-Key data structure: `Lines = Dict[int, str]` - maps line numbers to text content.
+Key data structure: `Lines = Dict[int, str]` — maps line numbers to text content.
 
-### 4. AI Integration (`src/ai/clients/*`, `src/ai/prompts.py`)
+### 4. AI Integration (`src/ai/clients/*`, `src/ai/prompts.py`, `src/ai/models.py`)
 
-**Providers**:
-- OpenAI: Uses Responses-like APIs for structured JSON output
-- Anthropic (Claude): Compatible JSON responses with policy handling
-- Ollama: Local models discovered dynamically; JSON enforced in prompts
+Providers:
+- OpenAI: Responses-style JSON outputs
+- Anthropic (Claude): JSON-compatible responses
+- Ollama: Local models; availability detection; prompts enforce JSON
 
-All providers normalize to a consistent JSON edit schema with robust parsing and error messages.
+Provider selection via `clients/factory.py`. Model aliasing, validation, & availability in `ai/models.py`.
 
-**Prompt Engineering**:
-- **Sectionizer Prompt**: Analyzes resume structure, identifies sections with confidence scores, detects subsections (experience items, projects, education)
-- **Generate Prompt**: Comprehensive editing instructions with strict policies on truthfulness, embellishment bounds, job alignment, and safety checks
+Prompt Engineering:
+- Sectionizer: identifies sections, subsections, confidence scores
+- Generate: strict policies on truthfulness, job alignment, bounded edits
 
 ### 5. Configuration (`src/config/settings.py`)
-Manages persistent user preferences:
+Persistent user preferences:
 
 - **LoomSettings dataclass**: Default paths, filenames, model selection
 - **SettingsManager**: JSON-based persistence in `~/.loom/config.json`
 - **Property methods**: Dynamic path construction from base settings
 - **CRUD operations**: get, set, reset, list settings
 
-### 6. CLI Enhancement (`src/cli/` and `src/ui/`)
-**CLI Types (`src/cli/params.py`)**:
-- Argument validation (file existence, readability)
-- Path resolution and type checking
-- Help text generation
-- Default value management
-- Optional parameter handling
+### 6. CLI Enhancements & UI (`src/cli/`, `src/ui/`)
+CLI Types (`src/cli/params.py`): argument validation, path resolution, normalized flags (e.g., `--risk`, `--on-error`).
 
-**UI System (`src/ui/`)**:
-- **Theme Management**: Interactive theme selection with persistent preferences
-- **Custom Help**: Branded help screens with gradient styling and improved UX
-- **Visual Elements**: ASCII art banners, color schemes, and styling consistency
-- **Progress Indicators**: Rich-based progress tracking with theme integration
-- **Quick Access**: Shortcuts and utility functions for common workflows
+UI System (`src/ui/`):
+- Theme Management: interactive selector + persistent theme
+- Custom Help: branded help screens w/ gradients
+- Progress Indicators: theme-aware Rich progress
+- Reporting: unified result messages & diffs
+- Quick Access: quick usage shortcuts
 
 ## Data Flow
 
@@ -166,7 +164,7 @@ numbered text → build_sectionizer_prompt() → OpenAI API →
 sections JSON → validate & save
 ```
 
-### Tailor Workflow  
+### Tailor Workflow
 ```
 job.txt + resume.docx + sections.json → 
 generate_edits() → validated edits.json →
@@ -195,34 +193,29 @@ Two validation checkpoints:
 Configurable error handling (`ask|fail|fail:soft|fail:hard|manual|retry`) allows users to control behavior when validation fails.
 
 ### 4. Progressive Enhancement
-- Basic functionality works without sections.json
-- Sections data enables more targeted editing
-- Risk levels provide granular validation control
-- Theme system provides visual customization without affecting functionality
+- Works without sections.json; sections improve targeting
+- Granular validation via risk levels
+- Theme system doesn’t affect core logic
 
 ### 5. Immutable Transformations
-Line dictionaries are copied, not modified in place. Operations return new state rather than mutating existing state.
+Line dictionaries are copied, not modified in place; operations return new state.
 
 ### 6. Modular UI Architecture
-UI components are separated into focused modules:
-- **Theming**: Centralized color schemes and visual styling
-- **Help System**: Branded help screens with custom rendering
-- **Progress Display**: Rich-based progress tracking with theme integration
-- **Interactive Elements**: Theme selector, quick access utilities
+Focused modules for theming, help, progress, reporting, & interactive elements.
 
 ## AI Integration Strategy
 
 ### Structured Output
-Uses provider integrations that enforce JSON structure (via Responses-style calls or prompt constraints) rather than parsing free-form text.
+Provider integrations enforce JSON structure rather than parsing free-form text.
 
 ### Prompt Engineering
-- **Constraints**: Strict rules about truthfulness, evidence-based editing
-- **Context**: Job description, numbered resume text, optional sections
-- **Operations**: Line-level edit operations with validation
-- **Safety**: Multiple validation layers and user confirmation
+- Constraints: truthfulness, evidence-based editing, bounded changes
+- Context: job description, numbered resume text, optional sections
+- Operations: line-level edit operations with validation
+- Safety: multi-layer validation & user policies
 
 ### Model Flexibility
-Supports OpenAI, Anthropic (Claude), and local Ollama models with feature detection and availability checks. The `loom models` command lists usable models by provider.
+Supports OpenAI, Anthropic (Claude), & local Ollama with availability checks. `loom models` lists usable models by provider.
 
 ## Configuration Philosophy
 
@@ -234,17 +227,38 @@ Provides sensible defaults while allowing customization of:
 - Error handling policies
 
 ### Settings Inheritance
-CLI arguments override settings, which override hardcoded defaults.
+CLI args override settings, which override hardcoded defaults.
 
 ## Extensibility Points
 
-1. **New Edit Operations**: Add operation types in `core/pipeline.py`
-2. **Additional Prompts**: Extend prompt templates in `ai/prompts.py`
-3. **Document Formats**: Add readers/writers in `loom_io/documents.py`
-4. **Validation Rules**: Extend validation logic in `core/validation.py`
-5. **CLI Commands**: Add new command modules in `cli/commands/`
-6. **UI Themes**: Add new color schemes in `ui/colors.py`
-7. **Help Content**: Extend help content in `ui/help/help_data.py`
-8. **Interactive Features**: Add new UI components in `ui/` package
+1. New edit operations in `core/pipeline.py`
+2. Prompt templates in `ai/prompts.py`
+3. Readers/writers in `loom_io/documents.py`
+4. Validation rules in `core/validation.py`
+5. CLI commands in `cli/commands/`
+6. UI themes in `ui/colors.py`
+7. Help content in `ui/help/help_data.py`
+8. Interactive UI components in `ui/`
 
-This architecture provides a solid foundation for resume tailoring while maintaining flexibility for future enhancements. The modular design allows for easy extension of both core functionality and user experience features.
+## Error Handling & Policies
+
+- Validation policies: `ask`, `retry`, `manual`, `fail:soft`, `fail:hard` (mapped via `--on-error`)
+- Risk levels: `low`, `med`, `high`, `strict` adjust validation gates
+- Exceptions captured via `core/exceptions.py` and surfaced with user-friendly messages
+
+## Document Editing Modes
+
+- DOCX in-place: preserves styles & formatting by editing paragraphs directly
+- DOCX rebuild: constructs a new document from lines (faster; may lose some styles)
+- LaTeX: basic structural preservation; writes plain text back out
+
+## Debugging & Logging
+
+- `core/debug.py` enables verbose mode (`--verbose` in commands that support it)
+- Progress bars & step names surface where time is spent
+
+## Known Limitations & Future Work
+
+- PDF not supported (convert to DOCX/LaTeX first)
+- LaTeX support is basic; complex templates may need manual review
+- Model availability varies by environment; `loom models` helps discoverable sets

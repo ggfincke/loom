@@ -351,7 +351,7 @@ loom tailor job.txt resume.docx --model deepseek-r1:14b
 
 **Validation errors:**
 - Try a lower risk level (`--risk low`)
-- Use `--policy ask` to handle errors interactively
+- Use `--on-error ask` to handle errors interactively (default behavior)
 - Check that your resume has clear section structure
 
 **Poor edit quality:**

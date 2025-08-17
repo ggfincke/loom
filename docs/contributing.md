@@ -24,6 +24,11 @@ Thanks for your interest in improving Loom! This guide outlines the workflow and
 - Sectionize: `loom sectionize path/to/resume.docx --out-json sections.json`
 - Tailor: `loom tailor job.txt path/to/resume.docx --sections-path sections.json --edits-json edits.json`
 
+## Tests
+
+- Run all tests: `pytest -q` (offline; no API keys or Ollama required)
+- Tests live under `tests/` (unit, integration, stress). Keep fixtures small & avoid large binaries.
+
 ## Commits & PRs
 
 - Conventional Commits: `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`, etc.

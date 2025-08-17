@@ -29,75 +29,14 @@ ANTHROPIC_API_KEY=your_anthropic_key_here   # optional (Claude)
 
 ## Architecture
 
-Loom is a Typer-based CLI organized into focused packages. High-level layout:
+Loom is a Typer-based CLI organized into focused packages. For internals & package layout, see `docs/architecture.md`.
 
-```
-src/
-├── ai/                      # 🧠 AI prompts, types, clients
-│   ├── clients/
-│   │   ├── openai_client.py  # OpenAI integration
-│   │   ├── claude_client.py  # Anthropic Claude integration
-│   │   ├── ollama_client.py  # Local Ollama integration
-│   │   └── factory.py        # Provider selection
-│   ├── models.py             # Supported models & validation
-│   ├── prompts.py            # Prompt templates (sectionize, edits, corrections)
-│   ├── test_prompts.py       # Prompt sanity helpers
-│   └── types.py              # AI result types
-├── cli/                     # 💻 CLI entry + commands
-│   ├── app.py               # Typer app and command registration
-│   ├── helpers.py           # Shared CLI helpers (I/O glue, reporting)
-│   ├── logic.py             # CLI orchestration around core pipeline
-│   ├── params.py            # Argument/option definitions
-│   ├── typer_styles.py      # Custom Typer styling & theme integration
-│   └── commands/            # Individual command modules
-│       ├── sectionize.py    # Resume section parsing
-│       ├── generate.py      # Edit generation
-│       ├── apply.py         # Apply edits
-│       ├── tailor.py        # End-to-end (generate+apply; supports --edits-only/--apply)
-│       ├── plan.py          # Planning workflow
-│       ├── config.py        # Configuration management
-│       ├── models.py        # List/test models by provider
-│       └── help.py          # Enhanced help system
-├── config/                  # ⚙️ Settings & persistence
-│   └── settings.py          # Settings manager (~/.loom/config.json)
-├── core/                    # 🎯 Pure business logic (no I/O)
-│   ├── pipeline.py          # Edit generation/application
-│   ├── validation.py        # Validation gates and helpers
-│   ├── exceptions.py        # Domain exceptions
-│   └── constants.py         # Enums and constants
-├── loom_io/                 # 📁 File & console I/O
-│   ├── documents.py         # DOCX read/write + LaTeX/text support
-│   ├── generics.py          # Generic fs/json helpers
-│   ├── console.py           # Rich console utilities
-│   └── types.py             # I/O-related types
-├── ui/                      # ✨ Progress, input, timers, art & theming
-│   ├── ascii_art.py         # Banner display
-│   ├── banner.txt           # ASCII art banner
-│   ├── colors.py            # Color schemes
-│   ├── console_theme.py     # Rich theme wiring
-│   ├── pausable_timer.py    # Timer utilities
-│   ├── progress.py          # Progress bars
-│   ├── reporting.py         # Output & diff reporting
-│   ├── theme_selector.py    # Interactive theme selection
-│   ├── ui.py                # Progress & input utilities
-│   ├── help/                # Enhanced help system
-│   │   ├── help_renderer.py # Custom help rendering
-│   │   └── help_data.py     # Help content & metadata
-│   └── quick/               # Quick usage utilities
-│       └── quick_usage.py   # Quick command shortcuts
-└── main.py                  # Entry point
-```
+## What Loom Does
 
-## Key Features
-
-- **Multi‑provider AI**: OpenAI, Anthropic (Claude), or local Ollama
-- **Structured Outputs**: Consistent JSON edit operations across providers
-- **Surgical Editing**: Operates on line-numbered text for precise, targeted modifications
-- **Document Format Preservation**: Maintains original DOCX formatting while modifying content
-- **Intelligent Section Recognition**: AI-powered section identification with confidence scoring
-- **Flexible Edit Operations**: Supports replace_line, replace_range, insert_after, and delete_range operations
-- **Configuration Management**: Persistent settings to streamline workflow and reduce repetitive arguments
-- **Section Variants Handling**: Recognizes common resume section name variations (e.g., "PROFESSIONAL SUMMARY" → SUMMARY)
+- Tailors resumes to job descriptions using AI with structured JSON edits
+- Preserves DOCX formatting (DOCX in-place or rebuild modes); supports LaTeX/text
+- Works with OpenAI, Anthropic (Claude), & local Ollama models
+- Offers validation controls via `--risk` & `--on-error` policies
 
 ## Usage
 
@@ -137,6 +76,7 @@ loom tailor resume.docx --apply --edits-json edits.json --output-resume tailored
 For better targeting, first parse your resume into sections:
 
 ```bash
+# DOCX (.docx) resumes are supported
 loom sectionize resume.docx --out-json sections.json
 loom tailor job_description.txt resume.docx --sections-path sections.json
 
@@ -242,7 +182,7 @@ Example `~/.loom/config.json`:
   "sections_filename": "sections.json",
   "edits_filename": "edits.json",
   "base_dir": ".loom",
-  "model": "gpt-5",
+  "model": "gpt-5-mini",
   "temperature": 0.2
 }
 ```
@@ -256,9 +196,11 @@ loom tailor
 
 ## Repository & Local Files
 
-- Source lives under `src/`; generated artifacts go to `output/` (git-ignored).
-- Sample inputs under `data/` for experimentation.
-- Local config stored at `~/.loom/config.json`; environment variables via `.env`.
+- Source lives under `src/`; generated artifacts go to `output/` (git-ignored)
+- Sample inputs under `data/` for experimentation
+- Local config stored at `~/.loom/config.json`; environment variables via `.env`
+
+For deeper internals, see `docs/architecture.md`. For testing, see `docs/testing.md`.
 - Validate paths & file types in `loom_io/` before processing.
 - Never commit secrets. Keep API keys in `.env` or your shell, not in source.
 
