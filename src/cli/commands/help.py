@@ -8,20 +8,23 @@ from typing import Any
 
 from ..app import app
 from ...ui.help.help_renderer import HelpRenderer
-from ...ui.help.help_data import COMMAND_HELP
+from ...ui.help.help_data import (
+    get_command_metadata,
+    get_all_command_metadata,
+)
 from ...loom_io.console import console
 
 
-# global help renderer instance
+# Global help renderer instance
 help_renderer = HelpRenderer()
 
 
-# * show main application help screen
+# * Show main application help screen
 def show_main_help(app: typer.Typer) -> None:
     help_renderer.render_main_help(app)
 
 
-# * show help for specific command
+# * Show help for specific command
 def show_command_help(command_name: str, command: Any = None) -> None:
     help_renderer.render_command_help(command_name, command)
 
@@ -31,15 +34,17 @@ def show_command_help(command_name: str, command: Any = None) -> None:
 def help(
     command: str | None = typer.Argument(None, help="Command to show help for"),
 ) -> None:
-    
+    # prefer metadata registry for listing & validation
     if command is None:
-        console.print("[red]Please specify a command name.[/]")
-        console.print("Available commands:", ", ".join(COMMAND_HELP.keys()))
+        available = sorted(get_all_command_metadata().keys())
+        console.print("Available commands:", ", ".join(available))
         return
-    
-    if command not in COMMAND_HELP:
+
+    # validate command existence using metadata registry
+    if not get_command_metadata(command):
+        available = sorted(get_all_command_metadata().keys())
         console.print(f"[red]Unknown command: {command}[/]")
-        console.print("Available commands:", ", ".join(COMMAND_HELP.keys()))
+        console.print("Available commands:", ", ".join(available))
         return
-    
+
     show_command_help(command)
