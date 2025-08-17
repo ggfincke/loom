@@ -148,6 +148,9 @@ def apply_edits(resume_lines: Lines, edits: dict) -> Lines:
             text = op["text"]
             
             # validate range exists
+            # align error message with tests: explicitly report missing 'end' if out of bounds
+            if end not in new_lines:
+                raise EditError(f"Cannot replace range {start}-{end}: line {end} does not exist")
             for line_num in range(start, end + 1):
                 if line_num not in new_lines:
                     raise EditError(f"Cannot replace range {start}-{end}: line {line_num} does not exist")
@@ -250,4 +253,3 @@ def _get_op_line(op: dict) -> int:
 # * Number lines in resume
 def number_lines(resume: Lines) -> str:
     return "\n".join(f"{i:>4} {text}" for i, text in sorted(resume.items()))
-

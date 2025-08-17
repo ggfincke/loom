@@ -7,9 +7,9 @@ from pathlib import Path
 from src.config.settings import SettingsManager, LoomSettings
 
 
+# * Test full settings manager workflow w/ isolated config
 @pytest.mark.integration
 def test_settings_manager_integration(isolate_config, temp_output_dirs):
-    # test full settings manager workflow w/ isolated config
     fake_home = isolate_config
     config_path = fake_home / ".loom" / "config.json"
     
@@ -37,9 +37,9 @@ def test_settings_manager_integration(isolate_config, temp_output_dirs):
     assert config_data["data_dir"] == "custom_data"
 
 
+# * Test that settings paths resolve correctly w/ isolation
 @pytest.mark.integration
 def test_settings_paths_work_correctly(isolate_config):
-    # test that settings paths resolve correctly w/ isolation
     fake_home = isolate_config
     config_path = fake_home / ".loom" / "config.json"
     
@@ -53,9 +53,9 @@ def test_settings_paths_work_correctly(isolate_config):
     assert settings.warnings_path == Path(".loom") / "edits.warnings.txt"
 
 
+# * Test settings reset restores defaults
 @pytest.mark.integration
 def test_settings_reset_functionality(isolate_config):
-    # test settings reset restores defaults
     fake_home = isolate_config
     config_path = fake_home / ".loom" / "config.json"
     

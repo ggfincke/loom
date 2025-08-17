@@ -6,8 +6,8 @@ import socket
 from unittest.mock import patch
 
 
+# * Verify that network calls are blocked by pytest-socket
 def test_network_blocked_by_default():
-    # verify that network calls are blocked by pytest-socket
     from pytest_socket import SocketBlockedError
     
     with pytest.raises(SocketBlockedError):
@@ -15,8 +15,8 @@ def test_network_blocked_by_default():
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 
+# * Verify HTTP requests are blocked
 def test_http_requests_blocked():
-    # verify HTTP requests are blocked
     import urllib.request
     from pytest_socket import SocketBlockedError
     
@@ -24,16 +24,16 @@ def test_http_requests_blocked():
         urllib.request.urlopen("http://httpbin.org/get")
 
 
+# * Verify network can be enabled for specific tests that need it
 @pytest.mark.enable_socket
 def test_network_can_be_enabled_when_needed():
-    # verify network can be enabled for specific tests that need it
     # note: this test would only pass if pytest-socket allows the marker
     # for now we'll just verify the test infrastructure recognizes the marker
     assert True
 
 
+# * Verify that mocked network calls work properly
 def test_mock_network_calls_work():
-    # verify that mocked network calls work properly
     with patch('urllib.request.urlopen') as mock_urlopen:
         mock_urlopen.return_value.read.return_value = b'{"status": "ok"}'
         

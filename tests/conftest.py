@@ -184,3 +184,69 @@ def sample_edits_data():
             }
         ]
     }
+
+
+# * Additional fixtures for core logic testing
+
+@pytest.fixture
+def sample_lines_dict():
+    # Lines dict for core pipeline testing
+    return {
+        1: "John Doe",
+        2: "Software Engineer", 
+        3: "",
+        4: "PROFESSIONAL SUMMARY",
+        5: "Experienced software engineer w/ 5+ years developing web applications.",
+        6: "",
+        7: "SKILLS",
+        8: "• Python, JavaScript, React",
+        9: "• Docker, AWS, CI/CD",
+        10: "",
+        11: "EXPERIENCE",
+        12: "Senior Developer | Tech Corp | 2020-2024",
+        13: "• Built scalable web applications",
+        14: "• Led team of 3 developers"
+    }
+
+
+@pytest.fixture
+def valid_edits_v1():
+    # valid edits dict w/ version 1 format for pipeline testing
+    return {
+        "version": 1,
+        "meta": {
+            "model": "gpt-4o",
+            "created_at": "2024-01-01T00:00:00Z"
+        },
+        "ops": [
+            {
+                "op": "replace_line",
+                "line": 5,
+                "text": "Experienced Python developer w/ 5+ years building scalable applications."
+            }
+        ]
+    }
+
+
+@pytest.fixture
+def mock_ai_success_response():
+    # mock successful AI response for testing
+    mock_response = MagicMock()
+    mock_response.success = True
+    mock_response.data = {
+        "version": 1,
+        "meta": {"model": "gpt-4o"},
+        "ops": [{"op": "replace_line", "line": 5, "text": "Updated summary"}]
+    }
+    return mock_response
+
+
+@pytest.fixture
+def mock_ai_failure_response():
+    # mock failed AI response for testing
+    mock_response = MagicMock()
+    mock_response.success = False
+    mock_response.error = "Invalid JSON syntax"
+    mock_response.json_text = '{"invalid": json}'
+    mock_response.raw_text = None
+    return mock_response

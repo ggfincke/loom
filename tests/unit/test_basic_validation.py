@@ -6,11 +6,11 @@ import json
 from pathlib import Path
 
 
+# * Verify pytest is functional
 def test_pytest_working():
-    # basic test to verify pytest is functional
     assert True
 
-# * verify test fixtures are accessible & contain expected data
+# * Verify test fixtures are accessible & contain expected data
 def test_fixtures_accessible(sample_resume_content, sample_job_description):
     assert "John Doe" in sample_resume_content
     assert "Software Engineer" in sample_resume_content
@@ -18,8 +18,8 @@ def test_fixtures_accessible(sample_resume_content, sample_job_description):
     assert "Requirements:" in sample_job_description
 
 
+# * Verify config isolation is working properly
 def test_config_isolation(isolate_config):
-    # verify config isolation is working
     config_file = isolate_config / ".loom" / "config.json"
     assert config_file.exists()
     
@@ -31,8 +31,8 @@ def test_config_isolation(isolate_config):
     assert config["data_dir"] == "data"
 
 
+# * Verify temporary directories are properly isolated
 def test_temp_dirs_isolation(temp_output_dirs):
-    # verify temporary directories are properly isolated
     assert temp_output_dirs["data_dir"].exists()
     assert temp_output_dirs["output_dir"].exists()
     assert temp_output_dirs["loom_dir"].exists()
@@ -43,23 +43,23 @@ def test_temp_dirs_isolation(temp_output_dirs):
     assert test_file.read_text() == "test content"
 
 
+# * Verify environment variables are properly set for tests
 def test_env_vars_isolated(mock_env_vars):
-    # verify environment variables are properly set for tests
     import os
     assert os.getenv("OPENAI_API_KEY") == "test-openai-key-12345"
     assert os.getenv("ANTHROPIC_API_KEY") == "test-anthropic-key-12345"
 
 
+# * Test marked as slow for testing marker functionality
 @pytest.mark.slow
 def test_slow_marker():
-    # test marked as slow for testing marker functionality
     import time
     time.sleep(0.1)
     assert True
 
 
+# * Verify sample fixture files can be loaded
 def test_sample_fixtures_loadable():
-    # verify sample fixture files can be loaded
     fixtures_dir = Path(__file__).parent.parent / "fixtures"
     
     sections_file = fixtures_dir / "sample_sections" / "basic_resume_sections.json"
