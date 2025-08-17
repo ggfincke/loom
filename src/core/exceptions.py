@@ -1,5 +1,5 @@
 # src/core/exceptions.py
-# Custom exception hierarchy and centralized error handling for Loom
+# Custom exception hierarchy & centralized error handling for Loom
 
 import functools
 from typing import List

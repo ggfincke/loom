@@ -1,5 +1,5 @@
 # src/loom_io/documents.py
-# Document I/O operations for reading & writing DOCX files with formatting preservation, plus basic LaTeX/text support
+# Document I/O operations for reading & writing DOCX files w/ formatting preservation, plus basic LaTeX/text support
 
 from pathlib import Path
 from docx import Document

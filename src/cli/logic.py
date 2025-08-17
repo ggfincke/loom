@@ -1,5 +1,5 @@
 # src/cli/logic.py
-# CLI-layer logic wrappers and argument resolution
+# CLI-layer logic wrappers & argument resolution
 
 from __future__ import annotations
 

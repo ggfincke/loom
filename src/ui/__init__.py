@@ -1,10 +1,5 @@
-"""
-src/ui
-UI components for terminal interaction (progress, input, console helpers).
-
-Exports:
-- UI: main interface for progress-safe user I/O
-"""
+# src/ui/__init__.py
+# UI components for terminal interaction w/ progress, input, & console helpers
 
 from .ui import UI
 

@@ -6,7 +6,7 @@ from rich.console import Console
 # single console instance used by all modules for consistent output & progress coordination
 console = Console()
 
-# * Refresh console theme with current settings (imported from ui module)
+# * Refresh console theme w/ current settings (imported from ui module)
 def refresh_theme():
     try:
         from ..ui.console_theme import refresh_theme as _refresh_theme

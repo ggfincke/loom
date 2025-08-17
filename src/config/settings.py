@@ -1,5 +1,5 @@
 # src/config/settings.py
-# Configuration management for Loom CLI including default paths and OpenAI settings
+# Configuration management for Loom CLI including default paths & OpenAI settings
 
 import json
 from pathlib import Path
@@ -7,11 +7,7 @@ from typing import Dict, Any, Optional
 import typer
 from dataclasses import dataclass, asdict
 
-# * Default Settings for Loom CLI
-'''
-this class defines the default settings for the Loom CLI application, including paths and OpenAI model settings;
-it uses dataclasses for easy instantiation and management of settings
-'''
+# * Default settings dataclass for Loom CLI w/ paths & OpenAI model configuration
 @dataclass
 class LoomSettings:
     # default paths

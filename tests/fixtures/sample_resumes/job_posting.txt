@@ -1,0 +1,31 @@
+Senior Python Developer
+TechCorp Inc. | Remote | Full-time
+
+About the Role:
+We are seeking an experienced Senior Python Developer to join our growing engineering team. You will be responsible for designing & building scalable backend systems that power our platform serving millions of users.
+
+Requirements:
+• 5+ years of professional Python development experience
+• Strong experience w/ web frameworks (Django, FastAPI, Flask)
+• Proficiency w/ cloud platforms (AWS preferred)
+• Experience w/ containerization (Docker, Kubernetes)
+• Knowledge of database design & optimization (PostgreSQL, Redis)
+• Familiarity w/ microservices architecture
+• Strong problem-solving & communication skills
+• Experience w/ CI/CD pipelines & DevOps practices
+
+Nice to Have:
+• Experience w/ machine learning frameworks
+• Knowledge of frontend technologies (React, Vue.js)
+• Experience w/ event-driven architectures
+• Leadership & mentoring experience
+
+What We Offer:
+• Competitive salary & equity
+• Remote-first culture
+• Professional development budget
+• Health, dental, & vision insurance
+• Unlimited PTO
+
+To Apply:
+Send your resume & cover letter highlighting your Python experience & relevant projects.

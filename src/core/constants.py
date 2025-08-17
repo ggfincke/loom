@@ -1,5 +1,5 @@
 # src/core/constants.py
-# Constants and enums for validation policies and risk levels
+# Constants & enums for validation policies & risk levels
 
 from enum import Enum
 
