@@ -36,10 +36,6 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         
-    - name: Run unit tests
+    - name: Run full test suite with coverage
       run: |
-        pytest tests/unit -v -m "not slow" --cov=src --cov-report=xml
-        
-    - name: Run integration tests
-      run: |
-        pytest tests/integration -v --cov=src --cov-append --cov-report=xml
+        pytest -v --cov=src --cov-report=xml
