@@ -27,7 +27,7 @@ def test_config_isolation(isolate_config):
     with open(config_file) as f:
         config = json.load(f)
     
-    assert config["model"] == "gpt-4o-mini"
+    assert config["model"] == "gpt-5-mini"
     assert config["data_dir"] == "data"
 
 

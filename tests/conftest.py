@@ -32,7 +32,7 @@ def isolate_config(tmp_path, monkeypatch):
         "warnings_filename": "edits.warnings.txt",
         "diff_filename": "diff.patch", 
         "plan_filename": "plan.txt",
-        "model": "gpt-4o-mini",
+        "model": "gpt-5-mini",
         "temperature": 0.2,
         "risk": "ask",
         "theme": "deep_blue"
@@ -235,7 +235,7 @@ def mock_ai_success_response():
     mock_response.success = True
     mock_response.data = {
         "version": 1,
-        "meta": {"model": "gpt-4o"},
+        "meta": {"model": "gpt-5"},
         "ops": [{"op": "replace_line", "line": 5, "text": "Updated summary"}]
     }
     return mock_response

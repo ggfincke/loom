@@ -5,7 +5,6 @@ import os
 from typing import List, Optional, Dict, Tuple, Any
 import typer
 from dotenv import load_dotenv
-from .clients.ollama_client import get_available_models as get_ollama_available_models, is_ollama_available as check_ollama_available
 
 # supported OpenAI models
 OPENAI_MODELS: List[str] = [
@@ -52,8 +51,8 @@ MODEL_ALIASES = {
 # model categories for user guidance
 MODEL_CATEGORIES = {
     "latest": ["gpt-5", "gpt-5-mini", "gpt-5-nano", "claude-opus-4-1-20250805", "claude-sonnet-4-20250514"],
-    "cost_effective": ["gpt-5-mini", "gpt-5-nano", "gpt-4o-mini", "claude-3-5-haiku-20241022", "claude-3-haiku-20240307"],
-    "high_capability": ["gpt-5", "gpt-4o", "claude-opus-4-1-20250805", "claude-opus-4-20250514", "claude-sonnet-4-20250514"]
+    "cost_effective": ["gpt-5-mini", "gpt-5-nano", "claude-3-5-haiku-20241022", "claude-3-haiku-20240307"],
+    "high_capability": ["gpt-5", "claude-opus-4-1-20250805", "claude-opus-4-20250514", "claude-sonnet-4-20250514"]
 }
 
 # * Resolve model alias to full model name
@@ -167,17 +166,21 @@ def check_claude_api_key() -> bool:
     load_dotenv()
     return bool(os.getenv("ANTHROPIC_API_KEY"))
 
-# * Get available Ollama models dynamically
+# * Get available Ollama models dynamically, with lazy import to avoid SDK at import time
 def get_ollama_models() -> List[str]:
     try:
-        return get_ollama_available_models()
+        from .clients.ollama_client import get_available_models as _get
+
+        return _get()
     except Exception:
         return []
 
-# * Check if Ollama is available
+# * Check if Ollama is available (lazy import)
 def is_ollama_available() -> bool:
     try:
-        return check_ollama_available()
+        from .clients.ollama_client import is_ollama_available as _available
+
+        return _available()
     except Exception:
         return False
 

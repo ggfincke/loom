@@ -1,0 +1,8 @@
+{
+  "error": {
+    "type": "overloaded_error",
+    "message": "The model is currently overloaded. Please try again later."
+  },
+  "type": "error",
+  "provider": "anthropic"
+}

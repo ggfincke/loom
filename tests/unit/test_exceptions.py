@@ -234,7 +234,7 @@ class TestExceptionUsage:
     
     # * Test AIError preserves detailed messages
     def test_ai_error_message_preservation(self):
-        detailed_message = "AI model 'gpt-4o' failed to generate valid JSON: unexpected token at line 5"
+        detailed_message = "AI model 'gpt-5' failed to generate valid JSON: unexpected token at line 5"
         error = AIError(detailed_message)
         assert str(error) == detailed_message
         assert isinstance(error, LoomError)

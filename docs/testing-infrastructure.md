@@ -7,41 +7,51 @@ This document covers Loom's testing infrastructure, how to run tests effectively
 ### Basic Test Execution
 
 ```bash
-# Run all tests
+# Run all tests (uses defaults from pytest.ini)
 pytest
 
-# Run tests with verbose output
+# Run with verbose output (already enabled via addopts)
 pytest -v
 
-# Run specific test categories
-pytest -m unit           # Unit tests only
-pytest -m integration    # Integration tests only
-pytest -m "not slow"     # Skip slow tests
+# Run specific categories
+pytest -m unit            # Unit tests only
+pytest -m integration     # Integration tests only
+pytest -m "not slow"      # Skip slow tests
 
-# Run tests in specific directories
-pytest tests/unit/       # All unit tests
-pytest tests/integration/ # All integration tests
+# Run in specific directories
+pytest tests/unit/
+pytest tests/integration/
 ```
 
 ### Coverage Reports
 
 ```bash
-# Run tests with coverage
-pytest --cov=src --cov-report=term-missing
+# Run tests with coverage (default)
+pytest  # addopts sets --cov=src --cov-report=term-missing --cov-fail-under=75
 
 # Generate HTML coverage report
 pytest --cov=src --cov-report=html
 
-# Fail if coverage below threshold
-pytest --cov=src --cov-fail-under=85
+# Explicitly set/raise threshold (default is 75%)
+pytest --cov=src --cov-fail-under=75
 ```
 
 ### Parallel Test Execution
 
 ```bash
 # Run tests in parallel (faster execution)
-pytest -n auto           # Auto-detect CPU cores
-pytest -n 4             # Use 4 processes
+pytest -n auto            # Auto-detect CPU cores
+pytest -n 4               # Use 4 processes
+```
+
+### Makefile Shortcuts
+
+```bash
+make test            # Run all tests
+make test-unit       # Run unit tests
+make test-integration# Run integration tests
+make test-coverage   # Run tests + HTML coverage
+make test-fast       # Exclude tests marked slow
 ```
 
 ### Running Specific Tests
@@ -71,6 +81,7 @@ Tests are organized using pytest markers defined in `pytest.ini`:
 - `@pytest.mark.integration` - Integration tests that test component interaction
 - `@pytest.mark.e2e` - End-to-end tests that test full workflows
 - `@pytest.mark.slow` - Tests that take longer to run (can be skipped)
+- `@pytest.mark.enable_socket` - Opt-in to real network access for a test
 
 ### Configuration Files
 
@@ -91,22 +102,34 @@ Tests are organized using pytest markers defined in `pytest.ini`:
 
 ## Test Structure & Organization
 
-### Directory Structure
+### Directory Structure (current)
 
 ```
 tests/
-├── conftest.py              # Global fixtures & configuration
-├── fixtures/                # Static test data
+├── conftest.py                  # Global fixtures & isolation
+├── test_support/
+│   ├── __init__.py
+│   └── mock_ai.py               # Mock AI client helpers
+├── fixtures/
 │   ├── sample_resumes/
+│   │   └── basic_resume.txt
 │   ├── sample_sections/
+│   │   └── basic_resume_sections.json
 │   ├── sample_edits/
+│   │   └── basic_tailoring_edits.json
 │   └── mock_responses/
-├── unit/                    # Unit tests
-│   ├── test_pipeline.py     # Core edit operations
-│   ├── test_validation.py   # Validation logic
-│   ├── test_exceptions.py   # Error handling
-│   └── test_constants.py    # Enum definitions
-└── integration/             # Integration tests
+│       ├── openai_sectionize_response.json
+│       └── openai_tailor_response.json
+├── unit/
+│   ├── test_ai_clients.py       # AI client selection & factory
+│   ├── test_ai_prompts.py       # Prompt templates & structure
+│   ├── test_basic_validation.py # Simple validation rules
+│   ├── test_constants.py        # Enums/constants
+│   ├── test_exceptions.py       # Error types/propagation
+│   ├── test_network_isolation.py# Ensures sockets are blocked by default
+│   ├── test_pipeline.py         # Core edit operations
+│   └── test_validation.py       # Validation logic
+└── integration/
     └── test_config_integration.py
 ```
 
@@ -123,9 +146,9 @@ tests/
 - May involve file I/O, configuration loading
 - Slower execution but still isolated from network
 
-**End-to-End Tests** (future)
-- Test complete workflows from CLI to output
-- May involve real file operations and AI calls
+**End-to-End Tests** (planned)
+- None checked in yet
+- Will test CLI-to-output workflows, potentially with live providers
 
 ## Test Isolation & Fixtures
 
@@ -140,9 +163,9 @@ def isolate_config(tmp_path, monkeypatch):
     # Patches Path.home() to return temp directory
     # Provides clean config.json for each test
 
-@pytest.fixture(autouse=True) 
+@pytest.fixture(autouse=True)
 def block_network():
-    # Blocks all network calls by default
+    # Blocks all network calls by default via pytest-socket
     # Tests requiring network must use @pytest.mark.enable_socket
 ```
 
@@ -260,7 +283,7 @@ def test_generate_edits_success(mock_run_generate, sample_lines_dict):
     mock_run_generate.return_value = mock_result
     
     # Test function
-    result = generate_edits(sample_lines_dict, "job desc", None, "gpt-4o")
+    result = generate_edits(sample_lines_dict, "job desc", None, "gpt-5")
     
     # Verify mock was called correctly
     mock_run_generate.assert_called_once()
@@ -276,8 +299,7 @@ Store reusable test data in `tests/fixtures/`:
 ```
 tests/fixtures/
 ├── sample_resumes/
-│   ├── basic_resume.txt
-│   └── complex_resume.txt
+│   └── basic_resume.txt
 ├── sample_sections/
 │   └── basic_resume_sections.json
 ├── sample_edits/
@@ -423,20 +445,14 @@ pytest tests/unit/test_a.py tests/unit/test_b.py -v
 
 ## Continuous Integration
 
-Tests run automatically on:
+CI runs on pushes and PRs against `main`.
 
-- Pull requests
-- Pushes to main branch
-- Scheduled daily runs
+- Unit tests: `tests/unit` with `-m "not slow"`, coverage XML output
+- Integration tests: `tests/integration` with coverage append
+- Network calls remain blocked unless a test opts into `enable_socket`
+- See `.github/workflows/test.yml` for details
 
-CI configuration ensures:
-
-- All test categories pass
-- Coverage thresholds met
-- No network calls in unit tests
-- Tests run in isolated environment
-
-See `.github/workflows/` for CI configuration details.
+Artifacts: `coverage.xml`; local runs can generate `htmlcov/` via `make test-coverage`.
 
 ## Future Testing Enhancements
 

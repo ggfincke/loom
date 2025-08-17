@@ -38,7 +38,7 @@ def valid_edits_v1():
     return {
         "version": 1,
         "meta": {
-            "model": "gpt-4o",
+            "model": "gpt-5",
             "created_at": "2024-01-01T00:00:00Z"
         },
         "ops": [
@@ -226,7 +226,7 @@ class TestGenerateEdits:
     def test_generate_edits_success(self, mock_run_generate, sample_lines_dict):
         mock_response_data = {
             "version": 1,
-            "meta": {"model": "gpt-4o"},
+            "meta": {"model": "gpt-5"},
             "ops": [{"op": "replace_line", "line": 5, "text": "Updated summary"}]
         }
         
@@ -235,7 +235,7 @@ class TestGenerateEdits:
         mock_result.data = mock_response_data
         mock_run_generate.return_value = mock_result
         
-        result = generate_edits(sample_lines_dict, "job description", None, "gpt-4o")
+        result = generate_edits(sample_lines_dict, "job description", None, "gpt-5")
         
         assert result == mock_response_data
         assert result["version"] == 1
@@ -252,7 +252,7 @@ class TestGenerateEdits:
         mock_run_generate.return_value = mock_result
         
         with pytest.raises(JSONParsingError, match="AI generated invalid JSON"):
-            generate_edits(sample_lines_dict, "job description", None, "gpt-4o")
+            generate_edits(sample_lines_dict, "job description", None, "gpt-5")
     
     @patch('src.core.pipeline.run_generate')
     # * Test AI response structure validation
@@ -263,14 +263,14 @@ class TestGenerateEdits:
         mock_run_generate.return_value = mock_result
         
         with pytest.raises(AIError, match="Invalid or missing version"):
-            generate_edits(sample_lines_dict, "job description", None, "gpt-4o")
+            generate_edits(sample_lines_dict, "job description", None, "gpt-5")
     
     @patch('src.core.pipeline.run_generate')
     # * Test successful AI edit correction
     def test_generate_corrected_edits_success(self, mock_run_generate, sample_lines_dict):
         mock_response_data = {
             "version": 1,
-            "meta": {"model": "gpt-4o"},
+            "meta": {"model": "gpt-5"},
             "ops": [{"op": "replace_line", "line": 5, "text": "Corrected summary"}]
         }
         
@@ -280,7 +280,7 @@ class TestGenerateEdits:
         mock_run_generate.return_value = mock_result
         
         warnings = ["Line 99 not in bounds"]
-        result = generate_corrected_edits('{"ops":[]}', sample_lines_dict, "job desc", None, "gpt-4o", warnings)
+        result = generate_corrected_edits('{"ops":[]}', sample_lines_dict, "job desc", None, "gpt-5", warnings)
         
         assert result == mock_response_data
         assert result["version"] == 1
@@ -300,13 +300,13 @@ class TestDebugFallbacks:
             mock_result.success = True
             mock_result.data = {
                 "version": 1,
-                "meta": {"model": "gpt-4o"},
+                "meta": {"model": "gpt-5"},
                 "ops": []
             }
             mock_run_generate.return_value = mock_result
             
             # should complete successfully even if debug functions fail
-            result = generate_edits(sample_lines_dict, "job", None, "gpt-4o")
+            result = generate_edits(sample_lines_dict, "job", None, "gpt-5")
             assert result["version"] == 1
 
 
@@ -323,7 +323,7 @@ class TestGenerateEditsExtended:
         mock_run_generate.return_value = mock_result
         
         with pytest.raises(JSONParsingError) as exc_info:
-            generate_edits(sample_lines_dict, "job description", None, "gpt-4o")
+            generate_edits(sample_lines_dict, "job description", None, "gpt-5")
         
         error_msg = str(exc_info.value)
         assert "AI generated invalid JSON" in error_msg
@@ -337,13 +337,13 @@ class TestGenerateEditsExtended:
         mock_result.success = True
         mock_result.data = {
             "version": 2,  # invalid version
-            "meta": {"model": "gpt-4o"},
+            "meta": {"model": "gpt-5"},
             "ops": []
         }
         mock_run_generate.return_value = mock_result
         
         with pytest.raises(AIError) as exc_info:
-            generate_edits(sample_lines_dict, "job description", None, "gpt-4o")
+            generate_edits(sample_lines_dict, "job description", None, "gpt-5")
         
         assert "Invalid or missing version" in str(exc_info.value)
         assert "expected 1" in str(exc_info.value)
@@ -361,7 +361,7 @@ class TestGenerateEditsExtended:
         mock_run_generate.return_value = mock_result
         
         with pytest.raises(AIError) as exc_info:
-            generate_edits(sample_lines_dict, "job description", None, "gpt-4o")
+            generate_edits(sample_lines_dict, "job description", None, "gpt-5")
         
         assert "missing required fields: meta" in str(exc_info.value)
 
@@ -372,13 +372,13 @@ class TestGenerateEditsExtended:
         mock_result.success = True
         mock_result.data = {
             "version": 1,
-            "meta": {"model": "gpt-4o"}
+            "meta": {"model": "gpt-5"}
             # missing "ops" field
         }
         mock_run_generate.return_value = mock_result
         
         with pytest.raises(AIError) as exc_info:
-            generate_edits(sample_lines_dict, "job description", None, "gpt-4o")
+            generate_edits(sample_lines_dict, "job description", None, "gpt-5")
         
         assert "missing required fields: ops" in str(exc_info.value)
 
@@ -393,7 +393,7 @@ class TestGenerateEditsExtended:
         mock_run_generate.return_value = mock_result
         
         with pytest.raises(JSONParsingError) as exc_info:
-            generate_corrected_edits('{}', sample_lines_dict, "job", None, "gpt-4o", ["warning"])
+            generate_corrected_edits('{}', sample_lines_dict, "job", None, "gpt-5", ["warning"])
         
         error_msg = str(exc_info.value)
         assert "AI generated invalid JSON during correction" in error_msg

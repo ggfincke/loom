@@ -1,0 +1,19 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"sections\": [{\"name\": \"HEADER\", \"heading_text\": \"Sarah Johnson\", \"start_line\": 1, \"end_line\": 4, \"confidence\": 0.98, \"subsections\": []}, {\"name\": \"SUMMARY\", \"heading_text\": \"PROFESSIONAL SUMMARY\", \"start_line\": 6, \"end_line\": 8, \"confidence\": 0.95, \"subsections\": []}, {\"name\": \"EXPERIENCE\", \"heading_text\": \"WORK EXPERIENCE\", \"start_line\": 10, \"end_line\": 24, \"confidence\": 0.99, \"subsections\": [{\"name\": \"EXPERIENCE_ITEM\", \"start_line\": 11, \"end_line\": 16, \"meta\": {\"company\": \"DataTech Solutions\", \"title\": \"Lead Data Engineer\", \"date_range\": \"2022-Present\", \"location\": \"New York, NY\"}}, {\"name\": \"EXPERIENCE_ITEM\", \"start_line\": 18, \"end_line\": 24, \"meta\": {\"company\": \"CloudFirst Inc\", \"title\": \"Data Engineer\", \"date_range\": \"2020-2022\", \"location\": \"Boston, MA\"}}]}, {\"name\": \"SKILLS\", \"heading_text\": \"TECHNICAL SKILLS\", \"start_line\": 26, \"end_line\": 30, \"confidence\": 0.97, \"subsections\": []}, {\"name\": \"EDUCATION\", \"heading_text\": \"EDUCATION\", \"start_line\": 32, \"end_line\": 34, \"confidence\": 0.96, \"subsections\": []}], \"normalized_order\": [\"HEADER\", \"SUMMARY\", \"EXPERIENCE\", \"SKILLS\", \"EDUCATION\"], \"notes\": \"Resume has clear data engineering focus with quantifiable achievements in each role.\"}"
+    }
+  ],
+  "id": "msg_claude_test_123",
+  "model": "claude-sonnet-4-20250514",
+  "role": "assistant",
+  "stop_reason": "end_turn",
+  "stop_sequence": null,
+  "type": "message",
+  "usage": {
+    "input_tokens": 920,
+    "output_tokens": 310
+  },
+  "provider": "anthropic"
+}

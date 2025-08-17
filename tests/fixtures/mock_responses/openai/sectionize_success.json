@@ -1,0 +1,10 @@
+{
+  "output_text": "{\"sections\": [{\"name\": \"HEADER\", \"heading_text\": \"John Doe\", \"start_line\": 1, \"end_line\": 3, \"confidence\": 0.95, \"subsections\": []}, {\"name\": \"SUMMARY\", \"heading_text\": \"PROFESSIONAL SUMMARY\", \"start_line\": 5, \"end_line\": 6, \"confidence\": 0.99, \"subsections\": []}, {\"name\": \"SKILLS\", \"heading_text\": \"TECHNICAL SKILLS\", \"start_line\": 8, \"end_line\": 11, \"confidence\": 0.98, \"subsections\": []}, {\"name\": \"EXPERIENCE\", \"heading_text\": \"PROFESSIONAL EXPERIENCE\", \"start_line\": 13, \"end_line\": 25, \"confidence\": 0.99, \"subsections\": [{\"name\": \"EXPERIENCE_ITEM\", \"start_line\": 14, \"end_line\": 18, \"meta\": {\"company\": \"TechCorp Inc\", \"title\": \"Senior Developer\", \"date_range\": \"2021-2024\", \"location\": \"San Francisco, CA\"}}, {\"name\": \"EXPERIENCE_ITEM\", \"start_line\": 20, \"end_line\": 25, \"meta\": {\"company\": \"StartupXYZ\", \"title\": \"Full Stack Developer\", \"date_range\": \"2019-2021\", \"location\": \"Remote\"}}]}, {\"name\": \"EDUCATION\", \"heading_text\": \"EDUCATION\", \"start_line\": 27, \"end_line\": 29, \"confidence\": 0.97, \"subsections\": []}], \"normalized_order\": [\"HEADER\", \"SUMMARY\", \"SKILLS\", \"EXPERIENCE\", \"EDUCATION\"], \"notes\": \"Well-structured resume with clear sections and subsection breakdown for experience items.\"}",
+  "provider": "openai",
+  "model": "gpt-5-mini",
+  "usage": {
+    "prompt_tokens": 850,
+    "completion_tokens": 280,
+    "total_tokens": 1130
+  }
+}

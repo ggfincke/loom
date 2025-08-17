@@ -212,7 +212,7 @@ loom config list
 
 # Get or set a specific setting
 loom config get model
-loom config set model gpt-4o
+loom config set model gpt-5
 loom config set model claude-sonnet-4
 loom config set model deepseek-r1:14b   # example Ollama model
 
@@ -235,7 +235,7 @@ Example `~/.loom/config.json`:
   "sections_filename": "sections.json",
   "edits_filename": "edits.json",
   "base_dir": ".loom",
-  "model": "gpt-4o",
+  "model": "gpt-5",
   "temperature": 0.2
 }
 ```

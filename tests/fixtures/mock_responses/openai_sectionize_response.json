@@ -11,7 +11,7 @@
   ],
   "created": 1700000000,
   "id": "chatcmpl-test123",
-  "model": "gpt-4o-mini",
+  "model": "gpt-5-mini",
   "object": "chat.completion",
   "usage": {
     "completion_tokens": 150,

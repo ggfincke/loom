@@ -18,22 +18,22 @@ def test_settings_manager_integration(isolate_config, temp_output_dirs):
     
     # load settings should use isolated config
     settings = settings_manager.load()
-    assert settings.model == "gpt-4o-mini"
+    assert settings.model == "gpt-5-mini"
     assert settings.data_dir == "data"
     
     # modify & save settings
-    settings_manager.set("model", "gpt-4o")
+    settings_manager.set("model", "gpt-5")
     settings_manager.set("data_dir", "custom_data")
     
     # verify changes persisted
     updated_settings = settings_manager.load()
-    assert updated_settings.model == "gpt-4o"
+    assert updated_settings.model == "gpt-5"
     assert updated_settings.data_dir == "custom_data"
     
     # verify config file was updated
     with open(config_path) as f:
         config_data = json.load(f)
-    assert config_data["model"] == "gpt-4o"
+    assert config_data["model"] == "gpt-5"
     assert config_data["data_dir"] == "custom_data"
 
 

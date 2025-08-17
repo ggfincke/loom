@@ -1,0 +1,8 @@
+{
+  "error": {
+    "type": "timeout",
+    "message": "Request timed out after 30 seconds",
+    "code": "request_timeout"
+  },
+  "provider": "openai"
+}

@@ -1,0 +1,10 @@
+{
+  "output_text": "{\"version\": 1, \"meta\": {\"strategy\": \"rule\", \"model\": \"gpt-5-mini\", \"created_at\": \"2024-01-15T10:30:00Z\"}, \"ops\": [{\"op\": \"replace_line\", \"line\": 6, \"text\": \"Experienced Python developer with \"unescaped quotes\" and\nnewlines\", \"current_snippet\": \"Original text\", \"why\": \"This has syntax errors}",
+  "provider": "openai",
+  "model": "gpt-5-mini",
+  "usage": {
+    "prompt_tokens": 1100,
+    "completion_tokens": 90,
+    "total_tokens": 1190
+  }
+}

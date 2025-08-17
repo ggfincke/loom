@@ -1,0 +1,10 @@
+{
+  "output_text": "{\"version\": 1, \"meta\": {\"strategy\": \"rule\", \"model\": \"gpt-5-mini\", \"created_at\": \"2024-01-15T10:30:00Z\"}, \"ops\": [{\"op\": \"replace_line\", \"line\": 6, \"text\": \"Experienced Python developer w/ 5+ years building scalable web applications & cloud infrastructure.\", \"current_snippet\": \"Experienced software developer with background in web applications.\", \"why\": \"Emphasize Python & cloud skills per job requirements\"}, {\"op\": \"insert_after\", \"line\": 11, \"text\": \"• AWS, Docker, Kubernetes, Terraform\", \"current_snippet\": \"• JavaScript, React, Node.js\", \"why\": \"Add DevOps tools mentioned in posting\"}, {\"op\": \"replace_range\", \"start\": 15, \"end\": 16, \"text\": \"Led development of microservices architecture using Python & AWS\\nImplemented CI/CD pipelines reducing deployment time by 60%\", \"current_snippet\": \"Worked on backend systems\\nContributed to deployment processes\", \"why\": \"Strengthen leadership & quantify impact matching job focus\"}]}",
+  "provider": "openai", 
+  "model": "gpt-5-mini",
+  "usage": {
+    "prompt_tokens": 1200,
+    "completion_tokens": 180,
+    "total_tokens": 1380
+  }
+}

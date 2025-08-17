@@ -1,0 +1,19 @@
+{
+  "content": [
+    {
+      "type": "text", 
+      "text": "{\"version\": 1, \"meta\": {\"strategy\": \"rule\", \"model\": \"claude-sonnet-4-20250514\", \"created_at\": \"2024-01-15T11:45:00Z\"}, \"ops\": [{\"op\": \"replace_line\", \"line\": 7, \"text\": \"Senior data engineer w/ expertise in Python, SQL, & cloud platforms including AWS & GCP.\", \"current_snippet\": \"Data engineer with experience in various technologies.\", \"why\": \"Highlight cloud platforms & languages matching job\"}, {\"op\": \"insert_after\", \"line\": 16, \"text\": \"• Designed ETL pipelines processing 10TB+ daily data volumes\", \"current_snippet\": \"• Built data processing systems\", \"why\": \"Quantify scale to demonstrate big data capability\"}, {\"op\": \"replace_range\", \"start\": 28, \"end\": 29, \"text\": \"• Apache Spark, Kafka, Airflow, dbt\\n• AWS (S3, Redshift, EMR), GCP (BigQuery, Dataflow)\", \"current_snippet\": \"• Python, SQL, NoSQL\\n• Cloud technologies\", \"why\": \"Specify big data & cloud tools per requirements\"}]}"
+    }
+  ],
+  "id": "msg_claude_test_456",
+  "model": "claude-sonnet-4-20250514", 
+  "role": "assistant",
+  "stop_reason": "end_turn",
+  "stop_sequence": null,
+  "type": "message",
+  "usage": {
+    "input_tokens": 1350,
+    "output_tokens": 210
+  },
+  "provider": "anthropic"
+}
