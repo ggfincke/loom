@@ -8,6 +8,7 @@ from docx.oxml import OxmlElement
 from typing import Dict, Tuple, Any, List, Set
 from .types import Lines
 from ..core.exceptions import LaTeXError
+from .generics import ensure_parent
 from ..core.validation import validate_basic_latex_syntax
 
 # * Read DOCX file & return text content w/ document object
@@ -171,6 +172,7 @@ def _apply_edits_in_place(original_path: Path, new_lines: Lines, output_path: Pa
             doc.element.body.insert(0, new_para._element)
     
     # persist modified document
+    ensure_parent(output_path)
     doc.save(str(output_path))
 
 def _insert_paragraph_after(paragraph: Paragraph, text: str) -> Paragraph:
@@ -298,6 +300,7 @@ def _apply_edits_rebuild(original_path: Path, new_lines: Lines, output_path: Pat
             new_doc.add_paragraph(new_text)
     
     # persist modified document
+    ensure_parent(output_path)
     new_doc.save(str(output_path))
 
 def _copy_paragraph_format(source_format, target_format):
@@ -322,11 +325,13 @@ def write_docx(lines: Lines, output_path: Path) -> None:
     doc = Document()
     for line_num in sorted(lines.keys()):
         doc.add_paragraph(lines[line_num])
+    ensure_parent(output_path)
     doc.save(str(output_path))
 
 # * Write numbered lines to plain text file (.tex or .txt)
 def write_text_lines(lines: Lines, output_path: Path) -> None:
     ordered = "\n".join(f"{text}" for _, text in sorted(lines.items()))
+    ensure_parent(output_path)
     Path(output_path).write_text(ordered, encoding="utf-8")
 
 # * Read text from file

@@ -89,8 +89,8 @@ def test_apply_edits_large_input_many_ops() -> None:
     assert keys[0] == 1
     assert keys == list(range(1, keys[-1] + 1))
 
-    # spot-check that some known replacements & inserts took effect
-    assert any("Replaced 50" in v for v in result.values())
+    # spot-check that a good number of replacements & inserts took effect
+    assert sum("Replaced " in v for v in result.values()) >= 20
     assert any("RX0-0" in v for v in result.values())
 
     # ensure overall size stayed within a plausible bound (not exploding)

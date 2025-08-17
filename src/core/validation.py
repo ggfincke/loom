@@ -14,6 +14,7 @@ from .constants import ValidationPolicy, RiskLevel
 from .exceptions import ValidationError
 from ..ai.models import SUPPORTED_MODELS, validate_model
 from ..config.settings import settings_manager
+from ..loom_io.generics import ensure_parent
 
 
 # * Validation outcome for strategy results
@@ -237,7 +238,8 @@ def handle_validation_error(settings,
                 # use AI to generate corrected edits
                 prior_warnings: List[str] = outcome.value if isinstance(outcome.value, list) else []
                 result = edit_fn(prior_warnings)
-                settings.loom_dir.mkdir(exist_ok=True)
+                settings.loom_dir.mkdir(parents=True, exist_ok=True)
+                ensure_parent(settings.edits_path)
                 settings.edits_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
                 if ui:
                     ui.print("✅ Generated corrected edits, re-validating...")

@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import TypedDict
 
 from ..config.settings import LoomSettings
+from ..loom_io.generics import ensure_parent
 from ..loom_io.types import Lines
 from ..core.constants import RiskLevel, ValidationPolicy
 from ..core.pipeline import (
@@ -75,15 +76,17 @@ def generate_edits_core(
     risk: RiskLevel,
     policy: ValidationPolicy,
     ui,
+    persist_path: Path | None = None,
 ) -> dict:
     # create initial edits using AI
     edits = generate_edits(
         resume_lines=resume_lines, job_text=job_text, sections_json=sections_json, model=model
     )
 
-    # persist edits immediately for manual editing
-    settings.loom_dir.mkdir(exist_ok=True)
-    settings.edits_path.write_text(__import__("json").dumps(edits, indent=2), encoding="utf-8")
+    # persist edits immediately for manual editing (prefer CLI-provided path)
+    target_path = persist_path if persist_path is not None else settings.edits_path
+    ensure_parent(target_path)
+    target_path.write_text(__import__("json").dumps(edits, indent=2), encoding="utf-8")
 
     # validate using updatable closure
     current_edits = [edits]

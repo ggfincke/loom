@@ -15,6 +15,7 @@ from ...ui.progress import setup_ui_with_progress, load_resume_and_job, load_sec
 from ...ui.reporting import persist_edits_json, report_result
 from ..logic import ArgResolver, generate_edits_core
 from ..params import ModelOpt, EditsJsonOpt, SectionsPathOpt, ResumeArg, JobArg, RiskOpt, OnErrorOpt
+from ...config.settings import get_settings
 
 
 # * Generate edits.json for resume tailoring using AI model & job requirements
@@ -36,7 +37,7 @@ def generate(
         from .help import show_command_help
         show_command_help("generate")
         ctx.exit()
-    settings = ctx.obj
+    settings = get_settings(ctx)
     resolver = ArgResolver(settings)
 
     # resolve arguments w/ settings defaults
@@ -94,6 +95,7 @@ def generate(
             risk_enum,
             on_error_policy,
             ui,
+            persist_path=edits_json,
         )
         progress.advance(task)
 
@@ -101,4 +103,3 @@ def generate(
         persist_edits_json(edits, edits_json, progress, task)
 
     report_result("edits", edits_path=edits_json)
-

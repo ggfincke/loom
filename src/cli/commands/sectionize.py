@@ -19,6 +19,7 @@ from ...ui.reporting import report_result
 from ..logic import ArgResolver
 from ..params import ResumeArg, OutJsonOpt, ModelOpt
 from ...ui.help.help_data import command_help
+from ...config.settings import get_settings
 
 
 # * Parse resume document into structured sections using AI sectionizer
@@ -52,7 +53,7 @@ def sectionize(
         from .help import show_command_help
         show_command_help("sectionize")
         ctx.exit()
-    settings = ctx.obj
+    settings = get_settings(ctx)
     resolver = ArgResolver(settings)
 
     # resolve arguments w/ settings defaults

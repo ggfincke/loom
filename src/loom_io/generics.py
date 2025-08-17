@@ -1,18 +1,18 @@
 # src/loom_io/generics.py
-# Generic utilities for Loom IO operations
+# Generic utilities for Loom IO operations & filesystem helpers
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Union
 import json
 
-from ..config.settings import settings_manager
-
-# ensure .loom directory exists at import time
-def ensure_parent(path: Path) -> None:
-  path.parent.mkdir(parents=True, exist_ok=True)
+def ensure_parent(path: Union[Path, str]) -> None:
+  # create parent directories for any file path
+  p = Path(path)
+  p.parent.mkdir(parents=True, exist_ok=True)
 
 # write JSON w/ UTF-8 encoding, creating parent dirs as needed
 def write_json_safe(obj: dict[str, Any], path: Path) -> None:
+  # write JSON safely & create parent dirs
   ensure_parent(path)
   path.write_text(json.dumps(obj, indent=2), encoding="utf-8")
 
