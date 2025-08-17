@@ -31,7 +31,7 @@ class PausableElapsedColumn(ProgressColumn):
         return Text(s, style="progress.elapsed")
 
 
-# UI abstraction that safely coordinates console output with progress display
+# UI abstraction that safely coordinates console output w/ progress display
 class UI:
     def __init__(self, progress: Progress | None = None) -> None:
         self.console = console

@@ -59,6 +59,41 @@ def _coerce_value(raw: str):
     ],
     see_also=["tailor"],
 )
+# * Print current settings & config path w/ styled output
+def _print_current_settings() -> None:
+    data = settings_manager.list_settings()
+    
+    # display header
+    console.print()
+    console.print(accent_gradient("Current Configuration"))
+    console.print(f"[dim]Config file: {settings_manager.config_path}[/]")
+    console.print()
+    
+    # display each setting w/ styled formatting
+    for key, value in data.items():
+        # format value based on type
+        if isinstance(value, str):
+            formatted_value = f'[loom.accent2]"{value}"[/]'
+        elif isinstance(value, bool):
+            formatted_value = f'[loom.accent2]{str(value).lower()}[/]'
+        elif isinstance(value, (int, float)):
+            formatted_value = f'[loom.accent2]{value}[/]'
+        else:
+            formatted_value = f'[loom.accent2]{json.dumps(value)}[/]'
+        
+        # display setting w/ bullet & arrow styling
+        console.print(
+            styled_bullet(),
+            f"[bold white]{key}[/]",
+            "[loom.accent2]->",
+            formatted_value
+        )
+    
+    # add help usage note
+    console.print()
+    console.print(f"[dim]Use [/][loom.accent2]loom config --help[/][dim] to see available commands[/]")
+
+
 @config_app.callback(invoke_without_command=True)
 def config_callback(
     ctx: typer.Context,
@@ -71,39 +106,9 @@ def config_callback(
         ctx.exit()
     
     if ctx.invoked_subcommand is None:
-        data = settings_manager.list_settings()
+        _print_current_settings()
         
-        # display header
-        console.print()
-        console.print(accent_gradient("Current Configuration"))
-        console.print(f"[dim]Config file: {settings_manager.config_path}[/]")
-        console.print()
-        
-        # display each setting w/ styled formatting
-        for key, value in data.items():
-            # format value based on type
-            if isinstance(value, str):
-                formatted_value = f'[loom.accent2]"{value}"[/]'
-            elif isinstance(value, bool):
-                formatted_value = f'[loom.accent2]{str(value).lower()}[/]'
-            elif isinstance(value, (int, float)):
-                formatted_value = f'[loom.accent2]{value}[/]'
-            else:
-                formatted_value = f'[loom.accent2]{json.dumps(value)}[/]'
-            
-            # display setting w/ bullet & arrow styling
-            console.print(
-                styled_bullet(),
-                f"[bold white]{key}[/]",
-                "[loom.accent2]->",
-                formatted_value
-            )
-        
-        # add help usage note
-        console.print()
-        console.print(f"[dim]Use [/][loom.accent2]loom config --help[/][dim] to see available commands[/]")
-
-# * get a specific setting value & print as JSON
+# * Get a specific setting value & print as JSON
 @config_app.command()
 def get(key: str) -> None:
     if key not in _known_keys():
@@ -112,7 +117,7 @@ def get(key: str) -> None:
     # print JSON for consistency (strings quoted)
     console.print(f"[loom.accent2]{json.dumps(value)}[/]")
 
-# * set a specific setting value; values are JSON-coerced when possible
+# * Set a specific setting value; values are JSON-coerced when possible
 @config_app.command(name="set")
 def set_cmd(key: str, value: str) -> None:
     if key not in _known_keys():
@@ -136,18 +141,23 @@ def set_cmd(key: str, value: str) -> None:
         raise typer.BadParameter(str(e))
     console.print(styled_checkmark(), success_gradient(f"Set {key}"), "→", f"[loom.accent2]{json.dumps(coerced)}[/]")
 
-# * reset all settings to defaults
+# * Reset all settings to defaults
 @config_app.command()
 def reset() -> None:
     settings_manager.reset()
     console.print(styled_checkmark(), success_gradient("Reset settings to defaults"))
 
-# * show the configuration file path
+# * Show the configuration file path
 @config_app.command()
 def path() -> None:
     console.print(f"[loom.accent2]{settings_manager.config_path}[/]")
 
-# * interactive theme selector w/ live preview
+# * Explicit 'list' command to show current settings
+@config_app.command()
+def list() -> None:  # noqa: A003 - allow command name 'list'
+    _print_current_settings()
+
+# * Interactive theme selector w/ live preview
 @config_app.command()
 def themes() -> None:
     # run interactive selector

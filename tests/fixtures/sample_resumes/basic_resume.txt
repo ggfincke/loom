@@ -1,0 +1,25 @@
+John Doe
+Software Engineer
+john.doe@email.com | (555) 123-4567 | linkedin.com/in/johndoe
+
+PROFESSIONAL SUMMARY
+Experienced software engineer w/ 5+ years developing web applications using modern frameworks & technologies.
+
+TECHNICAL SKILLS
+• Programming Languages: Python, JavaScript, TypeScript, Java
+• Frameworks: React, Node.js, Django, FastAPI
+• Tools: Git, Docker, Jenkins, AWS
+• Databases: PostgreSQL, MongoDB, Redis
+
+PROFESSIONAL EXPERIENCE
+Senior Software Engineer | Tech Corp | Jan 2021 - Present
+• Developed & maintained microservices architecture serving 500K+ users
+• Led code reviews & mentored junior developers
+• Implemented CI/CD pipelines reducing deployment time by 60%
+
+Software Engineer | StartupCo | Jun 2019 - Dec 2020
+• Built full-stack web applications using React & Python
+• Collaborated w/ product team to define technical requirements
+
+EDUCATION
+Bachelor of Science in Computer Science | State University | 2019

@@ -1,0 +1,59 @@
+{
+  "sections": [
+    {
+      "name": "HEADER",
+      "heading_text": "John Doe",
+      "start_line": 1,
+      "end_line": 3,
+      "confidence": 0.95,
+      "subsections": []
+    },
+    {
+      "name": "SUMMARY",
+      "heading_text": "PROFESSIONAL SUMMARY",
+      "start_line": 5,
+      "end_line": 6,
+      "confidence": 0.99,
+      "subsections": []
+    },
+    {
+      "name": "SKILLS",
+      "heading_text": "TECHNICAL SKILLS",
+      "start_line": 8,
+      "end_line": 11,
+      "confidence": 0.98,
+      "subsections": []
+    },
+    {
+      "name": "EXPERIENCE",
+      "heading_text": "PROFESSIONAL EXPERIENCE",
+      "start_line": 13,
+      "end_line": 20,
+      "confidence": 0.99,
+      "subsections": [
+        {
+          "name": "JOB",
+          "heading_text": "Senior Software Engineer | Tech Corp",
+          "start_line": 14,
+          "end_line": 17,
+          "confidence": 0.97
+        },
+        {
+          "name": "JOB", 
+          "heading_text": "Software Engineer | StartupCo",
+          "start_line": 18,
+          "end_line": 20,
+          "confidence": 0.96
+        }
+      ]
+    },
+    {
+      "name": "EDUCATION",
+      "heading_text": "EDUCATION",
+      "start_line": 22,
+      "end_line": 23,
+      "confidence": 0.97,
+      "subsections": []
+    }
+  ]
+}

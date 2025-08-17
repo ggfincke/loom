@@ -216,7 +216,7 @@ WORKFLOW_HELP = {
 }
 
 
-# get help metadata for a command (legacy function - now uses decorator registry)
+# retrieve help metadata for a command (legacy function - now uses decorator registry)
 def get_command_help(command_name: str) -> CommandHelp | None:
     return get_command_metadata(command_name)
 

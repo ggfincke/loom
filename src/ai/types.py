@@ -1,14 +1,14 @@
 # src/ai/types.py
 # Shared types for AI clients & functionality
 
-from typing import Optional
+from dataclasses import dataclass
+from typing import Any, Dict, Optional
 
-# result class for AI generation operations
+# * Result object for AI generation operations
+@dataclass(slots=True)
 class GenerateResult:
-    # indicates if generation was successful
-    def __init__(self, success: bool, data: Optional[dict] = None, raw_text: str = "", json_text: str = "", error: str = ""):
-        self.success = success
-        self.data = data
-        self.raw_text = raw_text
-        self.json_text = json_text
-        self.error = error
+    success: bool                               # indicates if generation was successful
+    data: Optional[Dict[str, Any]] = None       # parsed JSON payload on success
+    raw_text: str = ""                          # provider raw text (for debugging)
+    json_text: str = ""                         # extracted JSON text (after any stripping)
+    error: str = ""                             # error message on failure

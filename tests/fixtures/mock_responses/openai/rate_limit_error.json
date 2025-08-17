@@ -1,0 +1,8 @@
+{
+  "error": {
+    "type": "rate_limit_exceeded",
+    "message": "Rate limit exceeded. Please try again later.",
+    "code": "rate_limit_exceeded"
+  },
+  "provider": "openai"
+}

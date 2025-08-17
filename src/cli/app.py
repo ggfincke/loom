@@ -26,7 +26,9 @@ def main_callback(
     help_raw: bool = typer.Option(False, "--help-raw", help="Show raw Typer help instead of branded help"),
     help: bool = typer.Option(False, "--help", "-h", help="Show help message and exit."),
 ) -> None:
-    ctx.obj = settings_manager.load()
+    # respect injected ctx.obj from tests/embedding; only load if absent
+    if getattr(ctx, "obj", None) is None:
+        ctx.obj = settings_manager.load()
     
     if ctx.invoked_subcommand is None:
         if help_raw:

@@ -1,0 +1,8 @@
+{
+  "error": {
+    "type": "model_not_found", 
+    "message": "Model 'nonexistent-model' not found. Available models: llama3.2, codellama:7b, mistral:latest",
+    "code": "model_not_found"
+  },
+  "provider": "ollama"
+}

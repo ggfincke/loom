@@ -1,0 +1,16 @@
+{
+  "message": {
+    "role": "assistant",
+    "content": "<think>\nI need to parse this resume into sections with line numbers and confidence scores.\n</think>\n\n{\"sections\": [{\"name\": \"HEADER\", \"heading_text\": \"Alex Chen\", \"start_line\": 1, \"end_line\": 3, \"confidence\": 0.92, \"subsections\": []}, {\"name\": \"SUMMARY\", \"heading_text\": \"PROFESSIONAL SUMMARY\", \"start_line\": 5, \"end_line\": 7, \"confidence\": 0.89, \"subsections\": []}, {\"name\": \"SKILLS\", \"heading_text\": \"CORE COMPETENCIES\", \"start_line\": 9, \"end_line\": 13, \"confidence\": 0.94, \"subsections\": []}, {\"name\": \"EXPERIENCE\", \"heading_text\": \"PROFESSIONAL EXPERIENCE\", \"start_line\": 15, \"end_line\": 28, \"confidence\": 0.96, \"subsections\": [{\"name\": \"EXPERIENCE_ITEM\", \"start_line\": 16, \"end_line\": 21, \"meta\": {\"company\": \"InnovateTech Corp\", \"title\": \"Software Engineer\", \"date_range\": \"2021-2024\", \"location\": \"Seattle, WA\"}}, {\"name\": \"EXPERIENCE_ITEM\", \"start_line\": 23, \"end_line\": 28, \"meta\": {\"company\": \"DevStudio LLC\", \"title\": \"Junior Developer\", \"date_range\": \"2019-2021\", \"location\": \"Portland, OR\"}}]}, {\"name\": \"PROJECTS\", \"heading_text\": \"KEY PROJECTS\", \"start_line\": 30, \"end_line\": 35, \"confidence\": 0.88, \"subsections\": []}, {\"name\": \"EDUCATION\", \"heading_text\": \"EDUCATION\", \"start_line\": 37, \"end_line\": 39, \"confidence\": 0.93, \"subsections\": []}], \"normalized_order\": [\"HEADER\", \"SUMMARY\", \"SKILLS\", \"EXPERIENCE\", \"PROJECTS\", \"EDUCATION\"], \"notes\": \"Well-organized resume with clear project section and comprehensive experience details.\"}"
+  },
+  "model": "llama3.2", 
+  "created_at": "2024-01-15T12:15:30.123456789Z",
+  "done": true,
+  "total_duration": 2450000000,
+  "load_duration": 1200000000,
+  "prompt_eval_count": 890,
+  "prompt_eval_duration": 750000000,
+  "eval_count": 320,
+  "eval_duration": 500000000,
+  "provider": "ollama"
+}

@@ -1,0 +1,19 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "```json\n{\"version\": 1, \"meta\": {\"strategy\": \"rule\", \"model\": \"claude-sonnet-4-20250514\", \"created_at\": \"2024-01-15T11:45:00Z\"}, \"ops\": [{\"op\": \"replace_line\", \"line\": 7, \"text\": \"Senior engineer with \"quotes\" problem and\nmultiline text\", \"current_snippet\": \"Original\", \"why\": \"This breaks JSON\"],}\n```"
+    }
+  ],
+  "id": "msg_claude_malformed",
+  "model": "claude-sonnet-4-20250514",
+  "role": "assistant", 
+  "stop_reason": "end_turn",
+  "stop_sequence": null,
+  "type": "message",
+  "usage": {
+    "input_tokens": 1200,
+    "output_tokens": 85
+  },
+  "provider": "anthropic"
+}

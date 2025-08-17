@@ -1,0 +1,8 @@
+{
+  "error": {
+    "type": "connection_error",
+    "message": "Failed to connect to Ollama server at http://localhost:11434. Is Ollama running?",
+    "code": "connection_refused"
+  },
+  "provider": "ollama"
+}

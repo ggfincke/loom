@@ -25,6 +25,7 @@ from ..params import (
     SectionsPathOpt,
 )
 from ...ui.help.help_data import command_help
+from ...config.settings import get_settings
 
 
 # * Generate edits w/ step-by-step planning & validation workflow
@@ -63,7 +64,7 @@ def plan(
         from .help import show_command_help
         show_command_help("plan")
         ctx.exit()
-    settings = ctx.obj
+    settings = get_settings(ctx)
     resolver = ArgResolver(settings)
 
     # resolve args w/ defaults
@@ -121,6 +122,7 @@ def plan(
             risk_enum,
             on_error_policy,
             ui,
+            persist_path=edits_json,
         )
         progress.advance(task)
 
@@ -135,4 +137,3 @@ def plan(
         progress.advance(task)
 
     report_result("plan", settings=settings, edits_path=edits_json)
-

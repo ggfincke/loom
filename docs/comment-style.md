@@ -16,6 +16,16 @@ Based on analysis of `src/core/pipeline.py`
 def function_name():
 ```
 
+### Test Case Comments
+```python
+# * Verify test fixtures are accessible & contain expected data
+def test_fixtures_accessible(sample_resume_content, sample_job_description):
+    assert "John Doe" in sample_resume_content
+    assert "Software Engineer" in sample_resume_content
+    assert "Python developer" in sample_job_description
+    assert "Requirements:" in sample_job_description
+```
+
 ### Better Comments Extension Tags
 Uses selective semantic tagging for important information:
 
@@ -35,7 +45,7 @@ def needs_work():
 ```
 
 **Usage Guidelines:**
-- `*` (Green) - Only for important functions, not small helpers
+- `*` (Green) - Important functions, not small helpers; also required for all test cases
 - `!` (Red) - Deprecated/warning items
 - `?` (Blue) - Design questions needing review  
 - `todo` (Orange) - Actual refactoring tasks

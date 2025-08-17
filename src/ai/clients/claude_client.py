@@ -1,5 +1,5 @@
 # src/ai/clients/claude_client.py
-# Claude API client functions for generating JSON responses using the Messages API
+# Claude API client functions for generating JSON reponses
 
 import os
 import json
@@ -9,6 +9,7 @@ from anthropic import Anthropic
 from ...config.settings import settings_manager
 from ..types import GenerateResult
 from ..models import ensure_valid_model
+from ...core.exceptions import AIError
 
 # strip markdown code blocks
 def strip_markdown_code_blocks(text: str) -> str:
@@ -20,13 +21,13 @@ def strip_markdown_code_blocks(text: str) -> str:
     else:
         return text.strip()
 
-# * Generate JSON response using Claude API w/ model validation
+# * generate JSON response via Claude API w/ model validation
 def run_generate(prompt: str, model: str = "claude-sonnet-4-20250514") -> GenerateResult:
     load_dotenv()
     if not os.getenv("ANTHROPIC_API_KEY"):
         raise RuntimeError("Missing ANTHROPIC_API_KEY in environment or .env")
     
-    # validate model before making API call
+    # validate model before API call
     validated_model = ensure_valid_model(model)
     if validated_model is None:
         # ensure_valid_model already showed error & exited, this should not happen
@@ -37,22 +38,26 @@ def run_generate(prompt: str, model: str = "claude-sonnet-4-20250514") -> Genera
     settings = settings_manager.load()
     
     # create message w/ structured JSON output request
-    response = client.messages.create(
-        model=validated_model,
-        max_tokens=4096,
-        temperature=settings.temperature,
-        messages=[
-            {
-                "role": "user", 
-                "content": f"{prompt}\n\nPlease respond with valid JSON only, no additional text or formatting."
-            }
-        ]
-    )
+    try:
+        response = client.messages.create(
+            model=validated_model,
+            max_tokens=4096,
+            temperature=settings.temperature,
+            messages=[
+                {
+                    "role": "user", 
+                    "content": f"{prompt}\n\nPlease respond with valid JSON only, no additional text or formatting."
+                }
+            ]
+        )
+    except Exception as e:
+        # normalize provider API errors to AIError for consistent handling
+        raise AIError(f"Anthropic API error: {str(e)}")
     
     # extract text from response
     raw_text = ""
     for content_block in response.content:
-        # only process text blocks, skip other types like tool use blocks
+        # process text blocks only & skip tool blocks
         if content_block.type == "text":
             raw_text += content_block.text
     

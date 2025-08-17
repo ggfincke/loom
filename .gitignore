@@ -22,6 +22,20 @@ build/
 dist/
 .eggs/
 
+# Coverage & Test Artifacts
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.pytest_cache/
+.tox/
+.nox/
+.cache/
+.mypy_cache/
+.ruff_cache/
+.benchmarks/
+.ipynb_checkpoints/
+
 # ========================
 # Inputs / Outputs
 # ========================

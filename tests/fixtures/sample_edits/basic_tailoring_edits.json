@@ -1,0 +1,39 @@
+{
+  "edits": [
+    {
+      "operation": "replace_line",
+      "line_number": 6,
+      "content": "Experienced Python developer w/ 5+ years building scalable web applications & cloud infrastructure.",
+      "reasoning": "Emphasize Python experience & cloud skills to match job requirements",
+      "confidence": 0.92
+    },
+    {
+      "operation": "insert_after", 
+      "line_number": 11,
+      "content": "• AWS (Lambda, EC2, S3), Docker, Kubernetes",
+      "reasoning": "Add specific cloud technologies mentioned in job posting",
+      "confidence": 0.88
+    },
+    {
+      "operation": "replace_range",
+      "start_line": 15,
+      "end_line": 16,
+      "content": "• Architected & deployed microservices handling 1M+ requests/day\n• Led cross-functional team of 4 engineers delivering high-impact features",
+      "reasoning": "Quantify impact & leadership experience to strengthen candidacy",
+      "confidence": 0.91
+    },
+    {
+      "operation": "delete_range",
+      "start_line": 19,
+      "end_line": 19,
+      "reasoning": "Remove outdated technology reference that doesn't align w/ role",
+      "confidence": 0.85
+    }
+  ],
+  "metadata": {
+    "job_match_score": 0.87,
+    "sections_modified": ["SUMMARY", "SKILLS", "EXPERIENCE"],
+    "total_changes": 4,
+    "risk_level": "low"
+  }
+}

@@ -14,6 +14,7 @@ from .constants import ValidationPolicy, RiskLevel
 from .exceptions import ValidationError
 from ..ai.models import SUPPORTED_MODELS, validate_model
 from ..config.settings import settings_manager
+from ..loom_io.generics import ensure_parent
 
 
 # * Validation outcome for strategy results
@@ -34,7 +35,7 @@ class AskStrategy(ValidationStrategy):
     def handle(self, warnings: List[str], ui, settings=None) -> ValidationOutcome:
 
         if not sys.stdin.isatty():
-            error_warnings = ["Validation failed (ask not possible - non-interactive):"] + warnings
+            error_warnings = ["ask not possible - non-interactive"] + warnings
             raise ValidationError(error_warnings, recoverable=False)
         
         # display warnings to user
@@ -64,13 +65,13 @@ class AskStrategy(ValidationStrategy):
 # * Retry strategy that signals to re-run validation
 class RetryStrategy(ValidationStrategy):
     def handle(self, warnings: List[str], ui, settings=None) -> ValidationOutcome:
-        return ValidationOutcome(success=False, should_continue=True)
+        return ValidationOutcome(success=False, should_continue=True, value=warnings)
 
 # * Manual strategy that returns control for user intervention
 class ManualStrategy(ValidationStrategy):
     def handle(self, warnings: List[str], ui, settings=None) -> ValidationOutcome:
         if not sys.stdin.isatty():
-            error_warnings = ["Manual mode not available (not a TTY):"] + warnings
+            error_warnings = ["Manual mode not available (not a TTY)"] + warnings
             raise ValidationError(error_warnings, recoverable=False)
         
         return ValidationOutcome(success=False, should_continue=False)
@@ -89,7 +90,7 @@ class FailSoftStrategy(ValidationStrategy):
                 if settings.plan_path.exists():
                     ui.print(f"   Plan: {settings.plan_path}")
         
-        raise typer.Exit(0)
+        raise SystemExit(0)
 
 # * Model retry strategy that prompts user to select different model
 class ModelRetryStrategy(ValidationStrategy):
@@ -148,7 +149,7 @@ class ModelRetryStrategy(ValidationStrategy):
                 settings_manager.save(current_settings)
                 ui.print(f"✅ Model changed to {selected_model}, retrying...")
             
-            return ValidationOutcome(success=False, should_continue=True)
+            return ValidationOutcome(success=False, should_continue=True, value=selected_model)
 
 # * Fail hard strategy that deletes progress files & exits
 class FailHardStrategy(ValidationStrategy):
@@ -182,7 +183,7 @@ class FailHardStrategy(ValidationStrategy):
                 for deleted in deleted_files:
                     ui.print(f"     - {deleted}")
         
-        raise typer.Exit(1)
+        raise SystemExit(1)
 
 # * Validate using strategy pattern
 def validate(validate_fn: Callable[[], List[str]], 
@@ -235,9 +236,10 @@ def handle_validation_error(settings,
                 # fall through to manual path below
             else:
                 # use AI to generate corrected edits
-                warnings = validate_fn()
-                result = edit_fn(warnings)
-                settings.loom_dir.mkdir(exist_ok=True)
+                prior_warnings: List[str] = outcome.value if isinstance(outcome.value, list) else []
+                result = edit_fn(prior_warnings)
+                settings.loom_dir.mkdir(parents=True, exist_ok=True)
+                ensure_parent(settings.edits_path)
                 settings.edits_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
                 if ui:
                     ui.print("✅ Generated corrected edits, re-validating...")
@@ -427,23 +429,23 @@ def validate_edits(edits: dict, resume_lines: dict[int, str], risk: RiskLevel) -
         else:
             warnings.append(f"Op {i}: unknown operation type '{op_type}'")
 
-    delete_ranges = [(op["start"], op["end"]) for op in ops if op.get("op") == "delete_range"]
+    delete_ranges = [(op["start"], op["end"]) for op in ops if op.get("op") == "delete_range" and "start" in op and "end" in op]
     for i, op in enumerate(ops):
-        if op.get("op") == "insert_after":
+        if op.get("op") == "insert_after" and "line" in op:
             ln = op["line"]
             if any(s <= ln <= e for s, e in delete_ranges):
                 warnings.append(f"Op {i}: insert_after on line {ln} that is deleted by a delete_range")
 
-    replace_ranges = [(op["start"], op["end"]) for op in ops if op.get("op") == "replace_range"]
+    replace_ranges = [(op["start"], op["end"]) for op in ops if op.get("op") == "replace_range" and "start" in op and "end" in op]
     for i, op in enumerate(ops):
-        if op.get("op") == "delete_range":
+        if op.get("op") == "delete_range" and "start" in op and "end" in op:
             s, e = op["start"], op["end"]
             if any(not (e2 < s or s2 > e) for (s2, e2) in replace_ranges):
                 warnings.append(f"Op {i}: delete_range overlaps a replace_range; split or reorder ops")
 
     seen_inserts = set()
     for i, op in enumerate(ops):
-        if op.get("op") == "insert_after":
+        if op.get("op") == "insert_after" and "line" in op:
             ln = op["line"]
             if ln in seen_inserts:
                 warnings.append(f"Op {i}: multiple insert_after on line {ln}")

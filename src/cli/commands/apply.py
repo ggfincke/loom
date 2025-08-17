@@ -24,6 +24,7 @@ from ..params import (
     PreserveModeOpt,
 )
 from ...loom_io import read_resume
+from ...config.settings import get_settings
 
 
 # * Apply edits from JSON to resume document & generate tailored output
@@ -45,7 +46,7 @@ def apply(
         from .help import show_command_help
         show_command_help("apply")
         ctx.exit()
-    settings = ctx.obj
+    settings = get_settings(ctx)
     resolver = ArgResolver(settings)
 
     # resolve arguments w/ settings defaults

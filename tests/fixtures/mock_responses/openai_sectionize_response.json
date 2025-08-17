@@ -1,0 +1,21 @@
+{
+  "choices": [
+    {
+      "message": {
+        "content": "{\"sections\": [{\"name\": \"HEADER\", \"heading_text\": \"John Doe\", \"start_line\": 1, \"end_line\": 3, \"confidence\": 0.95, \"subsections\": []}, {\"name\": \"SUMMARY\", \"heading_text\": \"PROFESSIONAL SUMMARY\", \"start_line\": 5, \"end_line\": 6, \"confidence\": 0.99, \"subsections\": []}, {\"name\": \"SKILLS\", \"heading_text\": \"TECHNICAL SKILLS\", \"start_line\": 8, \"end_line\": 11, \"confidence\": 0.98, \"subsections\": []}, {\"name\": \"EXPERIENCE\", \"heading_text\": \"PROFESSIONAL EXPERIENCE\", \"start_line\": 13, \"end_line\": 20, \"confidence\": 0.99, \"subsections\": []}]}",
+        "role": "assistant"
+      },
+      "finish_reason": "stop",
+      "index": 0
+    }
+  ],
+  "created": 1700000000,
+  "id": "chatcmpl-test123",
+  "model": "gpt-5-mini",
+  "object": "chat.completion",
+  "usage": {
+    "completion_tokens": 150,
+    "prompt_tokens": 800,
+    "total_tokens": 950
+  }
+}

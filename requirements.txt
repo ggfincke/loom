@@ -7,3 +7,13 @@ typer
 rich
 setuptools
 simple-term-menu
+
+# development dependencies
+pytest
+pytest-cov
+pytest-mock
+pytest-socket
+pytest-xdist
+freezegun
+faker
+mutmut

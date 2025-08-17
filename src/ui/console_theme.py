@@ -6,13 +6,13 @@ from __future__ import annotations
 from ..loom_io.console import console
 
 
-# * Initialize gradient theme after colors module is available
+# * initialize gradient theme after colors module is available
 def initialize_theme():
     from .colors import get_loom_theme
     console.push_theme(get_loom_theme())
 
 
-# * Refresh console theme with current settings
+# * Refresh console theme w/ current settings
 def refresh_theme():
     try:
         from .colors import get_loom_theme

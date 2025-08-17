@@ -1,5 +1,5 @@
 # src/cli/params.py
-# CLI argument definitions and normalization helpers (renamed from args.py)
+# CLI argument definitions & normalization helpers (renamed from args.py)
 
 from __future__ import annotations
 

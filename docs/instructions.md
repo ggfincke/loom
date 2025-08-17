@@ -17,7 +17,7 @@ This document provides comprehensive usage instructions for the Loom resume tail
    ```bash
    # Set your provider API keys (as needed)
    export OPENAI_API_KEY="your-openai-key-here"
-   export ANTHROPIC_API_KEY="your-anthropic-key-here"  # optional, for Claude
+   export ANTHROPIC_API_KEY="your-anthropic-key-here"
    
    # Or create a .env file in the project root
    cat > .env << 'EOF'
@@ -49,7 +49,7 @@ loom config list
 
 # Get / Set specific values (values are JSON-coerced)
 loom config get model
-loom config set model "gpt-4o"
+loom config set model "gpt-5"
 loom config set temperature 0.2
 
 # Interactive theme selector
@@ -71,7 +71,7 @@ Create or edit `~/.loom/config.json` to set defaults:
   "job_filename": "job_posting.txt",
   "sections_filename": "sections.json",
   "edits_filename": "edits.json",
-  "model": "gpt-4o",
+  "model": "gpt-5",
   "temperature": 0.2,
   "base_dir": ".loom"
 }
@@ -260,8 +260,9 @@ Choose models from OpenAI, Anthropic (Claude), or local Ollama. See `loom models
 
 ```bash
 # OpenAI examples
-loom tailor job.txt resume.docx --model gpt-4o
+loom tailor job.txt resume.docx --model gpt-5
 loom tailor job.txt resume.docx --model gpt-5-mini
+loom tailor job.txt resume.docx --model gpt-5-nano
 
 # Claude examples
 loom tailor job.txt resume.docx --model claude-sonnet-4
@@ -354,7 +355,7 @@ loom tailor job.txt resume.docx --model deepseek-r1:14b
 - Check that your resume has clear section structure
 
 **Poor edit quality:**
-- Use a more powerful model (`gpt-4o` instead of `gpt-4o-mini`)
+- Use a more powerful model (`gpt-5` instead of `gpt-5-mini`)
 - Ensure your job description is complete and detailed
 - Try generating sections first with `loom sectionize`
 

@@ -1,18 +1,18 @@
 # src/loom_io/generics.py
-# Generic utilities for Loom IO operations
+# Generic utilities for Loom IO operations & filesystem helpers
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Union
 import json
 
-from ..config.settings import settings_manager
+def ensure_parent(path: Union[Path, str]) -> None:
+  # create parent directories for any file path
+  p = Path(path)
+  p.parent.mkdir(parents=True, exist_ok=True)
 
-# ensure .loom directory exists at import time
-def ensure_parent(path: Path) -> None:
-  path.parent.mkdir(parents=True, exist_ok=True)
-
-# write JSON with UTF-8 encoding, creating parent dirs as needed
+# write JSON w/ UTF-8 encoding, creating parent dirs as needed
 def write_json_safe(obj: dict[str, Any], path: Path) -> None:
+  # write JSON safely & create parent dirs
   ensure_parent(path)
   path.write_text(json.dumps(obj, indent=2), encoding="utf-8")
 
@@ -43,7 +43,7 @@ def read_json_safe(path: Path) -> dict[str, Any]:
   except Exception as e:
     raise JSONParsingError(f"Error reading JSON from {path}: {e}")
 
-# standardized CLI exit function
+# exit CLI w/ standardized error handling
 def exit_with_error(msg: str, code: int = 1) -> None:
   # local import to avoid hard dependency when utils is used outside CLI
   import typer

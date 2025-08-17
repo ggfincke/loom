@@ -28,6 +28,7 @@ from ..params import (
     PreserveFormattingOpt,
     PreserveModeOpt,
 )
+from ...config.settings import get_settings
 
 
 # * Complete end-to-end resume tailoring: generate edits & apply to create tailored resume
@@ -87,7 +88,7 @@ def tailor(
         console.print("[red]Error: --edits-only and --apply are mutually exclusive[/]")
         ctx.exit(1)
     
-    settings = ctx.obj
+    settings = get_settings(ctx)
     resolver = ArgResolver(settings)
 
     # resolve args using settings defaults
@@ -219,6 +220,7 @@ def tailor(
                 risk_enum,
                 on_error_policy,
                 ui,
+                persist_path=edits_json,
             )
             progress.advance(task)
 
@@ -253,6 +255,7 @@ def tailor(
                 risk_enum,
                 on_error_policy,
                 ui,
+                persist_path=edits_json,
             )
             progress.advance(task)
 
@@ -294,4 +297,3 @@ def tailor(
         report_result(
             "tailor", settings=settings, edits_path=edits_json, output_path=output_resume
         )
-

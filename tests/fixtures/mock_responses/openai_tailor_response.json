@@ -1,0 +1,21 @@
+{
+  "choices": [
+    {
+      "message": {
+        "content": "{\"edits\": [{\"operation\": \"replace_line\", \"line_number\": 6, \"content\": \"Experienced Python developer w/ 5+ years building scalable web applications.\", \"reasoning\": \"Emphasize Python experience to match job requirements\", \"confidence\": 0.92}, {\"operation\": \"insert_after\", \"line_number\": 11, \"content\": \"• AWS, Docker, Kubernetes\", \"reasoning\": \"Add cloud technologies mentioned in posting\", \"confidence\": 0.88}], \"metadata\": {\"job_match_score\": 0.87, \"sections_modified\": [\"SUMMARY\", \"SKILLS\"], \"total_changes\": 2, \"risk_level\": \"low\"}}",
+        "role": "assistant"
+      },
+      "finish_reason": "stop", 
+      "index": 0
+    }
+  ],
+  "created": 1700000001,
+  "id": "chatcmpl-test456",
+  "model": "gpt-5-mini",
+  "object": "chat.completion",
+  "usage": {
+    "completion_tokens": 200,
+    "prompt_tokens": 1200,
+    "total_tokens": 1400
+  }
+}

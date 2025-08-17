@@ -1,17 +1,13 @@
 # src/config/settings.py
-# Configuration management for Loom CLI including default paths and OpenAI settings
+# Configuration management for Loom CLI including default paths & OpenAI settings
 
 import json
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, cast
 import typer
 from dataclasses import dataclass, asdict
 
-# * Default Settings for Loom CLI
-'''
-this class defines the default settings for the Loom CLI application, including paths and OpenAI model settings;
-it uses dataclasses for easy instantiation and management of settings
-'''
+# * Default settings dataclass for Loom CLI w/ paths & OpenAI model configuration
 @dataclass
 class LoomSettings:
     # default paths
@@ -137,3 +133,28 @@ class SettingsManager:
 
 # global settings manager instance
 settings_manager = SettingsManager()
+
+# * Retrieve settings preferring injected object from Typer context
+def get_settings(ctx: typer.Context, provided: Optional[LoomSettings] = None) -> LoomSettings:
+    # prefer explicitly provided settings
+    if provided is not None:
+        return provided
+    
+    # search ctx, parent, & root for LoomSettings
+    candidates: list[typer.Context] = [ctx]
+    parent = cast(Optional[typer.Context], getattr(ctx, "parent", None))
+    if parent is not None:
+        candidates.append(parent)
+    # Typer Context has find_root method; call if present
+    find_root = getattr(ctx, "find_root", None)
+    root_ctx = cast(Optional[typer.Context], find_root()) if callable(find_root) else None
+    if root_ctx is not None:
+        candidates.append(root_ctx)
+
+    for c in candidates:
+        obj = getattr(c, "obj", None)
+        if isinstance(obj, LoomSettings):
+            return obj
+
+    # fallback to loading from disk
+    return settings_manager.load()
