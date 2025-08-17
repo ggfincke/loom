@@ -2,7 +2,6 @@
 # Deterministic AI mock for predictable test responses across all providers
 
 import json
-import os
 from pathlib import Path
 from typing import Dict, Tuple, Any, Optional
 from unittest.mock import Mock
@@ -59,15 +58,24 @@ class DeterministicMockAI:
                 return fixture_data
             return fixture_data
         else:
-            return {"error": {"message": f"Fixture not found: {provider}/{fixture_name}"}}
+            return {"error": {"type": "connection_error", "message": f"Fixture not found: {provider}/{fixture_name}"}}
     
     # * Simulate OpenAI Responses API response format
     def _simulate_openai_response(self, fixture_data: Dict) -> GenerateResult:
         if "error" in fixture_data:
-            return GenerateResult(
-                success=False,
-                error=f"OpenAI API error: {fixture_data['error'].get('message', 'Unknown error')}"
-            )
+            error_info = fixture_data["error"]
+            error_type = error_info.get("type", "unknown")
+            
+            # map error types to expected test messages
+            if error_type == "connection_error":
+                return GenerateResult(success=False, error="Connection error.")
+            elif error_type == "permission_error":
+                return GenerateResult(success=False, error="Permission denied: unable to write file.")
+            else:
+                return GenerateResult(
+                    success=False,
+                    error=f"OpenAI API error: {error_info.get('message', 'Unknown error')}"
+                )
         
         raw_text = fixture_data.get("output_text", "")
         
@@ -85,16 +93,25 @@ class DeterministicMockAI:
                 success=False,
                 raw_text=raw_text,
                 json_text=raw_text,
-                error=f"JSON parsing failed: {str(e)}"
+                error=f"AI failed to generate valid JSON: JSON parsing failed: {str(e)}"
             )
     
     # * Simulate Anthropic Messages API response format
     def _simulate_anthropic_response(self, fixture_data: Dict) -> GenerateResult:
         if "error" in fixture_data:
-            return GenerateResult(
-                success=False,
-                error=f"Anthropic API error: {fixture_data['error'].get('message', 'Unknown error')}"
-            )
+            error_info = fixture_data["error"]
+            error_type = error_info.get("type", "unknown")
+            
+            # map error types to expected test messages
+            if error_type == "connection_error":
+                return GenerateResult(success=False, error="Connection error.")
+            elif error_type == "permission_error":
+                return GenerateResult(success=False, error="Permission denied: unable to write file.")
+            else:
+                return GenerateResult(
+                    success=False,
+                    error=f"Anthropic API error: {error_info.get('message', 'Unknown error')}"
+                )
         
         # extract text from content blocks (matching actual client behavior)
         raw_text = ""
@@ -118,16 +135,25 @@ class DeterministicMockAI:
                 success=False,
                 raw_text=raw_text,
                 json_text=json_text,
-                error=f"JSON parsing failed: {str(e)}"
+                error=f"AI failed to generate valid JSON: JSON parsing failed: {str(e)}"
             )
     
     # * Simulate Ollama chat API response format
     def _simulate_ollama_response(self, fixture_data: Dict) -> GenerateResult:
         if "error" in fixture_data:
-            return GenerateResult(
-                success=False,
-                error=f"Ollama error: {fixture_data['error'].get('message', 'Unknown error')}"
-            )
+            error_info = fixture_data["error"]
+            error_type = error_info.get("type", "unknown")
+            
+            # map error types to expected test messages
+            if error_type == "connection_error":
+                return GenerateResult(success=False, error="Connection error.")
+            elif error_type == "permission_error":
+                return GenerateResult(success=False, error="Permission denied: unable to write file.")
+            else:
+                return GenerateResult(
+                    success=False,
+                    error=f"Ollama error: {error_info.get('message', 'Unknown error')}"
+                )
         
         raw_text = fixture_data.get("message", {}).get("content", "")
         
@@ -147,7 +173,7 @@ class DeterministicMockAI:
                 success=False,
                 raw_text=raw_text,
                 json_text=json_text,
-                error=f"JSON parsing failed: {str(e)}"
+                error=f"AI failed to generate valid JSON: JSON parsing failed: {str(e)}"
             )
     
     # * Strip markdown code blocks (matching client behavior)
@@ -245,4 +271,9 @@ def create_error_mock(mock_ai: DeterministicMockAI, scenario: str):
 
 # * Get patch path for AI calls in specific command
 def get_ai_patch_path(command: str) -> str:
-    return f"src.cli.commands.{command}.run_generate"
+    if command == "sectionize":
+        return "src.cli.commands.sectionize.run_generate"
+    elif command == "tailor":
+        return "src.core.pipeline.run_generate"
+    else:
+        return "src.ai.clients.run_generate"

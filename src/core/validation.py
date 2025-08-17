@@ -148,7 +148,7 @@ class ModelRetryStrategy(ValidationStrategy):
                 settings_manager.save(current_settings)
                 ui.print(f"✅ Model changed to {selected_model}, retrying...")
             
-            return ValidationOutcome(success=False, should_continue=True)
+            return ValidationOutcome(success=False, should_continue=True, value=selected_model)
 
 # * Fail hard strategy that deletes progress files & exits
 class FailHardStrategy(ValidationStrategy):
