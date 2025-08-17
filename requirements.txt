@@ -16,3 +16,4 @@ pytest-socket
 pytest-xdist
 freezegun
 faker
+mutmut

@@ -1,7 +1,7 @@
 # Makefile
 # Build & test commands for Loom project
 
-.PHONY: help install test test-unit test-integration test-coverage clean lint format
+.PHONY: help install test test-unit test-integration test-coverage test-mutation clean lint format
 
 # default target shows help
 help:
@@ -11,6 +11,7 @@ help:
 	@echo "  test-unit     Run unit tests only"
 	@echo "  test-integration  Run integration tests only"
 	@echo "  test-coverage     Run tests w/ coverage report"
+	@echo "  test-mutation     Run mutation tests on core (optional)"
 	@echo "  test-fast     Run fast tests only (no slow markers)"
 	@echo "  clean         Clean up cache & temp files"
 	@echo "  lint          Run linting checks"
@@ -35,6 +36,12 @@ test-integration:
 # run tests w/ coverage report
 test-coverage:
 	pytest tests/ -v --cov=src --cov-report=term-missing --cov-report=html
+
+# run optional mutation testing on core (requires mutmut)
+test-mutation:
+	@command -v mutmut >/dev/null 2>&1 || { echo "mutmut not installed. Install with 'pip install mutmut'"; exit 1; }
+	mutmut run --paths-to-mutate src/core --runner "pytest -q -m 'not slow'"
+	mutmut results
 
 # run fast tests only (exclude slow markers)
 test-fast:

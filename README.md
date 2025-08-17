@@ -197,6 +197,13 @@ loom models      # List available models by provider
   - Tailor: `loom tailor job.txt path/to/resume.docx --sections-path sections.json --edits-json edits.json` (or `.tex` with `--output-resume out.tex`)
   - Models: `loom models` (checks available OpenAI/Claude/Ollama models)
 
+## Testing
+
+- Fast tests: `pytest` (slow tests skipped by default)
+- Coverage: `make test-coverage` (HTML in `htmlcov/`)
+- Stress tests: `pytest tests/stress -m slow`
+- Full guide: see `docs/testing.md` for markers, isolation, CI behavior, and mutation testing.
+
 ## Configuration Management
 
 Loom reads defaults from `~/.loom/config.json`. You can manage settings either via the CLI or by editing the JSON directly.
