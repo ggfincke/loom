@@ -189,7 +189,8 @@ class DeterministicMockAI:
         if scenario == "success":
             prompt_kind = self._detect_prompt_kind(prompt)
             if prompt_kind == "unknown":
-                prompt_kind = "sectionize"  # default fallback
+                # default to sectionize fallback
+                prompt_kind = "sectionize"
             fixture_name = f"{prompt_kind}_success"
         else:
             fixture_name = scenario
@@ -210,21 +211,38 @@ class DeterministicMockAI:
                 error=f"Unknown provider: {provider}"
             )
 
-# * Create mock patches for all AI clients
-def create_ai_client_mocks(mock_ai: DeterministicMockAI) -> Dict[str, Mock]:
-    # * Create mock patches for all AI client functions
-    
+# * Create simple mock that patches the main factory function directly
+def create_simple_ai_mock(mock_ai: DeterministicMockAI, scenario: str = "success"):
+    def run_generate_mock(prompt: str, model: str) -> GenerateResult:
+        return mock_ai.generate(prompt, model, scenario)
+    return run_generate_mock
+
+
+# * Create mock patches for all AI clients (legacy)
+def create_ai_client_mocks(mock_ai: DeterministicMockAI, scenario: str = "success") -> Dict[str, Mock]:    
     def openai_mock(prompt: str, model: str = "gpt-5-mini") -> GenerateResult:
-        return mock_ai.generate(prompt, model)
+        return mock_ai.generate(prompt, model, scenario)
     
     def claude_mock(prompt: str, model: str = "claude-sonnet-4-20250514") -> GenerateResult:
-        return mock_ai.generate(prompt, model)
+        return mock_ai.generate(prompt, model, scenario)
     
     def ollama_mock(prompt: str, model: str = "llama3.2") -> GenerateResult:
-        return mock_ai.generate(prompt, model)
+        return mock_ai.generate(prompt, model, scenario)
     
     return {
-        "src.ai.clients.openai_client.run_generate": Mock(side_effect=openai_mock),
-        "src.ai.clients.claude_client.run_generate": Mock(side_effect=claude_mock),
-        "src.ai.clients.ollama_client.run_generate": Mock(side_effect=ollama_mock)
+        "openai_generate": Mock(side_effect=openai_mock),
+        "claude_generate": Mock(side_effect=claude_mock),
+        "ollama_generate": Mock(side_effect=ollama_mock)
     }
+
+
+# * Create error-specific mock function for direct patching
+def create_error_mock(mock_ai: DeterministicMockAI, scenario: str):
+    def error_mock(prompt: str, model: str) -> GenerateResult:
+        return mock_ai.generate(prompt, model, scenario)
+    return error_mock
+
+
+# * Get patch path for AI calls in specific command
+def get_ai_patch_path(command: str) -> str:
+    return f"src.cli.commands.{command}.run_generate"
