@@ -17,7 +17,7 @@ This document provides comprehensive usage instructions for the Loom resume tail
    ```bash
    # Set your provider API keys (as needed)
    export OPENAI_API_KEY="your-openai-key-here"
-   export ANTHROPIC_API_KEY="your-anthropic-key-here"  # optional, for Claude
+   export ANTHROPIC_API_KEY="your-anthropic-key-here"
    
    # Or create a .env file in the project root
    cat > .env << 'EOF'
