@@ -45,6 +45,11 @@ def isolate_config(tmp_path, monkeypatch):
     # patch Path.home() to return fake home
     monkeypatch.setattr(Path, "home", lambda: fake_home)
     
+    # ! reset global settings_manager state & patch its config_path to use isolated location
+    from src.config.settings import settings_manager, SettingsManager
+    settings_manager._settings = None
+    settings_manager.config_path = fake_home / ".loom" / "config.json"
+    
     return fake_home
 
 

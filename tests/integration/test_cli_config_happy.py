@@ -13,19 +13,18 @@ def test_config_path_returns_isolated_temp_path(isolate_config):
     
     runner = CliRunner()
     
-    with runner.isolated_filesystem():
-        result = runner.invoke(app, ["config", "path"], env={"NO_COLOR": "1", "TERM": "dumb"})
-        
-        assert result.exit_code == 0
-        
-        # should contain temp path components from isolation
-        output = result.stdout.strip()
-        assert ".loom" in output
-        assert "config.json" in output
-        
-        # verify it's actually in the isolated location
-        config_path = Path(output)
-        assert config_path.exists()
+    result = runner.invoke(app, ["config", "path"], env={"NO_COLOR": "1", "TERM": "dumb"})
+    
+    assert result.exit_code == 0
+    
+    # should contain temp path components from isolation
+    output = result.stdout.strip().replace('\n', '')  # remove any line breaks
+    assert ".loom" in output
+    assert "config.json" in output
+    
+    # verify it's actually in the isolated location
+    config_path = Path(output)
+    assert config_path.exists()
 
 
 # * Ensure config set key value → config get key returns same value
@@ -163,15 +162,11 @@ def test_config_persistence_across_commands(isolate_config):
     
     runner = CliRunner()
     
-    with runner.isolated_filesystem():
-        # Set value in first command
-        result = runner.invoke(app, ["config", "set", "model", "persistent-test"], env={"NO_COLOR": "1", "TERM": "dumb"})
-        assert result.exit_code == 0
-        
-        # Create new runner instance to simulate separate invocation
-        runner2 = CliRunner()
-        
-        # Get value in second command w/ new runner
-        result = runner2.invoke(app, ["config", "get", "model"], env={"NO_COLOR": "1", "TERM": "dumb"})
-        assert result.exit_code == 0
-        assert "persistent-test" in result.stdout
+    # set value in first command
+    result = runner.invoke(app, ["config", "set", "model", "gpt-5-mini"], env={"NO_COLOR": "1", "TERM": "dumb"})
+    assert result.exit_code == 0
+    
+    # get value in second command using same runner (persistence test)
+    result = runner.invoke(app, ["config", "get", "model"], env={"NO_COLOR": "1", "TERM": "dumb"})
+    assert result.exit_code == 0
+    assert "gpt-5-mini" in result.stdout
