@@ -179,3 +179,11 @@ def OutputResumeOpt():
         help="Path to write tailored resume (.docx or .tex); defaults to <output_dir>/tailored_resume.docx",
         resolve_path=True,
     )
+
+
+def AutoOpt():
+    return typer.Option(
+        False,
+        "--auto",
+        help="Apply all edits automatically without interactive review",
+    )
