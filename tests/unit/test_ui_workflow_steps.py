@@ -13,8 +13,8 @@ from tests.test_support.rich_capture import (
 )
 from tests.test_support.mock_ai import DeterministicMockAI, get_ai_patch_path
 
-from src.ui.progress import setup_ui_with_progress, load_resume_and_job, load_sections
-from src.ui.ascii_art import show_loom_art
+from src.ui.core.progress import setup_ui_with_progress, load_resume_and_job, load_sections
+from src.ui.display.ascii_art import show_loom_art
 
 
 # * Test sectionize command progress steps appear in correct order
@@ -85,7 +85,7 @@ def test_load_resume_and_job_progress(tmp_path):
     
     with capture_rich_output() as console:
         with setup_ui_with_progress("Loading files...", total=2) as (ui, progress, task):
-            with patch("src.ui.progress.read_resume", return_value=["line1", "line2"]):
+            with patch("src.ui.core.progress.read_resume", return_value=["line1", "line2"]):
                 load_resume_and_job(resume_file, job_file, progress, task)
         
         # verify progress system was exercised

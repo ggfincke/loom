@@ -1,4 +1,4 @@
-# src/ui/ui.py
+# src/ui/core/ui.py
 # UI abstraction layer for progress-safe prompting & console output
 
 from __future__ import annotations
@@ -8,9 +8,9 @@ from datetime import timedelta
 from rich.progress import Progress, SpinnerColumn, TextColumn, ProgressColumn
 from rich.text import Text
 
-from ..loom_io.console import console
+from ...loom_io.console import console
 from .pausable_timer import PausableTimer
-from .colors import LoomColors
+from ..theming.colors import LoomColors
 
 
 # elapsed time column that freezes while UI is in input mode

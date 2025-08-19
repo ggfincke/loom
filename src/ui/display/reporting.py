@@ -1,22 +1,22 @@
-# src/ui/reporting.py
+# src/ui/display/reporting.py
 # Result reporting utilities for consistent CLI output formatting
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from ..config.settings import LoomSettings
-from ..loom_io import (
+from ...config.settings import LoomSettings
+from ...loom_io import (
     write_json_safe,
     apply_edits_to_docx,
     write_docx,
     write_text_lines,
     ensure_parent,
 )
-from ..loom_io.console import console
-from ..loom_io.types import Lines
-from ..core.pipeline import diff_lines
-from .colors import styled_checkmark, styled_arrow, success_gradient
+from ...loom_io.console import console
+from ...loom_io.types import Lines
+from ...core.pipeline import diff_lines
+from ..theming.colors import styled_checkmark, styled_arrow, success_gradient
 
 
 def persist_edits_json(

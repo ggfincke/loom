@@ -11,8 +11,8 @@ from ...core.exceptions import handle_loom_error
 
 from ..app import app
 from ..helpers import validate_required_args
-from ...ui.progress import setup_ui_with_progress, load_resume_and_job, load_sections
-from ...ui.reporting import persist_edits_json, report_result
+from ...ui.core.progress import setup_ui_with_progress, load_resume_and_job, load_sections
+from ...ui.display.reporting import persist_edits_json, report_result
 from ..logic import ArgResolver, generate_edits_core
 from ..params import ModelOpt, EditsJsonOpt, SectionsPathOpt, ResumeArg, JobArg, RiskOpt, OnErrorOpt
 from ...config.settings import get_settings

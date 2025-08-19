@@ -12,8 +12,8 @@ from ...core.debug import enable_debug, disable_debug
 
 from ..app import app
 from ..helpers import validate_required_args
-from ...ui.progress import setup_ui_with_progress, load_resume_and_job, load_sections
-from ...ui.reporting import persist_edits_json, report_result, write_output_with_diff
+from ...ui.core.progress import setup_ui_with_progress, load_resume_and_job, load_sections
+from ...ui.display.reporting import persist_edits_json, report_result, write_output_with_diff
 from ..logic import ArgResolver, generate_edits_core, apply_edits_core
 from ...ui.help.help_data import command_help
 from ..params import (
@@ -165,7 +165,7 @@ def tailor(
         assert output_resume is not None
         
         from ...loom_io import read_resume
-        from ...ui.progress import load_edits_json
+        from ...ui.core.progress import load_edits_json
         
         with setup_ui_with_progress("Applying edits...", total=5) as (
             ui,

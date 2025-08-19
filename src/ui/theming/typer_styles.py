@@ -1,4 +1,4 @@
-# src/ui/typer_styles.py
+# src/ui/theming/typer_styles.py
 # Patch Typer's Rich help styles globally for CLI styling
 from __future__ import annotations
 
@@ -37,4 +37,3 @@ if hasattr(ru, "STYLE_COMMANDS_TABLE_COLUMN_HEADERS"):
     ru.STYLE_COMMANDS_TABLE_COLUMN_HEADERS = "bold bright_black"  # type: ignore
 if hasattr(ru, "STYLE_COMMANDS_TABLE_ROW"):
     ru.STYLE_COMMANDS_TABLE_ROW = "white"  # type: ignore
-

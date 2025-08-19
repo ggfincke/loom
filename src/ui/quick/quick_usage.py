@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from ...loom_io.console import console
-from ..ascii_art import show_loom_art
+from ..display.ascii_art import show_loom_art
 
 
 # * Show quick usage details w/ banner, common commands & help references

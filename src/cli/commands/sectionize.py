@@ -14,8 +14,8 @@ from ...core.exceptions import handle_loom_error
 
 from ..app import app
 from ..helpers import validate_required_args
-from ...ui.progress import setup_ui_with_progress
-from ...ui.reporting import report_result
+from ...ui.core.progress import setup_ui_with_progress
+from ...ui.display.reporting import report_result
 from ..logic import ArgResolver
 from ..params import ResumeArg, OutJsonOpt, ModelOpt
 from ...ui.help.help_data import command_help

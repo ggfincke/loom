@@ -6,7 +6,7 @@ from __future__ import annotations
 import typer
 
 # patch Typer's Rich help styles before creating the app
-from ..ui import typer_styles  # noqa: F401
+from ..ui.theming import typer_styles  # noqa: F401
 
 from ..config.settings import settings_manager
 from ..loom_io.console import console

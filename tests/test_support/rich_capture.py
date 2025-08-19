@@ -30,9 +30,9 @@ def capture_rich_output() -> Generator[Console, None, None]:
     # patch the global console w/ recording console in multiple places
     patches = [
         patch("src.loom_io.console.console", recording_console),
-        patch("src.ui.ascii_art.console", recording_console),
-        patch("src.ui.reporting.console", recording_console),
-        patch("src.ui.ui.console", recording_console),
+        patch("src.ui.display.ascii_art.console", recording_console),
+        patch("src.ui.display.reporting.console", recording_console),
+        patch("src.ui.core.ui.console", recording_console),
     ]
     
     # apply all patches
@@ -134,5 +134,5 @@ class MockUI:
 @contextmanager
 def mock_ui_interactions(responses: list[str | None] | None = None) -> Generator[MockUI, None, None]:
     mock_ui = MockUI(responses)
-    with patch("src.ui.ui.UI", return_value=mock_ui):
+    with patch("src.ui.core.ui.UI", return_value=mock_ui):
         yield mock_ui
