@@ -10,7 +10,7 @@ from ...core.constants import RiskLevel, ValidationPolicy
 from ...core.exceptions import handle_loom_error
 
 from ..app import app
-from ..helpers import validate_required_args
+from ..helpers import validate_required_args, is_test_environment
 from ...ui.core.progress import setup_ui_with_progress, load_edits_json
 from ...ui.display.reporting import report_result, write_output_with_diff
 from ..logic import ArgResolver, apply_edits_core
@@ -48,6 +48,9 @@ def apply(
         ctx.exit()
     settings = get_settings(ctx)
     resolver = ArgResolver(settings)
+    
+    # determine interactive mode: use interactive setting unless in test environment
+    interactive_mode = settings.interactive and not is_test_environment()
 
     # resolve arguments w/ settings defaults
     common_resolved = resolver.resolve_common(resume=resume, edits_json=edits_json)
@@ -88,7 +91,7 @@ def apply(
 
         # apply edits using core helper
         progress.update(task, description="Applying edits...")
-        new_lines = apply_edits_core(settings, lines, edits_obj, risk, on_error, ui)
+        new_lines = apply_edits_core(settings, lines, edits_obj, risk, on_error, ui, interactive_mode)
         progress.advance(task)
 
         # write output w/ diff generation
