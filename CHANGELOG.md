@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2025-08-19
+
+### Added
+- **Interactive diff framework**: Complete implementation with `--auto` flag for streamlined diff resolution workflow.
+- **Diff display system**: Rich-based interface for reviewing staged, unstaged, and untracked changes with responsive layout.
+- **EditOperation integration**: Seamless connection between diff workflow and structured edit operations.
+- **Development mode**: Enhanced `--dev` mode and display command infrastructure for debugging interactive features.
+- **Test environment detection**: Improved test isolation with automatic TTY-dependent feature detection.
+
+### Changed
+- **UI module restructuring**: Organized into structured subpackages (help/, quick/, diff/) for better maintainability and separation of concerns.
+- **Display command enhancements**: Proper config context usage and improved command infrastructure.
+
+### Fixed
+- **Panel content handling**: Removed panel-specific content for cleaner exit selection interface.
+- **Test case reliability**: Enhanced test environment detection and interactive mode handling for consistent test execution.
+
+### Testing
+- **Comprehensive test coverage**: Added full test suite for interactive diff workflow and related components.
+
+---
+
 ## [1.0.1-nightly.20250819] - 2025-08-19
 
 ### Added
