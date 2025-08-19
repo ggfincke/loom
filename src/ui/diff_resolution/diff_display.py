@@ -31,6 +31,7 @@ FIXED_H = clamp(console.size.height // 2, MIN_H, MAX_H)
 current_edit_operation = None
 edit_operations = []
 current_operation_index = 0
+current_filename = "document.txt"
 
 # * Convert EditOperation to display format w/ styled text elements
 def create_operation_display(edit_op: EditOperation | None) -> list[Text]:
@@ -67,6 +68,32 @@ def create_operation_display(edit_op: EditOperation | None) -> list[Text]:
     
     return lines
 
+# * Create header layout w/ filename & progress info
+def create_header_layout() -> RenderableType:
+    total_ops = len(edit_operations)
+    current_num = min(current_operation_index + 1, total_ops)
+
+    left_text  = Text(f"Reviewing: {current_filename}", style="bold loom.accent")
+    right_text = Text(f"Suggestion {current_num} of {total_ops}", style="loom.accent2")
+
+    # expand=True lets the grid fill the panel; left column eats the slack space
+    header_table = Table.grid(padding=0, expand=True)
+    header_table.add_column(ratio=1, justify="left")
+    header_table.add_column(no_wrap=True, justify="right")
+    header_table.add_row(left_text, right_text)
+
+    return Panel(header_table, border_style="dim", padding=(0, 1))
+
+# * Create footer layout w/ approval/rejection/skip counts
+def create_footer_layout() -> RenderableType:
+    approved = sum(1 for op in edit_operations[:current_operation_index] if op.status == DiffOp.APPROVE)
+    rejected = sum(1 for op in edit_operations[:current_operation_index] if op.status == DiffOp.REJECT)
+    skipped = sum(1 for op in edit_operations[:current_operation_index] if op.status == DiffOp.SKIP)
+    
+    summary_text = Text(f"Approved: {approved} | Rejected: {rejected} | Skipped: {skipped}", style="loom.accent2")
+    
+    return Panel(Align.center(summary_text), border_style="dim", padding=(0, 1))
+
 # generate dynamic content for each menu option based on current edit operation
 def get_diffs_by_opt():
     return {
@@ -76,10 +103,19 @@ def get_diffs_by_opt():
         "Exit": [Text("Press Enter to exit…", style="dim")],
     }
 
-# * Render main screen layout w/ menu & diff display panels
+# * Render main screen layout w/ header, menu & diff display panels, and footer
 def render_screen() -> RenderableType:
-    layout = Layout()
-    layout.split_row(Layout(name="menu", ratio=1), Layout(name="body", ratio=3))
+    # create main 3-row layout
+    main_layout = Layout()
+    main_layout.split_column(
+        Layout(name="header", size=3),
+        Layout(name="content", ratio=1), 
+        Layout(name="footer", size=3)
+    )
+    
+    # create content area w/ menu and body
+    content_layout = Layout()
+    content_layout.split_row(Layout(name="menu", ratio=1), Layout(name="body", ratio=3))
 
     # create left menu w/ highlighted selection
     row_gap = 1
@@ -105,23 +141,29 @@ def render_screen() -> RenderableType:
     # create right diff pane showing operation details
     current = options[selected]
     diffs_by_opt = get_diffs_by_opt()
-    body_panel = Panel(Text("\n").join(diffs_by_opt[current]), title=current, border_style="loom.accent2")
+    body_panel = Panel(Text("\n").join(diffs_by_opt[current]), title="Current Edit", border_style="loom.accent2")
 
-    layout["menu"].update(menu_panel)
-    layout["body"].update(body_panel)
+    content_layout["menu"].update(menu_panel)
+    content_layout["body"].update(body_panel)
+    
+    # update main layout sections
+    main_layout["header"].update(create_header_layout())
+    main_layout["content"].update(content_layout)
+    main_layout["footer"].update(create_footer_layout())
 
-    outer = Panel(layout, border_style="loom.accent", width=FIXED_W, height=FIXED_H)
-    return Align.left(outer,  vertical="top")
+    outer = Panel(main_layout, border_style="loom.accent", width=FIXED_W, height=FIXED_H)
+    return Align.left(outer, vertical="top")
 
 # * Main interactive loop for diff review w/ keyboard navigation
-def main_display_loop(operations: list[EditOperation] | None = None):
-    global selected, current_edit_operation, edit_operations, current_operation_index
+def main_display_loop(operations: list[EditOperation] | None = None, filename: str = "document.txt"):
+    global selected, current_edit_operation, edit_operations, current_operation_index, current_filename
     
     # initialize edit operations & set current operation
     if operations:
         edit_operations = operations
         current_operation_index = 0
         current_edit_operation = edit_operations[0] if edit_operations else None
+        current_filename = filename
     with Live(render_screen(), console=console, screen=True, refresh_per_second=30) as live:
         VALID_KEYS = {key.UP, key.DOWN, "k", "j", key.ENTER, key.ESC, key.CTRL_C}
         while True:
