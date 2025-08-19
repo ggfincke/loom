@@ -3,21 +3,23 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import TypedDict
 
 from ..config.settings import LoomSettings
 from ..loom_io.generics import ensure_parent
 from ..loom_io.types import Lines
-from ..core.constants import RiskLevel, ValidationPolicy
+from ..core.constants import RiskLevel, ValidationPolicy, EditOperation, DiffOp
 from ..core.pipeline import (
     generate_edits,
     generate_corrected_edits,
     apply_edits,
 )
 from ..core.validation import validate_edits
-from ..core.exceptions import EditError
+from ..core.exceptions import EditError, JSONParsingError
 from ..core.validation import handle_validation_error
+from ..ui.diff_resolution.diff_display import main_display_loop
 
 
 def _resolve(provided_value, settings_default):
@@ -77,26 +79,43 @@ def generate_edits_core(
     policy: ValidationPolicy,
     ui,
     persist_path: Path | None = None,
-) -> dict:
+) -> dict | None:
     # create initial edits using AI
-    edits = generate_edits(
-        resume_lines=resume_lines, job_text=job_text, sections_json=sections_json, model=model
-    )
+    json_error_warning = None
+    try:
+        edits = generate_edits(
+            resume_lines=resume_lines, job_text=job_text, sections_json=sections_json, model=model
+        )
+    except JSONParsingError as e:
+        # convert JSON parsing error to validation warnings for interactive handling
+        json_error_warning = str(e)
+        edits = None
 
-    # persist edits immediately for manual editing (prefer CLI-provided path)
+    # persist edits or create placeholder for manual editing
     target_path = persist_path if persist_path is not None else settings.edits_path
     ensure_parent(target_path)
-    target_path.write_text(__import__("json").dumps(edits, indent=2), encoding="utf-8")
+    
+    if edits is not None:
+        # persist successful edits
+        target_path.write_text(json.dumps(edits, indent=2), encoding="utf-8")
+    else:
+        # create placeholder edits file for manual editing when JSON parsing fails
+        placeholder_edits = {
+            "version": 1,
+            "meta": {"strategy": "manual", "model": model},
+            "ops": []
+        }
+        target_path.write_text(json.dumps(placeholder_edits, indent=2), encoding="utf-8")
 
     # validate using updatable closure
     current_edits = [edits]
 
     def validate_current():
-        return (
-            validate_edits(current_edits[0], resume_lines, risk)
-            if current_edits[0] is not None
-            else ["Edits not initialized"]
-        )
+        if current_edits[0] is not None:
+            return validate_edits(current_edits[0], resume_lines, risk)
+        else:
+            # return JSON parsing error as validation warning to trigger interactive handling
+            return [json_error_warning] if json_error_warning else ["Edits not initialized"]
 
     def edit_edits_and_update(validation_warnings):
         # load current edits from disk
@@ -106,17 +125,24 @@ def generate_edits_core(
             raise EditError("No existing edits file found for correction")
 
         # generate corrected edits via pipeline
-        new_edits = generate_corrected_edits(
-            current_edits_json,
-            resume_lines,
-            job_text,
-            sections_json,
-            model,
-            validation_warnings,
-        )
-        # update current edits for validation
-        current_edits[0] = new_edits
-        return new_edits
+        try:
+            new_edits = generate_corrected_edits(
+                current_edits_json,
+                resume_lines,
+                job_text,
+                sections_json,
+                model,
+                validation_warnings,
+            )
+            # update current edits for validation
+            current_edits[0] = new_edits
+            return new_edits
+        except JSONParsingError as e:
+            # if regeneration also fails w/ JSON error, return None to continue validation loop
+            current_edits[0] = None
+            nonlocal json_error_warning
+            json_error_warning = str(e)
+            return None
 
     def reload_from_disk(data):
         current_edits[0] = data
@@ -138,6 +164,136 @@ def generate_edits_core(
         raise EditError("Failed to generate valid edits")
 
     return current_edits[0]
+
+
+# * Convert dict-based edits to EditOperation objects for interactive display
+def convert_dict_edits_to_operations(edits: dict, resume_lines: Lines) -> list[EditOperation]:
+    operations = []
+    ops = edits.get("ops", [])
+    
+    for op in ops:
+        op_type = op["op"]
+        
+        # create EditOperation based on operation type
+        if op_type == "replace_line":
+            # get original content for display
+            original_content = resume_lines.get(op["line"], "")
+            operation = EditOperation(
+                operation="replace_line",
+                line_number=op["line"],
+                content=op["text"],
+                reasoning=op.get("reason", ""),
+                confidence=op.get("confidence", 0.0),
+                original_content=original_content
+            )
+        elif op_type == "replace_range":
+            # get original content for range display
+            original_lines = []
+            for line_num in range(op["start"], op["end"] + 1):
+                original_lines.append(resume_lines.get(line_num, ""))
+            original_content = "\n".join(original_lines)
+            operation = EditOperation(
+                operation="replace_range",
+                line_number=op["start"],
+                start_line=op["start"],
+                end_line=op["end"],
+                content=op["text"],
+                reasoning=op.get("reason", ""),
+                confidence=op.get("confidence", 0.0),
+                original_content=original_content
+            )
+        elif op_type == "insert_after":
+            operation = EditOperation(
+                operation="insert_after",
+                line_number=op["line"],
+                content=op["text"],
+                reasoning=op.get("reason", ""),
+                confidence=op.get("confidence", 0.0)
+            )
+        elif op_type == "delete_range":
+            operation = EditOperation(
+                operation="delete_range",
+                line_number=op["start"],
+                start_line=op["start"],
+                end_line=op["end"],
+                reasoning=op.get("reason", ""),
+                confidence=op.get("confidence", 0.0)
+            )
+        else:
+            continue
+            
+        # add before/after context for display (up to 2 lines each way)
+        line_num = operation.line_number
+        before_lines = []
+        after_lines = []
+        
+        for i in range(max(1, line_num - 2), line_num):
+            if i in resume_lines:
+                before_lines.append(f"{i}: {resume_lines[i]}")
+        
+        end_line = operation.end_line if operation.end_line else line_num
+        for i in range(end_line + 1, min(len(resume_lines) + 1, end_line + 3)):
+            if i in resume_lines:
+                after_lines.append(f"{i}: {resume_lines[i]}")
+        
+        operation.before_context = before_lines
+        operation.after_context = after_lines
+        operations.append(operation)
+    
+    return operations
+
+
+# * Convert approved EditOperation objects back to dict format for application
+def convert_operations_to_dict_edits(operations: list[EditOperation], original_edits: dict) -> dict:
+    approved_ops = []
+    
+    for op in operations:
+        if op.status != DiffOp.APPROVE:
+            continue  # only include approved operations
+            
+        # convert back to dict format
+        if op.operation == "replace_line":
+            dict_op = {
+                "op": "replace_line",
+                "line": op.line_number,
+                "text": op.content
+            }
+        elif op.operation == "replace_range":
+            dict_op = {
+                "op": "replace_range",
+                "start": op.start_line,
+                "end": op.end_line,
+                "text": op.content
+            }
+        elif op.operation == "insert_after":
+            dict_op = {
+                "op": "insert_after",
+                "line": op.line_number,
+                "text": op.content
+            }
+        elif op.operation == "delete_range":
+            dict_op = {
+                "op": "delete_range",
+                "start": op.start_line,
+                "end": op.end_line
+            }
+        else:
+            continue  # skip unknown operations
+            
+        # preserve original metadata if available
+        if hasattr(op, 'reasoning') and op.reasoning:
+            dict_op["reason"] = op.reasoning
+        if hasattr(op, 'confidence') and op.confidence:
+            dict_op["confidence"] = op.confidence
+            
+        approved_ops.append(dict_op)
+    
+    # return new edits dict w/ only approved operations
+    return {
+        "version": original_edits.get("version", 1),
+        "meta": original_edits.get("meta", {}),
+        "ops": approved_ops
+    }
 
 
 # * Validate & apply edits to resume lines, returning new lines
@@ -168,8 +324,21 @@ def apply_edits_core(
         ui=ui,
     )
 
-    # todo: implement interactive diff review if interactive=True
-    # for now, interactive parameter is accepted but not used - falls back to automatic application
+    # implement interactive diff review if interactive=True
+    if interactive:
+        # convert dict edits to EditOperation objects for display
+        operations = convert_dict_edits_to_operations(current[0], resume_lines)
+        
+        if not operations:
+            # no operations to review - proceed w/ empty edits
+            current[0] = {"version": current[0].get("version", 1), "meta": current[0].get("meta", {}), "ops": []}
+        else:
+            # run interactive diff display for user review
+            filename = "resume.docx"  # default filename for display
+            reviewed_operations = main_display_loop(operations, filename)
+            
+            # convert approved operations back to dict format
+            current[0] = convert_operations_to_dict_edits(reviewed_operations, current[0])
     
-    # execute edit application
+    # execute edit application w/ approved operations only
     return apply_edits(resume_lines, current[0])

@@ -1,5 +1,5 @@
 # src/cli/commands/tailor.py
-# Tailor command for complete end-to-end resume tailoring workflow
+# Tailor command for complete end-to-end resume tailoring workflow w/ generation & application
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from ...core.exceptions import handle_loom_error
 from ...core.debug import enable_debug, disable_debug
 
 from ..app import app
-from ..helpers import validate_required_args
+from ..helpers import validate_required_args, is_test_environment
 from ...ui.core.progress import setup_ui_with_progress, load_resume_and_job, load_sections
 from ...ui.display.reporting import persist_edits_json, report_result, write_output_with_diff
 from ..logic import ArgResolver, generate_edits_core, apply_edits_core
@@ -93,8 +93,8 @@ def tailor(
     settings = get_settings(ctx)
     resolver = ArgResolver(settings)
     
-    # determine interactive mode: use interactive setting unless --auto flag is specified
-    interactive_mode = settings.interactive and not auto
+    # determine interactive mode: use interactive setting unless --auto flag specified or in test env
+    interactive_mode = settings.interactive and not auto and not is_test_environment()
 
     # resolve args using settings defaults
     common_resolved = resolver.resolve_common(
@@ -230,6 +230,9 @@ def tailor(
             progress.advance(task)
 
             # write edits
+            if edits is None:
+                from ...core.exceptions import EditError
+                raise EditError("Failed to generate valid edits")
             persist_edits_json(edits, edits_json, progress, task)
             
     else:
@@ -265,10 +268,16 @@ def tailor(
             progress.advance(task)
 
             # persist edits (for inspection / re-run)
+            if edits is None:
+                from ...core.exceptions import EditError
+                raise EditError("Failed to generate valid edits")
             persist_edits_json(edits, edits_json, progress, task)
 
             # apply edits using core helper
             progress.update(task, description="Applying edits...")
+            if edits is None:
+                from ...core.exceptions import EditError
+                raise EditError("Failed to generate valid edits")
             new_lines = apply_edits_core(
                 settings, lines, edits, risk_enum, on_error_policy, ui, interactive_mode
             )
