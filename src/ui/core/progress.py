@@ -1,4 +1,4 @@
-# src/ui/progress.py
+# src/ui/core/progress.py
 # UI progress bar setup & management utilities for consistent CLI progress display
 
 from __future__ import annotations
@@ -6,9 +6,9 @@ from __future__ import annotations
 from contextlib import contextmanager
 from pathlib import Path
 
-from ..loom_io import read_resume, read_text, read_json_safe
-from ..loom_io.types import Lines
-from . import UI
+from ...loom_io import read_resume, read_text, read_json_safe
+from ...loom_io.types import Lines
+from .ui import UI
 
 
 # * context manager to build UI progress & yield (ui, progress, task)

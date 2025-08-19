@@ -1,4 +1,4 @@
-# src/ui/colors.py
+# src/ui/theming/colors.py
 # Gradient color utilities & theme definitions for consistent CLI styling
 
 from __future__ import annotations
@@ -247,7 +247,7 @@ THEMES = {
 def get_active_theme() -> list[str]:
     try:
         # ! import here to avoid circular dependency w/ settings
-        from ..config.settings import settings_manager
+        from ...config.settings import settings_manager
         settings = settings_manager.load()
         theme_name = getattr(settings, 'theme', 'deep_blue')
         return THEMES.get(theme_name, THEMES["deep_blue"])

@@ -12,10 +12,10 @@ from tests.test_support.rich_capture import (
     assert_banner_displayed,
 )
 
-from src.ui.ascii_art import show_loom_art
-from src.ui.progress import setup_ui_with_progress
-from src.ui.colors import get_active_theme, natural_gradient
-from src.ui.reporting import report_result
+from src.ui.display.ascii_art import show_loom_art
+from src.ui.core.progress import setup_ui_with_progress
+from src.ui.theming.colors import get_active_theme, natural_gradient
+from src.ui.display.reporting import report_result
 
 
 # * Test banner appearance remains consistent across theme changes

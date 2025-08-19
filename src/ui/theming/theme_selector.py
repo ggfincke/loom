@@ -1,14 +1,14 @@
-# src/ui/theme_selector.py
+# src/ui/theming/theme_selector.py
 # Interactive theme selector w/ live banner preview & arrow key navigation
 
 from __future__ import annotations
 
 from simple_term_menu import TerminalMenu
 
-from ..config.settings import settings_manager
-from ..loom_io.console import console, refresh_theme
+from ...config.settings import settings_manager
+from ...loom_io.console import console, refresh_theme
 from .colors import THEMES
-from .ascii_art import show_loom_art
+from ..display.ascii_art import show_loom_art
 
 # * Capture banner for preview pane
 def _capture_banner(theme_name: str) -> str:
@@ -101,4 +101,3 @@ def _fallback_theme_selector(theme_names: list[str], current_theme: str) -> str 
     except (EOFError, KeyboardInterrupt):
         console.print("\n[dim]Selection cancelled[/]")
         return None
-

@@ -1,9 +1,9 @@
-# src/ui/console_theme.py
+# src/ui/theming/console_theme.py
 # Console theme initialization & management for Rich styling
 
 from __future__ import annotations
 
-from ..loom_io.console import console
+from ...loom_io.console import console
 
 
 # * initialize gradient theme after colors module is available

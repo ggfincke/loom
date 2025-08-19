@@ -3,6 +3,7 @@
 
 import functools
 from typing import List
+import typer
 
 # * Base exception for Loom application
 class LoomError(Exception):
@@ -38,6 +39,10 @@ class JSONParsingError(LoomError):
 class LaTeXError(LoomError):
     pass
 
+# * Dev mode access control errors
+class DevModeError(LoomError):
+    pass
+
 
 # * Decorator for handling Loom errors in CLI commands
 def handle_loom_error(func):
@@ -69,10 +74,36 @@ def handle_loom_error(func):
         except LaTeXError as e:
             console.print(f"[red]LaTeX Error:[/] {str(e)}")
             raise SystemExit(1)
+        except DevModeError as e:
+            console.print(f"[red]Dev Mode Error:[/] {str(e)}")
+            raise SystemExit(1)
         except LoomError as e:
             console.print(f"[red]Error:[/] {str(e)}")
             raise SystemExit(1)
         except Exception as e:
             console.print(f"[red]Unexpected Error:[/] {str(e)}")
             raise SystemExit(1)
+    return wrapper
+
+
+# * Decorator to require dev mode for development commands
+def require_dev_mode(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        # ! Lazy import to avoid circular dependencies
+        from ..config.settings import get_settings
+        
+        # extract ctx from args (first positional arg is always typer.Context)
+        ctx = args[0] if args and isinstance(args[0], typer.Context) else None
+        if ctx is None:
+            raise DevModeError("Cannot access development commands: missing context")
+        
+        # check if dev_mode is enabled
+        settings = get_settings(ctx)
+        if not settings.dev_mode:
+            raise DevModeError(
+                "Development mode required. Enable with: loom config set dev_mode true"
+            )
+        
+        return func(*args, **kwargs)
     return wrapper
