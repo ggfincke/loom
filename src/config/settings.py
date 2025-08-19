@@ -35,6 +35,12 @@ class LoomSettings:
     # theme setting
     theme: str = "deep_blue"
     
+    # interactive diff setting
+    interactive: bool = True
+    
+    # dev mode setting (enables access to development commands)
+    dev_mode: bool = False
+    
     @property
     def resume_path(self) -> Path:
         return Path(self.data_dir) / self.resume_filename

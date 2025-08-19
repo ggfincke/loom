@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch, mock_open
 
 from src.config.settings import LoomSettings, SettingsManager
-from src.ui.colors import THEMES
+from src.ui.theming.colors import THEMES
 
 
 # * Test LoomSettings dataclass behavior
@@ -308,7 +308,7 @@ class TestSettingsManager:
         expected_keys = {
             "data_dir", "output_dir", "resume_filename", "job_filename",
             "sections_filename", "edits_filename", "base_dir", "warnings_filename", 
-            "diff_filename", "plan_filename", "model", "temperature", "risk", "theme"
+            "diff_filename", "plan_filename", "model", "temperature", "risk", "theme", "interactive", "dev_mode"
         }
         assert set(all_settings.keys()) == expected_keys
     

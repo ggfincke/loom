@@ -9,10 +9,10 @@ import typer
 
 from ...config.settings import settings_manager, LoomSettings
 from ...loom_io.console import console
-from ...ui.colors import styled_checkmark, success_gradient, LoomColors, THEMES, accent_gradient, styled_bullet, styled_arrow
+from ...ui.theming.colors import styled_checkmark, success_gradient, LoomColors, THEMES, accent_gradient, styled_bullet, styled_arrow
 from ..app import app
-from ...ui.theme_selector import interactive_theme_selector
-from ...ui.ascii_art import show_loom_art
+from ...ui.theming.theme_selector import interactive_theme_selector
+from ...ui.display.ascii_art import show_loom_art
 from ...ui.help.help_data import command_help
 
 # * Sub-app for config commands; registered on root app

@@ -148,6 +148,7 @@ def apply_edits_core(
     risk: RiskLevel,
     policy: ValidationPolicy,
     ui,
+    interactive: bool = False,
 ) -> Lines:
     # use mutable container for reload support
     current = [edits]
@@ -167,5 +168,8 @@ def apply_edits_core(
         ui=ui,
     )
 
+    # todo: implement interactive diff review if interactive=True
+    # for now, interactive parameter is accepted but not used - falls back to automatic application
+    
     # execute edit application
     return apply_edits(resume_lines, current[0])

@@ -12,8 +12,8 @@ from ...core.debug import enable_debug, disable_debug
 
 from ..app import app
 from ..helpers import validate_required_args
-from ...ui.progress import setup_ui_with_progress, load_resume_and_job, load_sections
-from ...ui.reporting import persist_edits_json, report_result, write_output_with_diff
+from ...ui.core.progress import setup_ui_with_progress, load_resume_and_job, load_sections
+from ...ui.display.reporting import persist_edits_json, report_result, write_output_with_diff
 from ..logic import ArgResolver, generate_edits_core, apply_edits_core
 from ...ui.help.help_data import command_help
 from ..params import (
@@ -27,6 +27,7 @@ from ..params import (
     OnErrorOpt,
     PreserveFormattingOpt,
     PreserveModeOpt,
+    AutoOpt,
 )
 from ...config.settings import get_settings
 
@@ -67,6 +68,7 @@ def tailor(
     preserve_mode: str = PreserveModeOpt(),
     edits_only: bool = typer.Option(False, "--edits-only", help="Generate edits JSON only (don't apply)"),
     apply: bool = typer.Option(False, "--apply", help="Apply existing edits JSON to resume"),
+    auto: bool = AutoOpt(),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose debug output"),
     help: bool = typer.Option(False, "--help", "-h", help="Show help message and exit."),
 ) -> None:
@@ -90,6 +92,9 @@ def tailor(
     
     settings = get_settings(ctx)
     resolver = ArgResolver(settings)
+    
+    # determine interactive mode: use interactive setting unless --auto flag is specified
+    interactive_mode = settings.interactive and not auto
 
     # resolve args using settings defaults
     common_resolved = resolver.resolve_common(
@@ -160,7 +165,7 @@ def tailor(
         assert output_resume is not None
         
         from ...loom_io import read_resume
-        from ...ui.progress import load_edits_json
+        from ...ui.core.progress import load_edits_json
         
         with setup_ui_with_progress("Applying edits...", total=5) as (
             ui,
@@ -177,7 +182,7 @@ def tailor(
 
             # apply edits using core helper
             progress.update(task, description="Applying edits...")
-            new_lines = apply_edits_core(settings, lines, edits_obj, risk_enum, on_error_policy, ui)
+            new_lines = apply_edits_core(settings, lines, edits_obj, risk_enum, on_error_policy, ui, interactive_mode)
             progress.advance(task)
 
             # write output w/ diff generation
@@ -265,7 +270,7 @@ def tailor(
             # apply edits using core helper
             progress.update(task, description="Applying edits...")
             new_lines = apply_edits_core(
-                settings, lines, edits, risk_enum, on_error_policy, ui
+                settings, lines, edits, risk_enum, on_error_policy, ui, interactive_mode
             )
             progress.advance(task)
 

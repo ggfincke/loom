@@ -11,8 +11,8 @@ from ...core.exceptions import handle_loom_error
 
 from ..app import app
 from ..helpers import validate_required_args
-from ...ui.progress import setup_ui_with_progress, load_edits_json
-from ...ui.reporting import report_result, write_output_with_diff
+from ...ui.core.progress import setup_ui_with_progress, load_edits_json
+from ...ui.display.reporting import report_result, write_output_with_diff
 from ..logic import ArgResolver, apply_edits_core
 from ..params import (
     ResumeArg,

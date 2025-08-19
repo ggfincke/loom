@@ -11,8 +11,8 @@ from rich.console import Group
 from typing import Any
 
 from ...loom_io.console import console
-from ..colors import accent_gradient, get_active_theme
-from ..ascii_art import show_loom_art
+from ..theming.colors import accent_gradient, get_active_theme
+from ..display.ascii_art import show_loom_art
 from .help_data import get_command_help, get_option_help, get_command_metadata
 
 

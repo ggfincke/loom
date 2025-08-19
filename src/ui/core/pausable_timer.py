@@ -1,4 +1,4 @@
-# src/ui/pausable_timer.py
+# src/ui/core/pausable_timer.py
 # Pausable timer utility used by UI progress display
 
 from __future__ import annotations
@@ -36,4 +36,3 @@ class PausableTimer:
         # _started_at is guaranteed to be set by start_if_needed()
         assert self._started_at is not None
         return max(0.0, now - self._started_at - self._paused_total)
-

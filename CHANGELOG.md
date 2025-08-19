@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1-nightly.20250819] - 2025-08-19
+
+### Added
+- **Interactive diff framework**: New `--auto` flag for streamlined diff resolution workflow.
+- **Diff resolution display module**: Rich-based interface for reviewing staged, unstaged, and untracked changes.
+
+### Changed
+- **UI module restructuring**: Organized subpackages for better maintainability and separation of concerns.
+
+---
+
 ## [1.0.0] - 2025-08-17
 
 First stable release. Graduates the 0.x nightlies into a cohesive, production-ready CLI for AI-assisted resume tailoring with multi-provider model support, robust validation, and end-to-end workflows.

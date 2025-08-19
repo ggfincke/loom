@@ -12,9 +12,9 @@ from tests.test_support.rich_capture import (
     assert_progress_indicators,
     assert_success_output,
 )
-from src.ui.ascii_art import show_loom_art
-from src.ui.progress import setup_ui_with_progress
-from src.ui.reporting import report_result
+from src.ui.display.ascii_art import show_loom_art
+from src.ui.core.progress import setup_ui_with_progress
+from src.ui.display.reporting import report_result
 from src.config.settings import LoomSettings
 
 
@@ -48,7 +48,7 @@ def test_progress_setup_creates_ui_elements():
 def test_progress_updates_in_output():
     with capture_rich_output() as console:
         # patch UI to use our recording console
-        with patch("src.ui.ui.console", console):
+        with patch("src.ui.core.ui.console", console):
             with setup_ui_with_progress("Processing files", total=2) as (ui, progress, task):
                 progress.update(task, description="Reading document...")
                 progress.advance(task)

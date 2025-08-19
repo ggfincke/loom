@@ -9,14 +9,14 @@ console = Console()
 # * Refresh console theme w/ current settings (imported from ui module)
 def refresh_theme():
     try:
-        from ..ui.console_theme import refresh_theme as _refresh_theme
+        from ..ui.theming.console_theme import refresh_theme as _refresh_theme
         _refresh_theme()
     except ImportError:
         pass
 
 # lazy theme initialization moved to ui.console_theme module
 try:
-    from ..ui.console_theme import auto_initialize_theme
+    from ..ui.theming.console_theme import auto_initialize_theme
     auto_initialize_theme()
 except ImportError:
     # theme will be set later when ui module is available
