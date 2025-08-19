@@ -49,10 +49,12 @@ def create_operation_display(edit_op: EditOperation | None) -> list[Text]:
     
     # operation-specific display
     if edit_op.operation == "replace_line":
-        lines.append(Text(f"- Line {edit_op.line_number}: [original content]", style="red"))
+        original = edit_op.original_content if edit_op.original_content else "[no content]"
+        lines.append(Text(f"- Line {edit_op.line_number}: {original}", style="red"))
         lines.append(Text(f"+ Line {edit_op.line_number}: {edit_op.content}", style="green"))
     elif edit_op.operation == "replace_range":
-        lines.append(Text(f"- Lines {edit_op.start_line}-{edit_op.end_line}: [original content]", style="red"))
+        original = edit_op.original_content if edit_op.original_content else "[no content]"
+        lines.append(Text(f"- Lines {edit_op.start_line}-{edit_op.end_line}: {original}", style="red"))
         lines.append(Text(f"+ Lines {edit_op.start_line}-{edit_op.end_line}: {edit_op.content}", style="green"))
     elif edit_op.operation == "insert_after":
         lines.append(Text(f"Insert after line {edit_op.line_number}:", style="loom.accent2"))
@@ -113,7 +115,7 @@ def render_screen() -> RenderableType:
         Layout(name="footer", size=3)
     )
     
-    # create content area w/ menu and body
+    # create content area w/ menu & body
     content_layout = Layout()
     content_layout.split_row(Layout(name="menu", ratio=1), Layout(name="body", ratio=3))
 
