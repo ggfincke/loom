@@ -100,7 +100,7 @@ def get_diffs_by_opt():
         "Approve": create_operation_display(current_edit_operation),
         "Reject": create_operation_display(current_edit_operation), 
         "Skip": create_operation_display(current_edit_operation),
-        "Exit": [Text("Press Enter to exit…", style="dim")],
+        "Exit": create_operation_display(current_edit_operation),
     }
 
 # * Render main screen layout w/ header, menu & diff display panels, and footer
