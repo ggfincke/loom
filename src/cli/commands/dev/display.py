@@ -7,6 +7,7 @@ import typer
 
 from ....config.settings import get_settings
 from ....core.exceptions import handle_loom_error, DevModeError
+from ....core.constants import EditOperation
 from ....ui.diff_resolution.diff_display import main_display_loop
 from ....ui.help.help_data import command_help
 from ...app import app
@@ -44,5 +45,47 @@ def display(
             "Development mode required. Enable with: loom config set dev_mode true"
         )
     
-    # run the display diff interface
-    main_display_loop()
+    # create sample edit operations for testing
+    sample_operations = [
+        EditOperation(
+            operation="replace_line",
+            line_number=6,
+            content="Experienced Python developer w/ 5+ years building scalable web applications & cloud infrastructure.",
+            reasoning="Emphasize Python experience & cloud skills to match job requirements",
+            confidence=0.92
+        ),
+        EditOperation(
+            operation="insert_after",
+            line_number=11,
+            content="• AWS (Lambda, EC2, S3), Docker, Kubernetes",
+            reasoning="Add specific cloud technologies mentioned in job posting",
+            confidence=0.88
+        ),
+        EditOperation(
+            operation="replace_range",
+            line_number=15,
+            start_line=15,
+            end_line=16,
+            content="• Architected & deployed microservices handling 1M+ requests/day\n• Led cross-functional team of 4 engineers delivering high-impact features",
+            reasoning="Quantify impact & leadership experience to strengthen candidacy",
+            confidence=0.91
+        ),
+        EditOperation(
+            operation="delete_range",
+            line_number=19,
+            start_line=19,
+            end_line=19,
+            reasoning="Remove outdated technology reference that doesn't align w/ role",
+            confidence=0.85
+        ),
+        EditOperation(
+            operation="replace_line",
+            line_number=23,
+            content="• Built RESTful APIs using FastAPI & Django serving 500K+ daily users",
+            reasoning="Highlight specific Python frameworks and scale metrics",
+            confidence=0.89
+        )
+    ]
+    
+    # run the display diff interface w/ sample operations
+    main_display_loop(sample_operations)

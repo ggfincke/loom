@@ -1,18 +1,25 @@
+# src/ui/diff_resolution/diff_display.py
+# Interactive diff display interface w/ rich UI components for edit operation review
+
 from rich.layout import Layout
 from rich.panel import Panel
 from rich.text import Text
 from rich.live import Live
 from rich.align import Align
 from rich.console import RenderableType
+from rich.table import Table
+from rich.padding import Padding
 from readchar import readkey, key
 from ...loom_io.console import console
+from ...core.constants import DiffOp, EditOperation
 
-options = ["Staged changes", "Unstaged changes", "Untracked files", "Exit"]
+options = [DiffOp.APPROVE.value.capitalize(), DiffOp.REJECT.value.capitalize(), DiffOp.SKIP.value.capitalize(), "Exit"]
 selected = 0
 
 MIN_W, MAX_W = 60, 120
-MIN_H, MAX_H = 25, 50
+MIN_H, MAX_H = 25, 25
 
+# clamp value between min & max bounds
 def clamp(n, lo, hi): 
     return max(lo, min(hi, n))
 
@@ -20,54 +27,107 @@ def clamp(n, lo, hi):
 FIXED_W = clamp(console.size.width  // 2, MIN_W, MAX_W)
 FIXED_H = clamp(console.size.height // 2, MIN_H, MAX_H)
 
-# pretend these are the right-side diffs for each option
-diffs_by_opt = {
-    "Staged changes": [
-        Text("+++ src/app.py: add handler()", style="green"),
-        Text("--- src/old.py: remove legacy()", style="red"),
-    ],
-    "Unstaged changes": [
-        Text("+++ README.md: update usage", style="green"),
-    ],
-    "Untracked files": [
-        Text("??? notes/todo.txt (new file)", style="loom.accent"),
-    ],
-    "Exit": [Text("Press Enter to exit…", style="dim")],
-}
+# global variables for current edit operation data
+current_edit_operation = None
+edit_operations = []
+current_operation_index = 0
 
+# * Convert EditOperation to display format w/ styled text elements
+def create_operation_display(edit_op: EditOperation | None) -> list[Text]:
+    if edit_op is None:
+        return [Text("No edit operation selected", style="dim")]
+    
+    lines = []
+    
+    # operation header
+    lines.append(Text(f"Operation: {edit_op.operation}", style="bold loom.accent"))
+    lines.append(Text(f"Line: {edit_op.line_number}", style="loom.accent2"))
+    if edit_op.confidence > 0:
+        lines.append(Text(f"Confidence: {edit_op.confidence:.2f}", style="loom.accent2"))
+    lines.append(Text(""))
+    
+    # operation-specific display
+    if edit_op.operation == "replace_line":
+        lines.append(Text(f"- Line {edit_op.line_number}: [original content]", style="red"))
+        lines.append(Text(f"+ Line {edit_op.line_number}: {edit_op.content}", style="green"))
+    elif edit_op.operation == "replace_range":
+        lines.append(Text(f"- Lines {edit_op.start_line}-{edit_op.end_line}: [original content]", style="red"))
+        lines.append(Text(f"+ Lines {edit_op.start_line}-{edit_op.end_line}: {edit_op.content}", style="green"))
+    elif edit_op.operation == "insert_after":
+        lines.append(Text(f"Insert after line {edit_op.line_number}:", style="loom.accent2"))
+        lines.append(Text(f"+ {edit_op.content}", style="green"))
+    elif edit_op.operation == "delete_range":
+        lines.append(Text(f"- Delete lines {edit_op.start_line}-{edit_op.end_line}", style="red"))
+    
+    # reasoning
+    if edit_op.reasoning:
+        lines.append(Text(""))
+        lines.append(Text("Reasoning:", style="bold"))
+        lines.append(Text(edit_op.reasoning, style="dim"))
+    
+    return lines
+
+# generate dynamic content for each menu option based on current edit operation
+def get_diffs_by_opt():
+    return {
+        "Approve": create_operation_display(current_edit_operation),
+        "Reject": create_operation_display(current_edit_operation), 
+        "Skip": create_operation_display(current_edit_operation),
+        "Exit": [Text("Press Enter to exit…", style="dim")],
+    }
+
+# * Render main screen layout w/ menu & diff display panels
 def render_screen() -> RenderableType:
     layout = Layout()
     layout.split_row(Layout(name="menu", ratio=1), Layout(name="body", ratio=3))
 
-    # Left menu (highlight the selected row)
-    lines = []
+    # create left menu w/ highlighted selection
+    row_gap = 1
+
+    grid = Table.grid(padding=0)
+    grid.add_column(no_wrap=True)
+
     for i, opt in enumerate(options):
         is_sel = i == selected
         prefix = "➤ " if is_sel else "  "
         style  = "reverse bold loom.accent" if is_sel else "loom.accent2"
-        lines.append(Text(prefix + opt, style=style))
-    menu_panel = Panel(Text("\n").join(lines), title="Options", border_style="loom.accent2")
+        cell = Text(prefix + opt, style=style)
+        bottom = row_gap if i < len(options) - 1 else 0
+        grid.add_row(Padding(cell, (0, 0, bottom, 0)))
 
-    # Right diff pane
+    menu_panel = Panel(
+        Align.center(grid, vertical="top"),
+        title="Options",
+        border_style="loom.accent2",
+        padding=(1, 2),
+    )
+
+    # create right diff pane showing operation details
     current = options[selected]
+    diffs_by_opt = get_diffs_by_opt()
     body_panel = Panel(Text("\n").join(diffs_by_opt[current]), title=current, border_style="loom.accent2")
 
     layout["menu"].update(menu_panel)
     layout["body"].update(body_panel)
 
-    target_w = max(60, console.size.width // 2)
     outer = Panel(layout, border_style="loom.accent", width=FIXED_W, height=FIXED_H)
     return Align.left(outer,  vertical="top")
 
-# main display loop
-def main_display_loop():
-    global selected
+# * Main interactive loop for diff review w/ keyboard navigation
+def main_display_loop(operations: list[EditOperation] | None = None):
+    global selected, current_edit_operation, edit_operations, current_operation_index
+    
+    # initialize edit operations & set current operation
+    if operations:
+        edit_operations = operations
+        current_operation_index = 0
+        current_edit_operation = edit_operations[0] if edit_operations else None
     with Live(render_screen(), console=console, screen=True, refresh_per_second=30) as live:
         VALID_KEYS = {key.UP, key.DOWN, "k", "j", key.ENTER, key.ESC, key.CTRL_C}
         while True:
             k = readkey()
 
-            # ignore mouse scroll / other junk
+            # filter out invalid keystrokes
             if k not in VALID_KEYS:
                 continue
 
@@ -78,13 +138,35 @@ def main_display_loop():
                 selected = (selected + 1) % len(options)
                 live.update(render_screen())
             elif k == key.ENTER:
-                break
+                # process user selection & update operation status
+                selected_option = options[selected]
+                if selected_option == "Exit":
+                    break
+                elif current_edit_operation and selected_option in ["Approve", "Reject", "Skip"]:
+                    # apply user decision to current operation
+                    if selected_option == "Approve":
+                        current_edit_operation.status = DiffOp.APPROVE
+                    elif selected_option == "Reject":
+                        current_edit_operation.status = DiffOp.REJECT
+                    elif selected_option == "Skip":
+                        current_edit_operation.status = DiffOp.SKIP
+                    
+                    # advance to next operation or exit if done
+                    current_operation_index += 1
+                    if current_operation_index < len(edit_operations):
+                        current_edit_operation = edit_operations[current_operation_index]
+                        live.update(render_screen())
+                    else:
+                        break  # all operations processed
+                else:
+                    break
             elif k in (key.ESC, key.CTRL_C):
                 raise SystemExit
 
-    console.print(f"You chose: [bold loom.accent]{options[selected]}[/bold loom.accent]")
+    # return edit operations w/ user decisions applied
+    return edit_operations
 
 
-# when run directly, execute the main loop
+# execute main loop when run directly
 if __name__ == "__main__":
     main_display_loop()
