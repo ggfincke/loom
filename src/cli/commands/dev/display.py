@@ -7,7 +7,7 @@ import typer
 
 from ....config.settings import get_settings
 from ....core.exceptions import handle_loom_error, DevModeError
-from ....ui.diff_resolution.display_diff import main_display_loop
+from ....ui.diff_resolution.diff_display import main_display_loop
 from ....ui.help.help_data import command_help
 from ...app import app
 

@@ -2,11 +2,23 @@ from rich.layout import Layout
 from rich.panel import Panel
 from rich.text import Text
 from rich.live import Live
+from rich.align import Align
+from rich.console import RenderableType
 from readchar import readkey, key
 from ...loom_io.console import console
 
 options = ["Staged changes", "Unstaged changes", "Untracked files", "Exit"]
 selected = 0
+
+MIN_W, MAX_W = 60, 120
+MIN_H, MAX_H = 25, 50
+
+def clamp(n, lo, hi): 
+    return max(lo, min(hi, n))
+
+# compute once
+FIXED_W = clamp(console.size.width  // 2, MIN_W, MAX_W)
+FIXED_H = clamp(console.size.height // 2, MIN_H, MAX_H)
 
 # pretend these are the right-side diffs for each option
 diffs_by_opt = {
@@ -23,7 +35,7 @@ diffs_by_opt = {
     "Exit": [Text("Press Enter to exit…", style="dim")],
 }
 
-def render_screen() -> Panel:
+def render_screen() -> RenderableType:
     layout = Layout()
     layout.split_row(Layout(name="menu", ratio=1), Layout(name="body", ratio=3))
 
@@ -43,9 +55,9 @@ def render_screen() -> Panel:
     layout["menu"].update(menu_panel)
     layout["body"].update(body_panel)
 
-    # Outer frame like your sketch
-    return Panel(layout, border_style="loom.accent")
-    
+    target_w = max(60, console.size.width // 2)
+    outer = Panel(layout, border_style="loom.accent", width=FIXED_W, height=FIXED_H)
+    return Align.left(outer,  vertical="top")
 
 # main display loop
 def main_display_loop():
