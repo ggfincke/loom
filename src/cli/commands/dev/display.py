@@ -1,13 +1,15 @@
 # src/cli/commands/dev/display.py
-# Display command for testing UI components & diff interfaces
+# Display command for testing UI components & diff interfaces w/ dev flag
 
 from __future__ import annotations
 
 import typer
 
-from ...app import app
-from ....core.exceptions import handle_loom_error, require_dev_mode
+from ....config.settings import get_settings
+from ....core.exceptions import handle_loom_error, DevModeError
+from ....ui.diff_resolution.display_diff import main_display_loop
 from ....ui.help.help_data import command_help
+from ...app import app
 
 
 # * Display UI components for testing (dev/testing only, not for production)
@@ -15,8 +17,8 @@ from ....ui.help.help_data import command_help
     name="display", 
     description="Display UI components for testing (dev/testing only)",
     long_description=(
-        "Shows various UI components for testing theming and interface design. "
-        "This command is intended for development and testing purposes only."
+        "Shows various UI components for testing theming & interface design. "
+        "This command is intended for development & testing purposes only."
     ),
     examples=[
         "loom display",
@@ -25,7 +27,6 @@ from ....ui.help.help_data import command_help
 )
 @app.command(help="Display UI components for testing (dev/testing only)")
 @handle_loom_error
-@require_dev_mode
 def display(
     ctx: typer.Context,
     help: bool = typer.Option(False, "--help", "-h", help="Show help message and exit."),
@@ -36,6 +37,12 @@ def display(
         show_command_help("display")
         ctx.exit()
     
-    # import & run the display diff interface
-    from ....ui.diff_resolution.display_diff import main_display_loop
+    # check if dev_mode is globally enabled
+    settings = get_settings(ctx)
+    if not settings.dev_mode:
+        raise DevModeError(
+            "Development mode required. Enable with: loom config set dev_mode true"
+        )
+    
+    # run the display diff interface
     main_display_loop()
