@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1-nightly.20250820] - 2025-08-20
+
+### Added
+- Initial UI support for **MODIFY** operation: rich text input interface with cursor navigation and editing.
+- Initial UI support for **PROMPT** operation: interactive prompt input interface for LLM instructions.
+- Expanded **EditOperation** dataclass with fields for `modified_content` and `prompt_instruction`.
+
+### Changed
+- Interactive diff display updated to support text input modes and dynamic content switching.
+- Keyboard navigation extended to handle editing behavior during MODIFY/PROMPT operations.
+- Operation workflow updated with new state handling logic.
+
+### Fixed
+- Issues around text input state management, cursor position and buffer handling.
+- Rendering/layout issues when switching between display modes.
+
+> Note: most of this release is UI implementation work; the operations are not fully wired up and remain non-functional.
+
+---
+
 ## [1.1.0] - 2025-08-19
 
 ### Added
