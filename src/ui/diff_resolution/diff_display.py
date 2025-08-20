@@ -1,6 +1,7 @@
 # src/ui/diff_resolution/diff_display.py
 # Interactive diff display interface w/ rich UI components for edit operation review
 
+from typing import Optional
 from rich.layout import Layout
 from rich.panel import Panel
 from rich.text import Text
@@ -19,19 +20,25 @@ selected = 0
 MIN_W, MAX_W = 60, 120
 MIN_H, MAX_H = 25, 25
 
-# clamp value between min & max bounds
+# * Clamp value between min & max bounds
 def clamp(n, lo, hi): 
     return max(lo, min(hi, n))
 
-# compute once
+# compute dimensions once
 FIXED_W = clamp(console.size.width  // 2, MIN_W, MAX_W)
 FIXED_H = clamp(console.size.height // 2, MIN_H, MAX_H)
 
-# global variables for current edit operation data
+# global state for current edit operation data
 current_edit_operation = None
 edit_operations = []
 current_operation_index = 0
 current_filename = "document.txt"
+
+# text input state management
+text_input_active = False
+text_input_mode = None  # "modify" or "prompt"
+text_input_buffer = ""
+text_input_cursor = 0
 
 # * Convert EditOperation to display format w/ styled text elements
 def create_operation_display(edit_op: EditOperation | None) -> list[Text]:
@@ -40,14 +47,14 @@ def create_operation_display(edit_op: EditOperation | None) -> list[Text]:
     
     lines = []
     
-    # operation header
+    # display operation header
     lines.append(Text(f"Operation: {edit_op.operation}", style="bold loom.accent"))
     lines.append(Text(f"Line: {edit_op.line_number}", style="loom.accent2"))
     if edit_op.confidence > 0:
         lines.append(Text(f"Confidence: {edit_op.confidence:.2f}", style="loom.accent2"))
     lines.append(Text(""))
     
-    # operation-specific display
+    # render operation-specific details
     if edit_op.operation == "replace_line":
         original = edit_op.original_content if edit_op.original_content else "[no content]"
         lines.append(Text(f"- Line {edit_op.line_number}: {original}", style="red"))
@@ -62,11 +69,50 @@ def create_operation_display(edit_op: EditOperation | None) -> list[Text]:
     elif edit_op.operation == "delete_range":
         lines.append(Text(f"- Delete lines {edit_op.start_line}-{edit_op.end_line}", style="red"))
     
-    # reasoning
+    # display reasoning if available
     if edit_op.reasoning:
         lines.append(Text(""))
         lines.append(Text("Reasoning:", style="bold"))
         lines.append(Text(edit_op.reasoning, style="dim"))
+    
+    return lines
+
+# * Create text input display for MODIFY or PROMPT modes
+def create_text_input_display(mode: str) -> list[Text]:
+    lines = []
+    
+    # render header based on mode
+    if mode == "modify":
+        lines.append(Text("✏️  MODIFY OPERATION", style="bold yellow"))
+        lines.append(Text("Edit the suggested content below:", style="dim"))
+    elif mode == "prompt":
+        lines.append(Text("💬 PROMPT LLM", style="bold cyan"))
+        lines.append(Text("Enter additional instructions for the LLM:", style="dim"))
+    
+    lines.append(Text(""))
+    
+    # display current operation context
+    if current_edit_operation:
+        lines.append(Text("Current content:", style="bold"))
+        lines.append(Text(current_edit_operation.content[:100] + "..." if len(current_edit_operation.content) > 100 else current_edit_operation.content, style="dim"))
+        lines.append(Text(""))
+    
+    # render input field visualization
+    lines.append(Text("Your input:", style="bold"))
+    
+    # create visual text input box
+    cursor_char = "│" if text_input_cursor == len(text_input_buffer) else "▌"
+    display_text = text_input_buffer[:text_input_cursor] + cursor_char
+    if text_input_cursor < len(text_input_buffer):
+        display_text += text_input_buffer[text_input_cursor:]
+    
+    input_box = Text("┌" + "─" * 50 + "┐", style="dim")
+    lines.append(input_box)
+    lines.append(Text("│ " + display_text.ljust(48) + " │", style="white"))
+    lines.append(Text("└" + "─" * 50 + "┘", style="dim"))
+    
+    lines.append(Text(""))
+    lines.append(Text("Press [Enter] to submit, [Esc] to cancel", style="dim italic"))
     
     return lines
 
@@ -78,7 +124,7 @@ def create_header_layout() -> RenderableType:
     left_text  = Text(f"Reviewing: {current_filename}", style="bold loom.accent")
     right_text = Text(f"Suggestion {current_num} of {total_ops}", style="loom.accent2")
 
-    # expand=True lets the grid fill the panel; left column eats the slack space
+    # expand=True lets grid fill panel; left column takes remaining space
     header_table = Table.grid(padding=0, expand=True)
     header_table.add_column(ratio=1, justify="left")
     header_table.add_column(no_wrap=True, justify="right")
@@ -96,8 +142,13 @@ def create_footer_layout() -> RenderableType:
     
     return Panel(Align.center(summary_text), border_style="dim", padding=(0, 1))
 
-# generate dynamic content for each menu option based on current edit operation
+# * Generate dynamic content for each menu option based on current edit operation
 def get_diffs_by_opt():
+    # If text input is active, show the input interface
+    if text_input_active and text_input_mode:
+        return {opt: create_text_input_display(text_input_mode) for opt in options}
+    
+    # Otherwise show normal operation display
     return {
         "Approve": create_operation_display(current_edit_operation),
         "Reject": create_operation_display(current_edit_operation), 
@@ -109,7 +160,7 @@ def get_diffs_by_opt():
 
 # * Render main screen layout w/ header, menu & diff display panels, and footer
 def render_screen() -> RenderableType:
-    # create main 3-row layout
+    # create main layout w/ 3 rows
     main_layout = Layout()
     main_layout.split_column(
         Layout(name="header", size=3),
@@ -117,11 +168,11 @@ def render_screen() -> RenderableType:
         Layout(name="footer", size=3)
     )
     
-    # create content area w/ menu & body
+    # create content area w/ menu & diff display
     content_layout = Layout()
     content_layout.split_row(Layout(name="menu", ratio=1), Layout(name="body", ratio=3))
 
-    # create left menu w/ highlighted selection
+    # create left menu w/ selection highlighting
     row_gap = 1
 
     grid = Table.grid(padding=0)
@@ -142,7 +193,7 @@ def render_screen() -> RenderableType:
         padding=(1, 2),
     )
 
-    # create right diff pane showing operation details
+    # create right diff pane w/ operation details
     current = options[selected]
     diffs_by_opt = get_diffs_by_opt()
     body_panel = Panel(Text("\n").join(diffs_by_opt[current]), title="Current Edit", border_style="loom.accent2")
@@ -150,7 +201,7 @@ def render_screen() -> RenderableType:
     content_layout["menu"].update(menu_panel)
     content_layout["body"].update(body_panel)
     
-    # update main layout sections
+    # update all layout sections
     main_layout["header"].update(create_header_layout())
     main_layout["content"].update(content_layout)
     main_layout["footer"].update(create_footer_layout())
@@ -161,8 +212,9 @@ def render_screen() -> RenderableType:
 # * Main interactive loop for diff review w/ keyboard navigation
 def main_display_loop(operations: list[EditOperation] | None = None, filename: str = "document.txt"):
     global selected, current_edit_operation, edit_operations, current_operation_index, current_filename
+    global text_input_active, text_input_mode, text_input_buffer, text_input_cursor
     
-    # initialize edit operations & set current operation
+    # initialize operations & set current state
     if operations:
         edit_operations = operations
         current_operation_index = 0
@@ -173,7 +225,60 @@ def main_display_loop(operations: list[EditOperation] | None = None, filename: s
         while True:
             k = readkey()
 
-            # filter out invalid keystrokes
+            # handle text input mode
+            if text_input_active:
+                if k == key.ESC:
+                    # cancel text input
+                    text_input_active = False
+                    text_input_mode = None
+                    text_input_buffer = ""
+                    text_input_cursor = 0
+                    live.update(render_screen())
+                    continue
+                elif k == key.ENTER:
+                    # submit text input
+                    if text_input_mode == "modify" and current_edit_operation:
+                        # store modified text for processing
+                        current_edit_operation.modified_content = text_input_buffer
+                        console.print(f"[green]Modified content saved: {text_input_buffer[:50]}...[/]")
+                    elif text_input_mode == "prompt" and current_edit_operation:
+                        # store prompt instruction for processing
+                        current_edit_operation.prompt_instruction = text_input_buffer
+                        console.print(f"[cyan]Prompt saved: {text_input_buffer[:50]}...[/]")
+                    
+                    # reset text input state
+                    text_input_active = False
+                    text_input_mode = None
+                    text_input_buffer = ""
+                    text_input_cursor = 0
+                    live.update(render_screen())
+                    continue
+                elif k == key.BACKSPACE:
+                    if text_input_cursor > 0:
+                        text_input_buffer = text_input_buffer[:text_input_cursor-1] + text_input_buffer[text_input_cursor:]
+                        text_input_cursor -= 1
+                        live.update(render_screen())
+                    continue
+                elif k == key.LEFT:
+                    if text_input_cursor > 0:
+                        text_input_cursor -= 1
+                        live.update(render_screen())
+                    continue
+                elif k == key.RIGHT:
+                    if text_input_cursor < len(text_input_buffer):
+                        text_input_cursor += 1
+                        live.update(render_screen())
+                    continue
+                elif len(k) == 1 and k.isprintable():
+                    # add character at cursor position
+                    text_input_buffer = text_input_buffer[:text_input_cursor] + k + text_input_buffer[text_input_cursor:]
+                    text_input_cursor += 1
+                    live.update(render_screen())
+                    continue
+                else:
+                    continue  # ignore other keys in text input mode
+
+            # filter invalid keystrokes
             if k not in VALID_KEYS:
                 continue
 
@@ -184,12 +289,12 @@ def main_display_loop(operations: list[EditOperation] | None = None, filename: s
                 selected = (selected + 1) % len(options)
                 live.update(render_screen())
             elif k == key.ENTER:
-                # process user selection & update operation status
+                # process user selection & update status
                 selected_option = options[selected]
                 if selected_option == "Exit":
                     break
                 elif current_edit_operation and selected_option in ["Approve", "Reject", "Skip", "Modify", "Prompt"]:
-                    # apply user decision to current operation
+                    # apply user decision to operation
                     if selected_option == "Approve":
                         current_edit_operation.status = DiffOp.APPROVE
                     elif selected_option == "Reject":
@@ -198,26 +303,36 @@ def main_display_loop(operations: list[EditOperation] | None = None, filename: s
                         current_edit_operation.status = DiffOp.SKIP
                     elif selected_option == "Modify":
                         current_edit_operation.status = DiffOp.MODIFY
-                        # todo: implement modify functionality
-                        console.print("[yellow]Modify operation selected - functionality coming soon![/]")
+                        # enter text input mode for modification
+                        text_input_active = True
+                        text_input_mode = "modify"
+                        # pre-fill w/ current content
+                        text_input_buffer = current_edit_operation.content
+                        text_input_cursor = len(text_input_buffer)
+                        live.update(render_screen())
                     elif selected_option == "Prompt":
                         current_edit_operation.status = DiffOp.PROMPT
-                        # todo: implement prompt functionality
-                        console.print("[yellow]Prompt operation selected - functionality coming soon![/]")
+                        # enter text input mode for prompt
+                        text_input_active = True
+                        text_input_mode = "prompt"
+                        # start w/ empty prompt
+                        text_input_buffer = ""
+                        text_input_cursor = 0
+                        live.update(render_screen())
                     
-                    # advance to next operation or exit if done
+                    # advance to next operation or exit when done
                     current_operation_index += 1
                     if current_operation_index < len(edit_operations):
                         current_edit_operation = edit_operations[current_operation_index]
                         live.update(render_screen())
                     else:
-                        break  # all operations processed
+                        break  # all operations complete
                 else:
                     break
             elif k in (key.ESC, key.CTRL_C):
                 raise SystemExit
 
-    # return edit operations w/ user decisions applied
+    # return operations w/ user decisions applied
     return edit_operations
 
 

@@ -10,14 +10,13 @@ from src.cli.commands.dev.display import display
 
 # * Test interactive diff workflow integration & end-to-end functionality
 
+# * Test complete workflow from command invocation to diff resolution
 class TestInteractiveDiffWorkflow:
-    """Test the complete workflow from command invocation to diff resolution"""
     
     @patch('src.cli.commands.dev.display.get_settings')
     @patch('src.cli.commands.dev.display.main_display_loop')
     # * Test complete flow from dev command to diff display
     def test_dev_command_to_diff_display_integration(self, mock_display_loop, mock_get_settings):
-        """Test complete flow from dev command to diff display"""
         # setup mocks
         mock_settings = Mock()
         mock_settings.dev_mode = True
@@ -39,9 +38,8 @@ class TestInteractiveDiffWorkflow:
         assert len(call_args) > 0
         assert isinstance(call_args[0], list)
     
-    # * Test EditOperation context preservation through workflow
+    # * Test operation context preservation through workflow
     def test_operation_context_preservation(self):
-        """Test that operation context is preserved through workflow"""
         op = EditOperation(
             operation="replace_range",
             line_number=5,
@@ -63,8 +61,8 @@ class TestInteractiveDiffWorkflow:
         assert op.confidence == 0.95
     
     # * Test EditOperation status modification & transitions
+    # * Test EditOperation status modification & transitions
     def test_edit_operation_status_changes(self):
-        """Test that EditOperation status can be modified correctly"""
         op = EditOperation(operation="replace_line", line_number=1, content="Test")
         
         # verify default status
@@ -82,8 +80,8 @@ class TestInteractiveDiffWorkflow:
     
     @patch('src.cli.commands.dev.display.get_settings')
     # * Test dev mode requirement enforcement in workflow
+    # * Test dev mode requirement enforcement in workflow
     def test_dev_mode_requirement_integration(self, mock_get_settings):
-        """Test that dev mode is properly required for display command"""
         mock_settings = Mock()
         mock_settings.dev_mode = False
         mock_get_settings.return_value = mock_settings
@@ -99,8 +97,8 @@ class TestInteractiveDiffWorkflow:
     @patch('src.cli.commands.dev.display.get_settings')
     @patch('src.cli.commands.dev.display.main_display_loop')
     # * Test sample operations creation & integration w/ display
+    # * Test sample operations creation & integration w/ display
     def test_sample_operations_integration(self, mock_display_loop, mock_get_settings):
-        """Test that sample operations are properly created and passed"""
         mock_settings = Mock()
         mock_settings.dev_mode = True
         mock_get_settings.return_value = mock_settings
@@ -130,31 +128,31 @@ class TestInteractiveDiffWorkflow:
             assert hasattr(op, 'status')
     
     # * Test DiffOp enum integration w/ EditOperation workflow
+    # * Test DiffOp enum integration w/ EditOperation workflow
     def test_diff_op_enum_integration(self):
-        """Test DiffOp enum integration with EditOperation"""
         op = EditOperation(operation="replace_line", line_number=1)
         
-        # test all enum values work with EditOperation
+        # test all enum values work w/ EditOperation
         for diff_op in DiffOp:
             op.status = diff_op
             assert op.status == diff_op
-            assert op.status.value in ["approve", "reject", "skip"]
+            assert op.status.value in ["approve", "reject", "skip", "modify", "prompt"]
     
     @patch('src.ui.diff_resolution.diff_display.console')
     # * Test console integration & proper import handling
+    # * Test console integration & proper import handling
     def test_console_integration(self, mock_console):
-        """Test that console is properly integrated"""
         from src.ui.diff_resolution.diff_display import render_screen
         
-        # should use the console from loom_io
+        # should use console from loom_io
         render_screen()
         
         # verify console is accessible (imported correctly)
         assert mock_console is not None
     
     # * Test EditOperation field validation & default behavior
+    # * Test EditOperation field validation & default behavior
     def test_edit_operation_field_validation(self):
-        """Test EditOperation field validation and defaults"""
         # test minimal creation
         op1 = EditOperation(operation="replace_line", line_number=1)
         assert op1.operation == "replace_line"

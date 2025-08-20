@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1-nightly.20250820] - 2025-08-20
+
+### Added
+- **MODIFY operation support**: Interactive text input functionality allowing users to modify suggested content during diff review with full cursor navigation and text editing capabilities.
+- **PROMPT operation support**: Interactive prompt interface for users to provide additional instructions to the LLM during diff workflow.
+- **Text input interface**: Rich-based text editing interface with visual cursor, input validation, and proper escape/submit handling.
+- **Enhanced EditOperation dataclass**: New fields for `modified_content` and `prompt_instruction` to support user modifications and LLM prompting.
+
+### Changed
+- **Interactive diff display**: Enhanced UI to support text input modes with dynamic content switching between operation display and text input interface.
+- **Keyboard navigation**: Extended input handling to support text editing operations alongside existing navigation controls.
+- **Operation workflow**: Improved status handling for MODIFY and PROMPT operations with proper state management.
+
+### Fixed
+- **Text input state management**: Proper handling of cursor position, buffer management, and mode transitions.
+- **Display rendering**: Correct layout updates when switching between display modes during interactive sessions.
+
+---
+
 ## [1.1.0] - 2025-08-19
 
 ### Added
