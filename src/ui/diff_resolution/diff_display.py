@@ -13,7 +13,7 @@ from readchar import readkey, key
 from ...loom_io.console import console
 from ...core.constants import DiffOp, EditOperation
 
-options = [DiffOp.APPROVE.value.capitalize(), DiffOp.REJECT.value.capitalize(), DiffOp.SKIP.value.capitalize(), "Exit"]
+options = [DiffOp.APPROVE.value.capitalize(), DiffOp.REJECT.value.capitalize(), DiffOp.SKIP.value.capitalize(), DiffOp.MODIFY.value.capitalize(), DiffOp.PROMPT.value.capitalize(), "Exit"]
 selected = 0
 
 MIN_W, MAX_W = 60, 120
@@ -102,6 +102,8 @@ def get_diffs_by_opt():
         "Approve": create_operation_display(current_edit_operation),
         "Reject": create_operation_display(current_edit_operation), 
         "Skip": create_operation_display(current_edit_operation),
+        "Modify": create_operation_display(current_edit_operation),
+        "Prompt": create_operation_display(current_edit_operation),
         "Exit": create_operation_display(current_edit_operation),
     }
 
@@ -186,7 +188,7 @@ def main_display_loop(operations: list[EditOperation] | None = None, filename: s
                 selected_option = options[selected]
                 if selected_option == "Exit":
                     break
-                elif current_edit_operation and selected_option in ["Approve", "Reject", "Skip"]:
+                elif current_edit_operation and selected_option in ["Approve", "Reject", "Skip", "Modify", "Prompt"]:
                     # apply user decision to current operation
                     if selected_option == "Approve":
                         current_edit_operation.status = DiffOp.APPROVE
@@ -194,6 +196,14 @@ def main_display_loop(operations: list[EditOperation] | None = None, filename: s
                         current_edit_operation.status = DiffOp.REJECT
                     elif selected_option == "Skip":
                         current_edit_operation.status = DiffOp.SKIP
+                    elif selected_option == "Modify":
+                        current_edit_operation.status = DiffOp.MODIFY
+                        # todo: implement modify functionality
+                        console.print("[yellow]Modify operation selected - functionality coming soon![/]")
+                    elif selected_option == "Prompt":
+                        current_edit_operation.status = DiffOp.PROMPT
+                        # todo: implement prompt functionality
+                        console.print("[yellow]Prompt operation selected - functionality coming soon![/]")
                     
                     # advance to next operation or exit if done
                     current_operation_index += 1

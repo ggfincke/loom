@@ -25,9 +25,8 @@ class DiffOp(Enum):
     APPROVE = "approve"
     REJECT = "reject"
     SKIP = "skip"
-    # todo add modify & prompt operations
-    # MODIFY = "modify"
-    # PROMPT = "prompt"
+    MODIFY = "modify"
+    PROMPT = "prompt"
 
 # * Edit operation data structure for diff review workflow
 @dataclass
