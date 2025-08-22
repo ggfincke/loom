@@ -15,6 +15,8 @@ from ..core.pipeline import (
     generate_edits,
     generate_corrected_edits,
     apply_edits,
+    process_modify_operation,
+    process_prompt_operation,
 )
 from ..core.validation import validate_edits
 from ..core.exceptions import EditError, JSONParsingError
@@ -243,13 +245,49 @@ def convert_dict_edits_to_operations(edits: dict, resume_lines: Lines) -> list[E
     return operations
 
 
+# * Process MODIFY and PROMPT operations, requiring additional context
+def process_special_operations(
+    operations: list[EditOperation],
+    resume_lines: Lines,
+    job_text: str | None = None,
+    sections_json: str | None = None,
+    model: str | None = None,
+) -> list[EditOperation]:
+    from ..core.exceptions import AIError
+    from ..loom_io.console import console
+    
+    for operation in operations:
+        try:
+            if operation.status == DiffOp.MODIFY:
+                if operation.modified_content is not None:
+                    process_modify_operation(operation)
+                else:
+                    console.print(f"[yellow]Warning: MODIFY operation at line {operation.line_number} has no modified_content - skipping[/]")
+                    
+            elif operation.status == DiffOp.PROMPT:
+                if operation.prompt_instruction is not None:
+                    if job_text is None or model is None:
+                        console.print(f"[red]Error: PROMPT operation at line {operation.line_number} requires job text and model - skipping[/]")
+                        continue
+                    process_prompt_operation(operation, resume_lines, job_text, sections_json, model)
+                else:
+                    console.print(f"[yellow]Warning: PROMPT operation at line {operation.line_number} has no prompt_instruction - skipping[/]")
+                    
+        except (EditError, AIError) as e:
+            console.print(f"[red]Error processing {operation.status.value} operation at line {operation.line_number}: {e}[/]")
+            # keep operation as-is but don't process it
+            continue
+    
+    return operations
+
+
 # * Convert approved EditOperation objects back to dict format for application
 def convert_operations_to_dict_edits(operations: list[EditOperation], original_edits: dict) -> dict:
     approved_ops = []
     
     for op in operations:
         if op.status != DiffOp.APPROVE:
-            continue  # only include approved operations
+            continue
             
         # convert back to dict format
         if op.operation == "replace_line":
@@ -305,6 +343,9 @@ def apply_edits_core(
     policy: ValidationPolicy,
     ui,
     interactive: bool = False,
+    job_text: str | None = None,
+    sections_json: str | None = None,
+    model: str | None = None,
 ) -> Lines:
     # use mutable container for reload support
     current = [edits]
@@ -333,6 +374,10 @@ def apply_edits_core(
             # no operations to review - proceed w/ empty edits
             current[0] = {"version": current[0].get("version", 1), "meta": current[0].get("meta", {}), "ops": []}
         else:
+            # process MODIFY and PROMPT operations before interactive review
+            if job_text is not None or any(op.status in (DiffOp.MODIFY, DiffOp.PROMPT) for op in operations):
+                operations = process_special_operations(operations, resume_lines, job_text, sections_json, model)
+            
             # run interactive diff display for user review
             filename = "resume.docx"  # default filename for display
             reviewed_operations = main_display_loop(operations, filename)
