@@ -182,7 +182,10 @@ def tailor(
 
             # apply edits using core helper
             progress.update(task, description="Applying edits...")
-            new_lines = apply_edits_core(settings, lines, edits_obj, risk_enum, on_error_policy, ui, interactive_mode)
+            new_lines = apply_edits_core(
+                settings, lines, edits_obj, risk_enum, on_error_policy, ui, interactive_mode,
+                persist_special_ops=interactive_mode, edits_json_path=edits_json
+            )
             progress.advance(task)
 
             # write output w/ diff generation
@@ -279,7 +282,9 @@ def tailor(
                 from ...core.exceptions import EditError
                 raise EditError("Failed to generate valid edits")
             new_lines = apply_edits_core(
-                settings, lines, edits, risk_enum, on_error_policy, ui, interactive_mode
+                settings, lines, edits, risk_enum, on_error_policy, ui, interactive_mode,
+                job_text=job_text, sections_json=sections_json_str, model=model,
+                persist_special_ops=interactive_mode, edits_json_path=edits_json
             )
             progress.advance(task)
 

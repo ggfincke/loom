@@ -346,6 +346,8 @@ def apply_edits_core(
     job_text: str | None = None,
     sections_json: str | None = None,
     model: str | None = None,
+    persist_special_ops: bool = False,
+    edits_json_path: Path | None = None,
 ) -> Lines:
     # use mutable container for reload support
     current = [edits]
@@ -375,8 +377,10 @@ def apply_edits_core(
             current[0] = {"version": current[0].get("version", 1), "meta": current[0].get("meta", {}), "ops": []}
         else:
             # process MODIFY and PROMPT operations before interactive review
+            special_ops_processed = False
             if job_text is not None or any(op.status in (DiffOp.MODIFY, DiffOp.PROMPT) for op in operations):
                 operations = process_special_operations(operations, resume_lines, job_text, sections_json, model)
+                special_ops_processed = True
             
             # run interactive diff display for user review
             filename = "resume.docx"  # default filename for display
@@ -384,6 +388,48 @@ def apply_edits_core(
             
             # convert approved operations back to dict format
             current[0] = convert_operations_to_dict_edits(reviewed_operations, current[0])
+            
+            # persist special operations back to edits.json if requested
+            if persist_special_ops and special_ops_processed and edits_json_path is not None:
+                
+                # create updated edits dict w/ all operations (not just approved)
+                all_operations_dict = convert_operations_to_dict_edits(reviewed_operations, edits)
+                # add rejected/skipped operations back for completeness
+                rejected_ops = []
+                for op in reviewed_operations:
+                    if op.status in (DiffOp.REJECT, DiffOp.SKIP):
+                        # convert back to dict format & mark as rejected/skipped
+                        if op.operation == "replace_line":
+                            dict_op = {"op": "replace_line", "line": op.line_number, "text": op.content}
+                        elif op.operation == "replace_range":
+                            dict_op = {"op": "replace_range", "start": op.start_line, "end": op.end_line, "text": op.content}
+                        elif op.operation == "insert_after":
+                            dict_op = {"op": "insert_after", "line": op.line_number, "text": op.content}
+                        elif op.operation == "delete_range":
+                            dict_op = {"op": "delete_range", "start": op.start_line, "end": op.end_line}
+                        else:
+                            continue
+                        
+                        # preserve metadata
+                        if hasattr(op, 'reasoning') and op.reasoning:
+                            dict_op["reason"] = op.reasoning
+                        if hasattr(op, 'confidence') and op.confidence:
+                            dict_op["confidence"] = op.confidence
+                        dict_op["_status"] = op.status.value  # track user decision
+                        
+                        rejected_ops.append(dict_op)
+                
+                # combine approved & rejected operations for complete persistence
+                complete_edits = {
+                    "version": edits.get("version", 1),
+                    "meta": edits.get("meta", {}),
+                    "ops": all_operations_dict["ops"] + rejected_ops
+                }
+                
+                # write updated edits back to file
+                ensure_parent(edits_json_path)
+                edits_json_path.write_text(json.dumps(complete_edits, indent=2), encoding="utf-8")
+                ui.print(f"[green]Updated edits saved to {edits_json_path}[/]")
     
     # execute edit application w/ approved operations only
     return apply_edits(resume_lines, current[0])
