@@ -91,7 +91,10 @@ def apply(
 
         # apply edits using core helper
         progress.update(task, description="Applying edits...")
-        new_lines = apply_edits_core(settings, lines, edits_obj, risk, on_error, ui, interactive_mode)
+        new_lines = apply_edits_core(
+            settings, lines, edits_obj, risk, on_error, ui, interactive_mode,
+            persist_special_ops=interactive_mode, edits_json_path=edits_json
+        )
         progress.advance(task)
 
         # write output w/ diff generation

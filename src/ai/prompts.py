@@ -177,4 +177,50 @@ def build_edit_prompt(job_info: str,
         f"{edits_json}\n"
     )
 
+# build prompt operation prompt for user-driven content generation
+def build_prompt_operation_prompt(user_instruction: str,
+                                operation_type: str,
+                                operation_context: str,
+                                job_text: str,
+                                resume_with_line_numbers: str,
+                                model: str,
+                                created_at: str,
+                                sections_json: str | None = None) -> str:
+    return (
+        "You are helping tailor a resume to match a job description. A user has requested "
+        "a specific modification to an edit operation through a custom instruction.\n\n"
+        
+        "Your task is to generate the exact text content that should be used for this operation "
+        "based on the user's instruction. The content should align with the job requirements "
+        "while following the user's specific guidance.\n\n"
+        
+        "Operation Details:\n"
+        f"- Operation type: {operation_type}\n"
+        f"- Context: {operation_context}\n\n"
+        
+        f"User Instruction: {user_instruction}\n\n"
+        
+        "Guidelines:\n"
+        "- Generate content that directly fulfills the user's instruction\n"
+        "- Maintain professional resume language and formatting\n"
+        "- Align with job requirements where possible\n"
+        "- Keep content truthful and grounded in existing resume context\n"
+        "- Return ONLY the text content - no JSON, no additional formatting\n"
+        "- For multi-line content, use proper line breaks (\\n)\n"
+        "- Do not include explanations or meta-commentary\n\n"
+        
+        "Job Description:\n"
+        f"{job_text}\n\n"
+        
+        + (f"Resume Sections Context:\n{sections_json}\n\n" if sections_json else "") +
+        
+        "Full Resume (numbered lines for reference):\n"
+        f"{resume_with_line_numbers}\n\n"
+        
+        f"Generated on: {created_at}\n"
+        f"Model: {model}\n\n"
+        
+        "Generate the exact text content for this operation:"
+    )
+
 

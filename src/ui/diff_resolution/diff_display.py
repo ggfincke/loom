@@ -79,41 +79,47 @@ def create_operation_display(edit_op: EditOperation | None) -> list[Text]:
 
 # * Create text input display for MODIFY or PROMPT modes
 def create_text_input_display(mode: str) -> list[Text]:
-    lines = []
-    
-    # render header based on mode
+    lines: list[Text] = []
+
+    # header
     if mode == "modify":
         lines.append(Text("✏️  MODIFY OPERATION", style="bold yellow"))
         lines.append(Text("Edit the suggested content below:", style="dim"))
     elif mode == "prompt":
         lines.append(Text("💬 PROMPT LLM", style="bold cyan"))
         lines.append(Text("Enter additional instructions for the LLM:", style="dim"))
-    
+
     lines.append(Text(""))
-    
-    # display current operation context
+
+    # current op context (unchanged)
     if current_edit_operation:
         lines.append(Text("Current content:", style="bold"))
-        lines.append(Text(current_edit_operation.content[:100] + "..." if len(current_edit_operation.content) > 100 else current_edit_operation.content, style="dim"))
+        preview = (current_edit_operation.content[:100] + "…"
+                   if len(current_edit_operation.content) > 100
+                   else current_edit_operation.content)
+        lines.append(Text(preview, style="dim"))
         lines.append(Text(""))
-    
-    # render input field visualization
+
+    # prompt label
     lines.append(Text("Your input:", style="bold"))
-    
-    # create visual text input box
+
+    # terminal-like single line input (no panel/box)
     cursor_char = "│" if text_input_cursor == len(text_input_buffer) else "▌"
-    display_text = text_input_buffer[:text_input_cursor] + cursor_char
-    if text_input_cursor < len(text_input_buffer):
-        display_text += text_input_buffer[text_input_cursor:]
-    
-    input_box = Text("┌" + "─" * 50 + "┐", style="dim")
-    lines.append(input_box)
-    lines.append(Text("│ " + display_text.ljust(48) + " │", style="white"))
-    lines.append(Text("└" + "─" * 50 + "┘", style="dim"))
-    
+    display_text = (
+        text_input_buffer[:text_input_cursor] +
+        cursor_char +
+        text_input_buffer[text_input_cursor:]
+    )
+
+    # best-effort trimming to visible frame width
+    frame_w = max(20, FIXED_W - 6)
+    if len(display_text) > frame_w - 2:
+        display_text = "…" + display_text[-(frame_w - 3):]
+
+    lines.append(Text("> " + display_text))
+
     lines.append(Text(""))
     lines.append(Text("Press [Enter] to submit, [Esc] to cancel", style="dim italic"))
-    
     return lines
 
 # * Create header layout w/ filename & progress info

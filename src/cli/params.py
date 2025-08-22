@@ -187,3 +187,13 @@ def AutoOpt():
         "--auto",
         help="Apply all edits automatically without interactive review",
     )
+
+
+def OutputEditsOpt():
+    return typer.Option(
+        None,
+        "--output-edits",
+        "-o",
+        help="Path to write processed edits.json; defaults to input edits_json",
+        resolve_path=True,
+    )

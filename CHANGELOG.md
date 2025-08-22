@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.2-nightly.20250822] - 2025-08-22
+
+### Added
+- **MODIFY & PROMPT CLI commands**: New specialized operation processing commands for enhanced user interaction.
+- **Enhanced special operations persistence**: Improved data handling and state management for MODIFY/PROMPT operations.
+
+### Changed
+- **Text input display improvements**: Enhanced diff resolution UI with better text input rendering and formatting.
+- **Error handling enhancements**: Improved error handling for special operations with better user feedback.
+
+### Fixed
+- **Special operations workflow**: Resolved issues with MODIFY & PROMPT operation processing and state persistence.
+
+> Note: MODIFY & PROMPT operations are still in development and not fully functional. Significant work remains to complete the implementation.
+
+---
+
 ## [1.1.1-nightly.20250820] - 2025-08-20
 
 ### Added

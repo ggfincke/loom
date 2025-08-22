@@ -3,14 +3,13 @@
 
 from typing import List
 import difflib
-import json
 from datetime import datetime, timezone
 from .exceptions import AIError, EditError, JSONParsingError
-from .constants import RiskLevel
-from ..ai.prompts import build_generate_prompt, build_edit_prompt
+from ..ai.prompts import build_generate_prompt, build_edit_prompt, build_prompt_operation_prompt
 from ..ai.clients import run_generate
 
 from ..loom_io.types import Lines
+from .constants import EditOperation
 
 # ! Import debug functions only when needed to avoid circular imports
 def _debug_ai(message: str):
@@ -119,6 +118,82 @@ def generate_corrected_edits(current_edits_json: str, resume_lines: Lines, job_t
     
     _debug_ai(f"Edit correction completed successfully - {len(edits.get('ops', []))} operations generated")
     return edits
+
+# * Process MODIFY operation w/ user-modified content
+def process_modify_operation(edit_op: EditOperation) -> EditOperation:
+    _debug_ai(f"Processing MODIFY operation for {edit_op.operation} at line {edit_op.line_number}")
+    
+    if edit_op.modified_content is None:
+        raise EditError("MODIFY operation requires modified_content to be set")
+    
+    # update operation content with user's modifications
+    edit_op.content = edit_op.modified_content
+    _debug_ai(f"MODIFY operation processed - content updated with {len(edit_op.content)} characters")
+    
+    return edit_op
+
+# * Process PROMPT operation w/ user instruction & AI generation
+def process_prompt_operation(edit_op: EditOperation, resume_lines: Lines, job_text: str, sections_json: str | None, model: str) -> EditOperation:
+    _debug_ai(f"Processing PROMPT operation for {edit_op.operation} at line {edit_op.line_number} with model {model}")
+    
+    if edit_op.prompt_instruction is None:
+        raise EditError("PROMPT operation requires prompt_instruction to be set")
+    
+    # build operation context for the prompt
+    context_lines = []
+    
+    # add operation context
+    if edit_op.operation == "replace_line":
+        context_lines.append(f"Original line {edit_op.line_number}: {edit_op.original_content}")
+    elif edit_op.operation == "replace_range":
+        context_lines.append(f"Original lines {edit_op.start_line}-{edit_op.end_line}: {edit_op.original_content}")
+    elif edit_op.operation == "insert_after":
+        context_lines.append(f"Inserting after line {edit_op.line_number}")
+    elif edit_op.operation == "delete_range":
+        context_lines.append(f"Deleting lines {edit_op.start_line}-{edit_op.end_line}: {edit_op.original_content}")
+    
+    # add surrounding context
+    if edit_op.before_context:
+        context_lines.append(f"Context before: {' | '.join(edit_op.before_context)}")
+    if edit_op.after_context:
+        context_lines.append(f"Context after: {' | '.join(edit_op.after_context)}")
+    
+    operation_context = "\n".join(context_lines)
+    
+    # build AI prompt using dedicated template
+    created_at = datetime.now(timezone.utc).isoformat()
+    prompt = build_prompt_operation_prompt(
+        user_instruction=edit_op.prompt_instruction,
+        operation_type=edit_op.operation,
+        operation_context=operation_context,
+        job_text=job_text,
+        resume_with_line_numbers=number_lines(resume_lines),
+        model=model,
+        created_at=created_at,
+        sections_json=sections_json
+    )
+    
+    _debug_ai(f"Generated PROMPT operation prompt: {len(prompt)} characters")
+    
+    # call AI to generate new content
+    result = run_generate(prompt, model)
+    
+    if not result.success:
+        _debug_error(Exception(result.error), f"AI generation failed for PROMPT operation with model {model}")
+        raise AIError(f"AI failed to process PROMPT operation: {result.error}")
+    
+    # extract text content from AI response
+    if hasattr(result, 'raw_text') and result.raw_text:
+        new_content = result.raw_text.strip()
+    else:
+        new_content = str(result.data).strip() if result.data else ""
+    
+    _debug_ai(f"PROMPT operation AI generation successful - received {len(new_content)} characters")
+    
+    # update operation content with AI-generated text
+    edit_op.content = new_content
+    
+    return edit_op
 
 # * Apply edits to resume lines & return new lines dict
 def apply_edits(resume_lines: Lines, edits: dict) -> Lines:
