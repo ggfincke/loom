@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.3-nightly.20250823] - 2025-08-23
+
+### Added
+- **LaTeX section detection**: Enhanced sectionizer prompt with improved LaTeX document parsing capabilities.
+
+### Changed
+- **Prompt operation processing**: Immediate AI integration with enhanced UI for prompt operations workflow.
+- **Configuration path consistency**: Default sections_path moved from output_dir to data_dir for better organization.
+
+---
+
 ## [1.1.2-nightly.20250822] - 2025-08-22
 
 ### Added

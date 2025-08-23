@@ -1,7 +1,6 @@
 # src/ui/diff_resolution/diff_display.py
 # Interactive diff display interface w/ rich UI components for edit operation review
 
-from typing import Optional
 from rich.layout import Layout
 from rich.panel import Panel
 from rich.text import Text
@@ -12,7 +11,10 @@ from rich.table import Table
 from rich.padding import Padding
 from readchar import readkey, key
 from ...loom_io.console import console
+from ...loom_io.types import Lines
 from ...core.constants import DiffOp, EditOperation
+from ...core.pipeline import process_prompt_operation
+from ...core.exceptions import AIError, EditError
 
 options = [DiffOp.APPROVE.value.capitalize(), DiffOp.REJECT.value.capitalize(), DiffOp.SKIP.value.capitalize(), DiffOp.MODIFY.value.capitalize(), DiffOp.PROMPT.value.capitalize(), "Exit"]
 selected = 0
@@ -39,6 +41,11 @@ text_input_active = False
 text_input_mode = None  # "modify" or "prompt"
 text_input_buffer = ""
 text_input_cursor = 0
+
+# prompt processing state management  
+prompt_processing = False
+prompt_error = None
+prompt_processing_contexts = None  # store contexts needed for AI processing
 
 # * Convert EditOperation to display format w/ styled text elements
 def create_operation_display(edit_op: EditOperation | None) -> list[Text]:
@@ -122,6 +129,41 @@ def create_text_input_display(mode: str) -> list[Text]:
     lines.append(Text("Press [Enter] to submit, [Esc] to cancel", style="dim italic"))
     return lines
 
+# * Create loading display for prompt processing
+def create_prompt_loading_display() -> list[Text]:
+    lines: list[Text] = []
+    
+    # header
+    lines.append(Text("🤖 PROCESSING PROMPT", style="bold cyan"))
+    lines.append(Text("The AI is regenerating the edit based on your instructions...", style="dim"))
+    lines.append(Text(""))
+    
+    # show current operation context
+    if current_edit_operation:
+        lines.append(Text("Processing operation:", style="bold"))
+        lines.append(Text(f"  {current_edit_operation.operation} at line {current_edit_operation.line_number}", style="loom.accent2"))
+        if current_edit_operation.prompt_instruction:
+            instruction_preview = (current_edit_operation.prompt_instruction[:80] + "…"
+                                 if len(current_edit_operation.prompt_instruction) > 80
+                                 else current_edit_operation.prompt_instruction)
+            lines.append(Text(f"  Instruction: {instruction_preview}", style="dim"))
+        lines.append(Text(""))
+    
+    # loading indicator
+    lines.append(Text("⠋ Processing...", style="cyan"))
+    lines.append(Text(""))
+    lines.append(Text("Please wait while the AI generates a new suggestion.", style="dim italic"))
+    
+    # error display if present
+    if prompt_error:
+        lines.append(Text(""))
+        lines.append(Text("❌ Error occurred:", style="bold red"))
+        lines.append(Text(str(prompt_error), style="red"))
+        lines.append(Text(""))
+        lines.append(Text("Press [Enter] to continue with original edit", style="dim italic"))
+    
+    return lines
+
 # * Create header layout w/ filename & progress info
 def create_header_layout() -> RenderableType:
     total_ops = len(edit_operations)
@@ -150,6 +192,10 @@ def create_footer_layout() -> RenderableType:
 
 # * Generate dynamic content for each menu option based on current edit operation
 def get_diffs_by_opt():
+    # If prompt is being processed, show loading interface
+    if prompt_processing:
+        return {opt: create_prompt_loading_display() for opt in options}
+    
     # If text input is active, show the input interface
     if text_input_active and text_input_mode:
         return {opt: create_text_input_display(text_input_mode) for opt in options}
@@ -215,10 +261,40 @@ def render_screen() -> RenderableType:
     outer = Panel(main_layout, border_style="loom.accent", width=FIXED_W, height=FIXED_H)
     return Align.left(outer, vertical="top")
 
+# * Process prompt instruction immediately using AI & update operation content
+def process_prompt_immediately(operation: EditOperation, resume_lines: Lines, job_text: str, sections_json: str | None, model: str) -> bool:
+    global prompt_error
+    prompt_error = None
+    
+    try:
+        # call the core prompt processing function
+        updated_operation = process_prompt_operation(operation, resume_lines, job_text, sections_json, model)
+        
+        # update the current operation with new content
+        operation.content = updated_operation.content
+        operation.reasoning = updated_operation.reasoning
+        operation.confidence = updated_operation.confidence
+        
+        # clear prompt instruction since it's been processed
+        operation.prompt_instruction = None
+        # status remains unchanged so user can decide on new content
+        
+        return True
+        
+    except (AIError, EditError) as e:
+        prompt_error = str(e)
+        return False
+    except Exception as e:
+        prompt_error = f"Unexpected error: {str(e)}"
+        return False
+
 # * Main interactive loop for diff review w/ keyboard navigation
-def main_display_loop(operations: list[EditOperation] | None = None, filename: str = "document.txt"):
+def main_display_loop(operations: list[EditOperation] | None = None, filename: str = "document.txt", 
+                     resume_lines: Lines | None = None, job_text: str | None = None, 
+                     sections_json: str | None = None, model: str | None = None):
     global selected, current_edit_operation, edit_operations, current_operation_index, current_filename
     global text_input_active, text_input_mode, text_input_buffer, text_input_cursor
+    global prompt_processing, prompt_error, prompt_processing_contexts
     
     # initialize operations & set current state
     if operations:
@@ -226,6 +302,14 @@ def main_display_loop(operations: list[EditOperation] | None = None, filename: s
         current_operation_index = 0
         current_edit_operation = edit_operations[0] if edit_operations else None
         current_filename = filename
+    
+    # store AI processing contexts for prompt operations
+    prompt_processing_contexts = {
+        "resume_lines": resume_lines,
+        "job_text": job_text,
+        "sections_json": sections_json,
+        "model": model,
+    }
     with Live(render_screen(), console=console, screen=True, refresh_per_second=30) as live:
         VALID_KEYS = {key.UP, key.DOWN, "k", "j", key.ENTER, key.ESC, key.CTRL_C}
         while True:
@@ -248,9 +332,52 @@ def main_display_loop(operations: list[EditOperation] | None = None, filename: s
                         current_edit_operation.modified_content = text_input_buffer
                         console.print(f"[green]Modified content saved: {text_input_buffer[:50]}...[/]")
                     elif text_input_mode == "prompt" and current_edit_operation:
-                        # store prompt instruction for processing
+                        # store prompt instruction & trigger immediate AI processing
                         current_edit_operation.prompt_instruction = text_input_buffer
-                        console.print(f"[cyan]Prompt saved: {text_input_buffer[:50]}...[/]")
+                        
+                        # switch to prompt processing mode
+                        prompt_processing = True
+                        prompt_error = None
+                        
+                        # reset text input state first
+                        text_input_active = False
+                        text_input_mode = None
+                        text_input_buffer = ""
+                        text_input_cursor = 0
+                        
+                        # update screen w/ loading state
+                        live.update(render_screen())
+                        
+                        # check required contexts for AI processing
+                        if (prompt_processing_contexts and 
+                            prompt_processing_contexts["resume_lines"] is not None and
+                            prompt_processing_contexts["job_text"] is not None and
+                            prompt_processing_contexts["model"] is not None):
+                            
+                            # process the prompt immediately
+                            success = process_prompt_immediately(
+                                current_edit_operation,
+                                prompt_processing_contexts["resume_lines"],
+                                prompt_processing_contexts["job_text"],
+                                prompt_processing_contexts["sections_json"],
+                                prompt_processing_contexts["model"]
+                            )
+                            
+                            # processing complete - exit loading state
+                            prompt_processing = False
+                            live.update(render_screen())
+                            
+                            if success:
+                                console.print("[green]✓ AI regenerated the edit based on your prompt[/]")
+                            else:
+                                console.print(f"[red]✗ Error processing prompt: {prompt_error}[/]")
+                        else:
+                            # missing required contexts for AI processing
+                            prompt_error = "Missing required context for AI processing (resume, job, or model)"
+                            prompt_processing = False
+                            live.update(render_screen())
+                        
+                        continue
                     
                     # reset text input state
                     text_input_active = False
@@ -283,6 +410,20 @@ def main_display_loop(operations: list[EditOperation] | None = None, filename: s
                     continue
                 else:
                     continue  # ignore other keys in text input mode
+
+            # handle prompt processing mode
+            if prompt_processing:
+                if k == key.ENTER and prompt_error:
+                    # user acknowledged error, continue w/ original edit
+                    prompt_processing = False
+                    prompt_error = None
+                    live.update(render_screen())
+                elif k in (key.ESC, key.CTRL_C):
+                    # cancel prompt processing
+                    prompt_processing = False
+                    prompt_error = None
+                    live.update(render_screen())
+                continue  # ignore other keys during processing
 
             # filter invalid keystrokes
             if k not in VALID_KEYS:
@@ -317,14 +458,14 @@ def main_display_loop(operations: list[EditOperation] | None = None, filename: s
                         text_input_cursor = len(text_input_buffer)
                         live.update(render_screen())
                     elif selected_option == "Prompt":
-                        current_edit_operation.status = DiffOp.PROMPT
-                        # enter text input mode for prompt
+                        # enter text input mode for prompt (don't set status yet)
                         text_input_active = True
                         text_input_mode = "prompt"
                         # start w/ empty prompt
                         text_input_buffer = ""
                         text_input_cursor = 0
                         live.update(render_screen())
+                        continue  # don't advance to next operation yet
                     
                     # advance to next operation or exit when done
                     current_operation_index += 1
@@ -338,7 +479,7 @@ def main_display_loop(operations: list[EditOperation] | None = None, filename: s
             elif k in (key.ESC, key.CTRL_C):
                 raise SystemExit
 
-    # return operations w/ user decisions applied
+    # return operations w/ user decisions
     return edit_operations
 
 

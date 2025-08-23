@@ -384,7 +384,14 @@ def apply_edits_core(
             
             # run interactive diff display for user review
             filename = "resume.docx"  # default filename for display
-            reviewed_operations = main_display_loop(operations, filename)
+            reviewed_operations = main_display_loop(
+                operations, 
+                filename, 
+                resume_lines=resume_lines,
+                job_text=job_text,
+                sections_json=sections_json,
+                model=model
+            )
             
             # convert approved operations back to dict format
             current[0] = convert_operations_to_dict_edits(reviewed_operations, current[0])

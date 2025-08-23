@@ -182,16 +182,35 @@ def process_prompt_operation(edit_op: EditOperation, resume_lines: Lines, job_te
         _debug_error(Exception(result.error), f"AI generation failed for PROMPT operation with model {model}")
         raise AIError(f"AI failed to process PROMPT operation: {result.error}")
     
-    # extract text content from AI response
-    if hasattr(result, 'raw_text') and result.raw_text:
-        new_content = result.raw_text.strip()
-    else:
-        new_content = str(result.data).strip() if result.data else ""
+    # parse JSON response containing the regenerated operation
+    response_data = result.data
+    _debug_ai(f"PROMPT operation AI generation successful - received {len(str(response_data))} characters")
     
-    _debug_ai(f"PROMPT operation AI generation successful - received {len(new_content)} characters")
+    # validate response structure
+    if not isinstance(response_data, dict):
+        raise AIError(f"AI response is not a valid JSON object (got {type(response_data).__name__}) for PROMPT operation")
     
-    # update operation content with AI-generated text
-    edit_op.content = new_content
+    if response_data.get("version") != 1:
+        raise AIError(f"Invalid or missing version in AI response: {response_data.get('version')} (expected 1) for PROMPT operation")
+    
+    if "ops" not in response_data or not response_data["ops"]:
+        raise AIError("AI response missing 'ops' array or ops array is empty for PROMPT operation")
+    
+    if len(response_data["ops"]) != 1:
+        raise AIError(f"AI response must contain exactly one operation, got {len(response_data['ops'])} for PROMPT operation")
+    
+    # extract the single regenerated operation
+    new_op = response_data["ops"][0]
+    
+    # update operation content with AI-generated content
+    edit_op.content = new_op.get("text", "")
+    
+    # update reasoning if provided
+    if "why" in new_op:
+        edit_op.reasoning = new_op["why"]
+    
+    # update confidence if available (set to high since user specifically requested this)
+    edit_op.confidence = new_op.get("confidence", 0.9)
     
     return edit_op
 

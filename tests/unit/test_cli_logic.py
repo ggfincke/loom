@@ -44,9 +44,9 @@ class TestArgResolver:
         assert result["resume"] == Path("custom_data") / "my_resume.docx"
         assert result["job"] == Path("custom_data") / "my_job.txt"
         assert result["model"] == "custom-model"
-        assert result["sections_path"] == Path("output") / "sections.json"  # default output_dir
+        assert result["sections_path"] == Path("custom_data") / "sections.json"  # uses custom data_dir
         assert result["edits_json"] == Path("output") / "edits.json"
-        assert result["out_json"] == Path("output") / "sections.json"
+        assert result["out_json"] == Path("custom_data") / "sections.json"
     
     # * Test resolve_common prioritizes provided arguments over defaults
     def test_resolve_common_prioritizes_provided_args(self):
@@ -794,7 +794,7 @@ class TestOutputDirectoryHandling:
         
         # verify path composition works correctly
         assert custom_settings.resume_path == Path(tmp_path / "custom_data" / "resume.docx")
-        assert custom_settings.sections_path == Path(tmp_path / "custom_output" / "sections.json")
+        assert custom_settings.sections_path == Path(tmp_path / "custom_data" / "sections.json")
         assert custom_settings.edits_path == Path(tmp_path / "custom_output" / "edits.json") 
         assert custom_settings.warnings_path == Path(tmp_path / "custom_loom" / "edits.warnings.txt")
         

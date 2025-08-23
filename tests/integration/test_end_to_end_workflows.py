@@ -290,15 +290,15 @@ class TestEndToEndWorkflows:
                     print("STDERR:", result.stderr_bytes)
             assert result.exit_code == 0
             
-            # check if file was created in the working directory's output folder instead
-            cwd_output_file = Path("output") / "sections.json"
+            # check if file was created in the working directory's data folder instead
+            cwd_output_file = Path("data") / "sections.json"
             
             if cwd_output_file.exists():
                 # file was created in current working directory (acceptable)
                 sections_file = cwd_output_file
             else:
-                # check in configured output directory
-                sections_file = output_dir / "sections.json"
+                # check in configured data directory (new default location)
+                sections_file = data_dir / "sections.json"
             
             assert sections_file.exists()
             
