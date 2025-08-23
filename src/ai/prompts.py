@@ -201,9 +201,9 @@ def build_prompt_operation_prompt(user_instruction: str,
         "You are helping tailor a resume to match a job description. A user has requested "
         "a specific modification to an edit operation through a custom instruction.\n\n"
         
-        "Your task is to generate the exact text content that should be used for this operation "
-        "based on the user's instruction. The content should align with the job requirements "
-        "while following the user's specific guidance.\n\n"
+        "Your task is to regenerate a single edit operation based on the user's instruction. "
+        "The operation should align with the job requirements while following the user's "
+        "specific guidance.\n\n"
         
         "Operation Details:\n"
         f"- Operation type: {operation_type}\n"
@@ -216,9 +216,31 @@ def build_prompt_operation_prompt(user_instruction: str,
         "- Maintain professional resume language and formatting\n"
         "- Align with job requirements where possible\n"
         "- Keep content truthful and grounded in existing resume context\n"
-        "- Return ONLY the text content - no JSON, no additional formatting\n"
-        "- For multi-line content, use proper line breaks (\\n)\n"
-        "- Do not include explanations or meta-commentary\n\n"
+        "- Follow the same editing policy as the main generator (bounded embellishment only)\n"
+        "- For 'replace_line': text must contain EXACTLY ONE LINE with NO \\n characters\n"
+        "- For multi-line content: use 'replace_range' instead of 'replace_line'\n\n"
+        
+        "Output ONLY valid JSON matching this schema exactly. Ensure all string values are properly escaped:\n"
+        "{\n"
+        "  \"version\": 1,\n"
+        f"  \"meta\": {{ \"strategy\": \"prompt_regeneration\", \"model\": \"{model}\", \"created_at\": \"{created_at}\" }},\n"
+        "  \"ops\": [\n"
+        "    { \"op\": \"replace_line\", \"line\": <int>, \"text\": \"string\", \"current_snippet\": \"string\", \"why\": \"string (optional)\" }\n"
+        "    // OR for multi-line content:\n"
+        "    // { \"op\": \"replace_range\", \"start\": <int>, \"end\": <int>, \"text\": \"string\", \"current_snippet\": \"string\", \"why\": \"string (optional)\" }\n"
+        "    // OR for insertions:\n"
+        "    // { \"op\": \"insert_after\", \"line\": <int>, \"text\": \"string\", \"current_snippet\": \"string\", \"why\": \"string (optional)\" }\n"
+        "    // OR for deletions:\n"
+        "    // { \"op\": \"delete_range\", \"start\": <int>, \"end\": <int>, \"current_snippet\": \"string\", \"why\": \"string (optional)\" }\n"
+        "  ]\n"
+        "}\n\n"
+        
+        "**CRITICAL JSON VALIDATION**:\n"
+        "- Include exactly ONE operation in the ops array\n"
+        "- No unescaped quotes, newlines, or control characters in JSON strings\n"
+        "- 'current_snippet' should contain the exact original text being modified\n"
+        "- 'why' field should explain how this fulfills the user's instruction (under 100 chars)\n"
+        "- Use exact line numbers from the numbered resume provided\n\n"
         
         "Job Description:\n"
         f"{job_text}\n\n"
@@ -228,10 +250,7 @@ def build_prompt_operation_prompt(user_instruction: str,
         "Full Resume (numbered lines for reference):\n"
         f"{resume_with_line_numbers}\n\n"
         
-        f"Generated on: {created_at}\n"
-        f"Model: {model}\n\n"
-        
-        "Generate the exact text content for this operation:"
+        "Generate a single JSON edit operation based on the user instruction:"
     )
 
 
