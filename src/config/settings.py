@@ -51,7 +51,7 @@ class LoomSettings:
     
     @property
     def sections_path(self) -> Path:
-        return Path(self.output_dir) / self.sections_filename
+        return Path(self.data_dir) / self.sections_filename
     
     @property
     def edits_path(self) -> Path:

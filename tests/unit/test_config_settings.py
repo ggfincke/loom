@@ -50,7 +50,7 @@ class TestLoomSettings:
         # verify composed paths use custom directories
         assert settings.resume_path == Path("custom_data") / "my_resume.docx"
         assert settings.job_path == Path("custom_data") / "my_job.txt" 
-        assert settings.sections_path == Path("custom_output") / "sections.json"
+        assert settings.sections_path == Path("custom_data") / "sections.json"
         assert settings.edits_path == Path("custom_output") / "edits.json"
         
         # verify loom internal paths
