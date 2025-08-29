@@ -16,9 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Environment loading**: Centralized `load_dotenv()` to application startup in `src/cli/app.py` for single initialization.
 - **Dependency organization**: Moved development dependencies from `requirements.txt` to separate `requirements-dev.txt` file for cleaner production installs.
 - **Package dependencies**: Added missing interactive UI dependencies (`simple-term-menu`, `readchar`) to ensure full feature support.
+- **Error handling standardization**: AI clients now raise `AIError` exceptions instead of returning error results for consistent error propagation.
+- **Configuration validation**: OpenAI client now raises `ConfigurationError` for missing API keys.
 
 ### Fixed
 - **Documentation accuracy**: Removed outdated reference to `test_prompts.py` from architecture documentation.
+- **Test reliability**: Updated Ollama client tests to properly expect and handle `AIError` exceptions.
 
 ---
 

@@ -6,6 +6,7 @@ from typing import List
 import ollama
 from ...config.settings import settings_manager
 from ..types import GenerateResult
+from ...core.exceptions import AIError
 from ..utils import strip_markdown_code_blocks
 
 # import debug functions only when needed to avoid circular imports
@@ -90,19 +91,19 @@ def run_generate(prompt: str, model: str = "llama3.2") -> GenerateResult:
     # check if Ollama server is available first w/ detailed error
     available, error_msg = check_ollama_with_error()
     if not available:
-        return GenerateResult(success=False, error=error_msg)
+        raise AIError(f"Ollama server error: {error_msg}")
     
     # validate model is available locally w/ detailed error
     available_models, models_error = get_available_models_with_error()
     if models_error:
-        return GenerateResult(success=False, error=models_error)
+        raise AIError(f"Ollama model error: {models_error}")
     
     if model not in available_models:
         if not available_models:
             error_msg = f"Model '{model}' not found & no local models available. Run 'ollama pull {model}' to install it."
         else:
             error_msg = f"Model '{model}' not found locally. Available models: {', '.join(available_models)}. Run 'ollama pull {model}' to install it."
-        return GenerateResult(success=False, error=error_msg)
+        raise AIError(f"Ollama model error: {error_msg}")
     
     try:
         settings = settings_manager.load()
@@ -149,5 +150,5 @@ def run_generate(prompt: str, model: str = "llama3.2") -> GenerateResult:
             
     except Exception as e:
         _debug_error(e, "Ollama API call")
-        error_msg = f"Ollama API error: {str(e)}. Model: {model}. Check if Ollama is running & model is properly installed."
-        return GenerateResult(success=False, error=error_msg)
+        # normalize provider API errors to AIError for consistent handling
+        raise AIError(f"Ollama API error: {str(e)}. Model: {model}. Check if Ollama is running & model is properly installed.")
