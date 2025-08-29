@@ -4,6 +4,10 @@
 from __future__ import annotations
 
 import typer
+from dotenv import load_dotenv
+
+# load environment variables once at startup
+load_dotenv()
 
 # patch Typer's Rich help styles before creating the app
 from ..ui.theming import typer_styles  # noqa: F401

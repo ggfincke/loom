@@ -2,11 +2,11 @@
 # Ollama API client functions for generating JSON responses using local models
 
 import json
-import re
 from typing import List
 import ollama
 from ...config.settings import settings_manager
 from ..types import GenerateResult
+from ..utils import strip_markdown_code_blocks
 
 # import debug functions only when needed to avoid circular imports
 def _debug_ai(message: str):
@@ -30,22 +30,6 @@ def _debug_api_call(provider: str, model: str, prompt_length: int, response_leng
     except ImportError:
         pass
 
-# strip markdown code blocks & thinking tokens
-def strip_markdown_code_blocks(text: str) -> str:
-    # first strip thinking tokens if present
-    thinking_pattern = r'<think>.*?</think>\s*(.*)'
-    thinking_match = re.match(thinking_pattern, text.strip(), re.DOTALL)
-    if thinking_match:
-        text = thinking_match.group(1).strip()
-    
-    # then strip markdown code blocks
-    code_block_pattern = r'^```(?:json)?\s*\n(.*?)\n```\s*$'
-    match = re.match(code_block_pattern, text.strip(), re.DOTALL)
-    
-    if match:
-        return match.group(1)
-    else:
-        return text.strip()
 
 # * Check if Ollama server is running & accessible
 def is_ollama_available() -> bool:

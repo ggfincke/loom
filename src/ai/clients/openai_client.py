@@ -3,26 +3,14 @@
 
 import os
 import json
-import re
-from dotenv import load_dotenv
 from openai import OpenAI
 from ...config.settings import settings_manager
 from ..types import GenerateResult
 from ..models import ensure_valid_model
-
-# strip markdown code blocks
-def strip_markdown_code_blocks(text: str) -> str:
-    code_block_pattern = r'^```(?:json)?\s*\n(.*?)\n```\s*$'
-    match = re.match(code_block_pattern, text.strip(), re.DOTALL)
-    
-    if match:
-        return match.group(1)
-    else:
-        return text.strip()
+from ..utils import strip_markdown_code_blocks
 
 # * Generate JSON response using OpenAI API w/ model validation
 def run_generate(prompt: str, model: str = "gpt-5-mini") -> GenerateResult:
-    load_dotenv()
     if not os.getenv("OPENAI_API_KEY"):
         raise RuntimeError("Missing OPENAI_API_KEY in environment or .env")
     

@@ -4,7 +4,6 @@
 import os
 import typer
 import sys
-from dotenv import load_dotenv
 from typing import List, Optional, Dict, Tuple, Any
 # supported OpenAI models
 OPENAI_MODELS: List[str] = [
@@ -163,11 +162,9 @@ def ensure_valid_model(model: Optional[str]) -> Optional[str]:
 
 # * Check if API keys are available for external providers
 def check_openai_api_key() -> bool:
-    load_dotenv()
     return bool(os.getenv("OPENAI_API_KEY"))
 
 def check_claude_api_key() -> bool:
-    load_dotenv()
     return bool(os.getenv("ANTHROPIC_API_KEY"))
 
 # * Get available Ollama models dynamically, with lazy import to avoid SDK at import time

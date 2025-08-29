@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.5-nightly.20250829] - 2025-08-29
+
+### Changed
+- **AI client refactoring**: Consolidated duplicate `strip_markdown_code_blocks` function into shared `src/ai/utils.py` module.
+- **Environment loading**: Centralized `load_dotenv()` to application startup in `src/cli/app.py` for single initialization.
+
+### Fixed
+- **Documentation accuracy**: Removed outdated reference to `test_prompts.py` from architecture documentation.
+
+---
+
 ## [1.1.4-nightly.20250829] - 2025-08-29
 
 ### Added

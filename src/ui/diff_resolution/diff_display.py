@@ -217,19 +217,17 @@ def get_diffs_by_opt():
     # If text input is active, show the input interface
     if text_input_active and text_input_mode:
         input_lines = create_text_input_display(text_input_mode)
-        input_display = Text("\n").join(input_lines)
-        return {opt: input_display for opt in options}
+        return {opt: input_lines for opt in options}
     
     # Otherwise show normal operation display
     op_lines = create_operation_display(current_edit_operation)
-    op_display = Text("\n").join(op_lines)
     return {
-        "Approve": op_display,
-        "Reject": op_display, 
-        "Skip": op_display,
-        "Modify": op_display,
-        "Prompt": op_display,
-        "Exit": op_display,
+        "Approve": op_lines,
+        "Reject": op_lines, 
+        "Skip": op_lines,
+        "Modify": op_lines,
+        "Prompt": op_lines,
+        "Exit": op_lines,
     }
 
 # * Render main screen layout w/ header, menu & diff display panels, and footer
@@ -270,7 +268,12 @@ def render_screen() -> RenderableType:
     # create right diff pane w/ operation details
     current = options[selected]
     diffs_by_opt = get_diffs_by_opt()
-    body_content = diffs_by_opt[current]
+    body_content_list = diffs_by_opt[current]
+    # join list of Text objects for display
+    if isinstance(body_content_list, list):
+        body_content = Text("\n").join(body_content_list)
+    else:
+        body_content = body_content_list
     body_panel = Panel(body_content, title="Current Edit", border_style="loom.accent2")
 
     content_layout["menu"].update(menu_panel)
