@@ -11,8 +11,12 @@ dependencies = [
     "typer",
     "python-docx",
     "openai",
+    "anthropic",
+    "ollama",
     "python-dotenv",
     "rich",
+    "simple-term-menu",
+    "readchar",
 ]
 
 [project.scripts]
