@@ -258,77 +258,6 @@ class TestPromptOperationIntegration:
         assert "ML engineer" in result.content or "production models" in result.content
 
 
-# * Integration test for complete MODIFY operation workflow  
-class TestModifyOperationIntegration:
-    
-    def test_modify_operation_end_to_end(self, resume_lines_from_temp_file):
-        """Test complete MODIFY operation from user edit to applied changes"""
-        
-        # create operation w/ user modifications
-        operation = EditOperation(
-            operation="replace_range",
-            line_number=10,
-            start_line=10,
-            end_line=12,
-            content="Original skills content",
-            modified_content="• Python, TensorFlow, PyTorch, Scikit-learn\n• MLOps: MLflow, Kubeflow, Docker, Kubernetes\n• Cloud: AWS SageMaker, GCP AI Platform, Azure ML",
-            original_content="• Python, JavaScript, TypeScript\n• React, Node.js, Django, FastAPI\n• AWS, Docker, Kubernetes",
-            reasoning="User manually updated skills for ML role",
-            confidence=0.9,
-            status=DiffOp.MODIFY
-        )
-        
-        # process MODIFY operation
-        from src.core.pipeline import process_modify_operation
-        result_op = process_modify_operation(operation)
-        
-        # verify content was updated
-        assert result_op.content == operation.modified_content
-        assert "TensorFlow" in result_op.content
-        assert "MLflow" in result_op.content
-        assert "SageMaker" in result_op.content
-        
-        # create edits structure and apply
-        processed_edits = {
-            "version": 1,
-            "meta": {"model": "user_modified", "created_at": "2024-01-01T00:00:00Z"},
-            "ops": [{
-                "op": result_op.operation,
-                "start": result_op.start_line,
-                "end": result_op.end_line,
-                "text": result_op.content,
-                "current_snippet": result_op.original_content,
-                "why": result_op.reasoning
-            }]
-        }
-        
-        result_lines = apply_edits(resume_lines_from_temp_file, processed_edits)
-        
-        # verify changes were applied correctly
-        assert "TensorFlow" in result_lines[10]
-        assert "MLflow" in result_lines[11]
-        assert "SageMaker" in result_lines[12]
-    
-    def test_modify_operation_preserves_formatting(self, resume_lines_from_temp_file):
-        """Test that MODIFY operations preserve intended formatting"""
-        
-        operation = EditOperation(
-            operation="insert_after",
-            line_number=12,
-            modified_content="• Statistical analysis and data visualization\n• Model interpretability and explainable AI",
-            prompt_instruction=None,  # not needed for MODIFY
-            reasoning="User added ML-specific skills",
-            status=DiffOp.MODIFY
-        )
-        
-        from src.core.pipeline import process_modify_operation
-        result = process_modify_operation(operation)
-        
-        # verify multi-line formatting preserved
-        assert "\n" in result.content
-        assert result.content.count("\n") == 1
-        assert result.content.startswith("• Statistical analysis")
-        assert result.content.endswith("explainable AI")
 
 
 # * Integration tests for mixed workflows (both PROMPT & MODIFY operations)
@@ -349,7 +278,7 @@ class TestMixedSpecialOperationsWorkflow:
         modify_op = EditOperation(
             operation="insert_after", 
             line_number=12,
-            modified_content="• Deep learning architectures: CNNs, RNNs, Transformers",
+            content="• Deep learning architectures: CNNs, RNNs, Transformers",
             reasoning="User manually added deep learning skills",
             status=DiffOp.MODIFY
         )
@@ -419,14 +348,14 @@ class TestMixedSpecialOperationsWorkflow:
         insert_op = EditOperation(
             operation="insert_after",
             line_number=8,  # insert after line 8
-            modified_content="Additional technical expertise in machine learning",
+            content="Additional technical expertise in machine learning",
             status=DiffOp.MODIFY
         )
         
         modify_op = EditOperation(
             operation="replace_line", 
             line_number=10,  # this will become line 11 after insert
-            modified_content="• Advanced Python, TensorFlow 2.x, PyTorch Lightning",
+            content="• Advanced Python, TensorFlow 2.x, PyTorch Lightning",
             status=DiffOp.MODIFY
         )
         
@@ -506,7 +435,7 @@ class TestSpecialOperationsErrorHandling:
         operation = EditOperation(
             operation="replace_line",
             line_number=6,
-            modified_content=None,  # missing required field
+            content="",  # empty content should fail
             status=DiffOp.MODIFY
         )
         

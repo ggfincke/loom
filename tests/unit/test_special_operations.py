@@ -60,7 +60,6 @@ class TestProcessModifyOperation:
             operation="replace_line",
             line_number=5,
             content="Original content before modification",
-            modified_content="User-modified content with specific changes",
             reasoning="User manually edited this content",
             confidence=0.8,
             original_content="Software engineer with 5+ years experience"
@@ -73,8 +72,7 @@ class TestProcessModifyOperation:
             line_number=5,
             start_line=5,
             end_line=7,
-            content="Original multi-line content",
-            modified_content="User-modified multi-line content\nwith specific technical details\nand enhanced formatting",
+            content="User-modified multi-line content\nwith specific technical details\nand enhanced formatting",
             reasoning="User wants more technical focus",
             confidence=0.9
         )
@@ -83,8 +81,8 @@ class TestProcessModifyOperation:
     def test_process_modify_operation_success(self, replace_line_operation):
         result = process_modify_operation(replace_line_operation)
         
-        # verify content was updated w/ user modifications
-        assert result.content == "User-modified content with specific changes"
+        # verify content exists (set directly in interactive UI)
+        assert result.content == "Original content before modification"
         assert result.operation == "replace_line"
         assert result.line_number == 5
         assert result.reasoning == "User manually edited this content"
@@ -113,7 +111,6 @@ class TestProcessModifyOperation:
             operation="replace_line",
             line_number=5,
             content="",  # empty content should fail
-            modified_content=None,
             reasoning="Test operation"
         )
         
@@ -122,18 +119,18 @@ class TestProcessModifyOperation:
         
         assert "MODIFY operation requires content to be set" in str(exc_info.value)
     
-    # * Test MODIFY operation w/ empty modified_content
-    def test_process_modify_operation_empty_content(self):
+    # * Test MODIFY operation w/ empty content should fail
+    def test_process_modify_operation_empty_content_fails(self):
         operation = EditOperation(
             operation="replace_line",
             line_number=5,
-            content="Original content",
-            modified_content="",  # empty but not None
+            content="",  # empty content
             reasoning="User cleared content"
         )
         
-        result = process_modify_operation(operation)
-        assert result.content == ""  # should accept empty string
+        with pytest.raises(EditError) as exc_info:
+            process_modify_operation(operation)
+        assert "MODIFY operation requires content to be set" in str(exc_info.value)
     
     # * Test MODIFY operation preserves all other fields
     def test_process_modify_operation_field_preservation(self):
@@ -142,8 +139,7 @@ class TestProcessModifyOperation:
             line_number=10,
             start_line=None,
             end_line=None, 
-            content="Original content",
-            modified_content="User-modified insertion content",
+            content="User-modified insertion content",
             reasoning="Insert new skill",
             confidence=0.95,
             status=DiffOp.APPROVE,
@@ -175,8 +171,7 @@ class TestProcessModifyOperation:
                 line_number=5,
                 start_line=5 if op_type in ["replace_range", "delete_range"] else None,
                 end_line=6 if op_type in ["replace_range", "delete_range"] else None,
-                content=f"Original {op_type} content",
-                modified_content=f"Modified {op_type} content by user",
+                content=f"Modified {op_type} content by user",
                 reasoning=f"Test {op_type} modification"
             )
             
@@ -412,15 +407,14 @@ class TestSpecialOperationsIntegration:
     
     # * Test operation status transitions through special operations
     def test_operation_status_workflow(self):
-        # create base operation
+        # create base operation with content already set by UI
         operation = EditOperation(
             operation="replace_line",
             line_number=5,
-            content="Original content",
+            content="User edited content",
             reasoning="Initial reasoning",
             confidence=0.6,
             status=DiffOp.SKIP,
-            modified_content="User edited content",
             prompt_instruction="Make this more technical"
         )
         
@@ -437,31 +431,29 @@ class TestSpecialOperationsIntegration:
         operation = EditOperation(
             operation="replace_line",
             line_number=10,
-            content="Original test content",
+            content="User modified this content",
             reasoning="Initial test reasoning",
             confidence=0.75,
             status=DiffOp.APPROVE,
             before_context=["Before 1", "Before 2"],
             after_context=["After 1"],
             original_content="Very original content",
-            modified_content="User modified this content",
             prompt_instruction="Enhance this technically"
         )
         
         # process through MODIFY operation
         result = process_modify_operation(operation)
         
-        # verify all fields preserved except content update
+        # verify all fields preserved including content
         assert result.operation == "replace_line"
         assert result.line_number == 10
-        assert result.content == "User modified this content"  # updated
+        assert result.content == "User modified this content"  # unchanged
         assert result.reasoning == "Initial test reasoning"  # preserved
         assert result.confidence == 0.75  # preserved
         assert result.status == DiffOp.APPROVE  # preserved
         assert result.before_context == ["Before 1", "Before 2"]  # preserved
         assert result.after_context == ["After 1"]  # preserved
         assert result.original_content == "Very original content"  # preserved
-        assert result.modified_content == "User modified this content"  # preserved
         assert result.prompt_instruction == "Enhance this technically"  # preserved
     
     # * Test error handling consistency
@@ -470,7 +462,6 @@ class TestSpecialOperationsIntegration:
         modify_op = EditOperation(
             operation="replace_line",
             line_number=5,
-            modified_content=None  # missing
         )
         
         with pytest.raises(EditError) as modify_exc:

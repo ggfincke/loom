@@ -47,7 +47,5 @@ class EditOperation:
     after_context: List[str] = field(default_factory=list)
     # original content for replace operations
     original_content: str = ""
-    # user-modified content for MODIFY operations
-    modified_content: Optional[str] = None
     # user prompt for PROMPT operations
     prompt_instruction: Optional[str] = None
