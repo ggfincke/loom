@@ -515,7 +515,7 @@ class TestSpecialOperationsErrorHandling:
         with pytest.raises(EditError) as exc_info:
             process_modify_operation(operation)
         
-        assert "MODIFY operation requires modified_content to be set" in str(exc_info.value)
+        assert "MODIFY operation requires content to be set" in str(exc_info.value)
     
     @patch('src.core.pipeline.run_generate')
     def test_invalid_ai_response_handling(self, mock_run_generate, resume_lines_from_temp_file, ml_job_description):

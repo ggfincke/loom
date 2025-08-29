@@ -107,20 +107,20 @@ class TestProcessModifyOperation:
         assert "\n" in result.content
         assert result.content.count("\n") == 2
     
-    # * Test MODIFY operation error w/ missing modified_content
+    # * Test MODIFY operation error w/ missing content (new workflow)
     def test_process_modify_operation_missing_content(self):
         operation = EditOperation(
             operation="replace_line",
             line_number=5,
-            content="Original content",
-            modified_content=None,  # missing required field
+            content="",  # empty content should fail
+            modified_content=None,
             reasoning="Test operation"
         )
         
         with pytest.raises(EditError) as exc_info:
             process_modify_operation(operation)
         
-        assert "MODIFY operation requires modified_content to be set" in str(exc_info.value)
+        assert "MODIFY operation requires content to be set" in str(exc_info.value)
     
     # * Test MODIFY operation w/ empty modified_content
     def test_process_modify_operation_empty_content(self):
@@ -476,7 +476,7 @@ class TestSpecialOperationsIntegration:
         with pytest.raises(EditError) as modify_exc:
             process_modify_operation(modify_op)
         
-        assert "modified_content" in str(modify_exc.value)
+        assert "content" in str(modify_exc.value)  # updated error message
         
         # test PROMPT w/ missing required field  
         prompt_op = EditOperation(

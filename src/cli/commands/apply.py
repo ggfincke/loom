@@ -22,6 +22,9 @@ from ..params import (
     OnErrorOpt,
     PreserveFormattingOpt,
     PreserveModeOpt,
+    JobArg,
+    ModelOpt,
+    SectionsPathOpt,
 )
 from ...loom_io import read_resume
 from ...config.settings import get_settings
@@ -39,6 +42,9 @@ def apply(
     on_error: ValidationPolicy | None = OnErrorOpt(),
     preserve_formatting: bool = PreserveFormattingOpt(),
     preserve_mode: str = PreserveModeOpt(),
+    job: Path | None = JobArg(),
+    model: str | None = ModelOpt(),
+    sections_path: Path | None = SectionsPathOpt(),
     help: bool = typer.Option(False, "--help", "-h", help="Show help message and exit."),
 ) -> None:
     # detect help flag & show custom help
@@ -53,15 +59,24 @@ def apply(
     interactive_mode = settings.interactive and not is_test_environment()
 
     # resolve arguments w/ settings defaults
-    common_resolved = resolver.resolve_common(resume=resume, edits_json=edits_json)
+    common_resolved = resolver.resolve_common(
+        resume=resume, 
+        edits_json=edits_json,
+        job=job,
+        model=model,
+        sections_path=sections_path
+    )
     path_resolved = resolver.resolve_paths(output_resume=output_resume)
     option_resolved = resolver.resolve_options(risk=risk, on_error=on_error)
 
-    resume = common_resolved["resume"]
-    edits_json, output_resume = (
+    resume, edits_json, job, model, sections_path = (
+        common_resolved["resume"],
         common_resolved["edits_json"],
-        path_resolved["output_resume"],
+        common_resolved["job"],
+        common_resolved["model"],
+        common_resolved["sections_path"],
     )
+    output_resume = path_resolved["output_resume"]
     risk, on_error = option_resolved["risk"], option_resolved["on_error"]
 
     # validate required arguments
@@ -76,7 +91,14 @@ def apply(
     assert edits_json is not None
     assert output_resume is not None
 
-    with setup_ui_with_progress("Applying edits...", total=5) as (
+    # calculate total steps (base 5 + optional job/sections)
+    total_steps = 5
+    if job is not None:
+        total_steps += 1
+    if sections_path is not None:
+        total_steps += 1
+        
+    with setup_ui_with_progress("Applying edits...", total=total_steps) as (
         ui,
         progress,
         task,
@@ -85,6 +107,17 @@ def apply(
         progress.update(task, description="Reading resume document...")
         lines = read_resume(resume)
         progress.advance(task)
+        
+        # read job description if available (for prompt support)
+        job_text = None
+        if job is not None:
+            progress.update(task, description="Reading job description...")
+            job_text = Path(job).read_text(encoding="utf-8")
+            progress.advance(task)
+            
+        # load optional sections for prompt support
+        from ...ui.core.progress import load_sections
+        sections_json_str = load_sections(sections_path, progress, task) if sections_path else None
 
         # read edits
         edits_obj = load_edits_json(edits_json, progress, task)
@@ -93,6 +126,7 @@ def apply(
         progress.update(task, description="Applying edits...")
         new_lines = apply_edits_core(
             settings, lines, edits_obj, risk, on_error, ui, interactive_mode,
+            job_text=job_text, sections_json=sections_json_str, model=model,
             persist_special_ops=interactive_mode, edits_json_path=edits_json
         )
         progress.advance(task)

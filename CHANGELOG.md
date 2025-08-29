@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.4-dev.20250829] - 2025-08-29
+
+### Added
+- **Enhanced apply command**: Support for job description, model, and sections path in prompt operations.
+- **Interactive UI improvements**: Animated spinner and better loading displays for prompt processing.
+
+### Changed
+- **Prompt operation workflow**: Immediate AI processing with enhanced error handling and timing.
+- **Operation persistence**: Complete state tracking with modification flags for interactive sessions.
+
+### Fixed
+- **Interactive UI responsiveness**: Proper loading screen refresh and timing for AI operations.
+- **Special operations persistence**: All operations now correctly persist status back to edits.json.
+
+---
+
 ## [1.1.3-nightly.20250823] - 2025-08-23
 
 ### Added
