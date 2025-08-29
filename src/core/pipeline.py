@@ -123,12 +123,10 @@ def generate_corrected_edits(current_edits_json: str, resume_lines: Lines, job_t
 def process_modify_operation(edit_op: EditOperation) -> EditOperation:
     _debug_ai(f"Processing MODIFY operation for {edit_op.operation} at line {edit_op.line_number}")
     
-    if edit_op.modified_content is None:
-        raise EditError("MODIFY operation requires modified_content to be set")
-    
-    # update operation content with user's modifications
-    edit_op.content = edit_op.modified_content
-    _debug_ai(f"MODIFY operation processed - content updated with {len(edit_op.content)} characters")
+    # validate content exists (already updated by interactive UI)
+    if not edit_op.content:
+        raise EditError("MODIFY operation requires content to be set")
+    _debug_ai(f"MODIFY operation processed - content contains {len(edit_op.content)} characters")
     
     return edit_op
 

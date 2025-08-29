@@ -4,7 +4,7 @@
 import pytest
 import json
 from unittest.mock import patch, MagicMock
-from src.core.pipeline import apply_edits, generate_edits, generate_corrected_edits, diff_lines, number_lines, _get_op_line
+from src.core.pipeline import apply_edits, generate_edits, generate_corrected_edits, diff_lines, number_lines, _get_op_line, process_prompt_operation, process_modify_operation
 from src.core.exceptions import EditError, AIError, JSONParsingError
 from src.loom_io.types import Lines
 
@@ -435,3 +435,336 @@ class TestUtilityFunctions:
     def test_get_op_line(self, op, expected_line):
         result = _get_op_line(op)
         assert result == expected_line
+
+
+# * Test process_prompt_operation functionality
+class TestProcessPromptOperation:
+    
+    @pytest.fixture
+    def sample_edit_operation(self):
+        from src.core.constants import EditOperation
+        return EditOperation(
+            operation="replace_line",
+            line_number=5,
+            content="Original content that needs AI regeneration",
+            reasoning="User wants more technical language",
+            confidence=0.8,
+            original_content="Software engineer with experience",
+            prompt_instruction="Make this more technical w/ ML frameworks"
+        )
+    
+    @pytest.fixture
+    def sample_resume_lines(self) -> Lines:
+        return {
+            1: "John Doe",
+            2: "Software Engineer",
+            3: "",
+            4: "PROFESSIONAL SUMMARY", 
+            5: "Software engineer with experience",
+            6: "in building web applications.",
+            7: "",
+            8: "SKILLS",
+            9: "• Python, JavaScript",
+            10: "• Docker, AWS"
+        }
+    
+    @pytest.fixture
+    def sample_job_text(self):
+        return (
+            "Senior Software Engineer - Machine Learning Focus\n"
+            "Requirements:\n"
+            "- 5+ years Python/ML experience\n"
+            "- TensorFlow, PyTorch proficiency\n"
+            "- MLOps & deployment experience"
+        )
+    
+    @pytest.fixture
+    def mock_ai_success_response(self):
+        return MagicMock(
+            success=True,
+            data={
+                "version": 1,
+                "meta": {"strategy": "prompt_regeneration", "model": "gpt-4", "created_at": "2024-01-01T00:00:00Z"},
+                "ops": [{
+                    "op": "replace_line",
+                    "line": 5,
+                    "text": "Machine learning engineer specializing in TensorFlow & PyTorch",
+                    "current_snippet": "Software engineer with experience", 
+                    "why": "Made more technical w/ specific ML frameworks as requested"
+                }]
+            },
+            error=None
+        )
+    
+    @pytest.fixture  
+    def mock_ai_failure_response(self):
+        return MagicMock(
+            success=False,
+            data=None,
+            error="AI model unavailable"
+        )
+    
+    # * Test successful prompt operation processing
+    @patch('src.core.pipeline.run_generate')
+    def test_process_prompt_operation_success(self, mock_run_generate, sample_edit_operation, sample_resume_lines, sample_job_text, mock_ai_success_response):
+        mock_run_generate.return_value = mock_ai_success_response
+        
+        result = process_prompt_operation(
+            edit_op=sample_edit_operation,
+            resume_lines=sample_resume_lines,
+            job_text=sample_job_text,
+            sections_json=None,
+            model="gpt-4"
+        )
+        
+        # verify operation was updated correctly
+        assert result.content == "Machine learning engineer specializing in TensorFlow & PyTorch"
+        assert result.reasoning == "Made more technical w/ specific ML frameworks as requested"
+        assert result.confidence == 0.9  # default high confidence for user requests
+        
+        # verify AI was called correctly
+        mock_run_generate.assert_called_once()
+        call_args = mock_run_generate.call_args[0]
+        prompt = call_args[0]
+        model = call_args[1]
+        
+        assert model == "gpt-4"
+        assert "Make this more technical w/ ML frameworks" in prompt
+        assert sample_job_text in prompt
+        assert "replace_line" in prompt
+    
+    # * Test AI failure handling
+    @patch('src.core.pipeline.run_generate')
+    def test_process_prompt_operation_ai_failure(self, mock_run_generate, sample_edit_operation, sample_resume_lines, sample_job_text, mock_ai_failure_response):
+        mock_run_generate.return_value = mock_ai_failure_response
+        
+        with pytest.raises(AIError) as exc_info:
+            process_prompt_operation(
+                edit_op=sample_edit_operation,
+                resume_lines=sample_resume_lines,
+                job_text=sample_job_text,
+                sections_json=None,
+                model="gpt-4"
+            )
+        
+        assert "AI failed to process PROMPT operation" in str(exc_info.value)
+        assert "AI model unavailable" in str(exc_info.value)
+    
+    # * Test invalid JSON response handling
+    @patch('src.core.pipeline.run_generate') 
+    def test_process_prompt_operation_invalid_json(self, mock_run_generate, sample_edit_operation, sample_resume_lines, sample_job_text):
+        # mock response w/ invalid JSON structure
+        mock_run_generate.return_value = MagicMock(
+            success=True,
+            data="Invalid string response instead of dict",
+            error=None
+        )
+        
+        with pytest.raises(AIError) as exc_info:
+            process_prompt_operation(
+                edit_op=sample_edit_operation,
+                resume_lines=sample_resume_lines,
+                job_text=sample_job_text,
+                sections_json=None,
+                model="gpt-4"
+            )
+        
+        assert "AI response is not a valid JSON object" in str(exc_info.value)
+        assert "got str" in str(exc_info.value)
+    
+    # * Test missing version validation
+    @patch('src.core.pipeline.run_generate')
+    def test_process_prompt_operation_missing_version(self, mock_run_generate, sample_edit_operation, sample_resume_lines, sample_job_text):
+        mock_run_generate.return_value = MagicMock(
+            success=True,
+            data={
+                "meta": {"strategy": "prompt_regeneration"},
+                "ops": [{"op": "replace_line", "text": "test"}]
+            },
+            error=None
+        )
+        
+        with pytest.raises(AIError) as exc_info:
+            process_prompt_operation(
+                edit_op=sample_edit_operation,
+                resume_lines=sample_resume_lines,
+                job_text=sample_job_text,
+                sections_json=None,
+                model="gpt-4"
+            )
+        
+        assert "Invalid or missing version" in str(exc_info.value)
+        assert "expected 1" in str(exc_info.value)
+    
+    # * Test missing ops array validation  
+    @patch('src.core.pipeline.run_generate')
+    def test_process_prompt_operation_missing_ops(self, mock_run_generate, sample_edit_operation, sample_resume_lines, sample_job_text):
+        mock_run_generate.return_value = MagicMock(
+            success=True,
+            data={
+                "version": 1,
+                "meta": {"strategy": "prompt_regeneration"}
+                # missing ops array
+            },
+            error=None
+        )
+        
+        with pytest.raises(AIError) as exc_info:
+            process_prompt_operation(
+                edit_op=sample_edit_operation,
+                resume_lines=sample_resume_lines,
+                job_text=sample_job_text,
+                sections_json=None,
+                model="gpt-4"
+            )
+        
+        assert "AI response missing 'ops' array" in str(exc_info.value)
+    
+    # * Test multiple operations validation (should be exactly one)
+    @patch('src.core.pipeline.run_generate')
+    def test_process_prompt_operation_multiple_ops(self, mock_run_generate, sample_edit_operation, sample_resume_lines, sample_job_text):
+        mock_run_generate.return_value = MagicMock(
+            success=True,
+            data={
+                "version": 1,
+                "meta": {"strategy": "prompt_regeneration"},
+                "ops": [
+                    {"op": "replace_line", "text": "first"},
+                    {"op": "replace_line", "text": "second"}  # too many ops
+                ]
+            },
+            error=None
+        )
+        
+        with pytest.raises(AIError) as exc_info:
+            process_prompt_operation(
+                edit_op=sample_edit_operation,
+                resume_lines=sample_resume_lines,
+                job_text=sample_job_text,
+                sections_json=None,
+                model="gpt-4"
+            )
+        
+        assert "must contain exactly one operation" in str(exc_info.value)
+        assert "got 2" in str(exc_info.value)
+    
+    # * Test empty ops array
+    @patch('src.core.pipeline.run_generate')
+    def test_process_prompt_operation_empty_ops(self, mock_run_generate, sample_edit_operation, sample_resume_lines, sample_job_text):
+        mock_run_generate.return_value = MagicMock(
+            success=True,
+            data={
+                "version": 1,
+                "meta": {"strategy": "prompt_regeneration"},
+                "ops": []  # empty ops array
+            },
+            error=None
+        )
+        
+        with pytest.raises(AIError) as exc_info:
+            process_prompt_operation(
+                edit_op=sample_edit_operation,
+                resume_lines=sample_resume_lines,
+                job_text=sample_job_text,
+                sections_json=None,
+                model="gpt-4"
+            )
+        
+        assert "ops array is empty" in str(exc_info.value)
+    
+    # * Test optional fields handling (confidence, why)
+    @patch('src.core.pipeline.run_generate')
+    def test_process_prompt_operation_optional_fields(self, mock_run_generate, sample_edit_operation, sample_resume_lines, sample_job_text):
+        # response w/o optional fields
+        mock_run_generate.return_value = MagicMock(
+            success=True,
+            data={
+                "version": 1,
+                "meta": {"strategy": "prompt_regeneration"},
+                "ops": [{
+                    "op": "replace_line",
+                    "text": "Updated content"
+                    # missing why & confidence fields
+                }]
+            },
+            error=None
+        )
+        
+        result = process_prompt_operation(
+            edit_op=sample_edit_operation,
+            resume_lines=sample_resume_lines,
+            job_text=sample_job_text,
+            sections_json=None,
+            model="gpt-4"
+        )
+        
+        # should handle missing optional fields gracefully
+        assert result.content == "Updated content"
+        assert result.confidence == 0.9  # default high confidence
+        assert result.reasoning == "User wants more technical language"  # original reasoning preserved when not overridden
+    
+    # * Test sections_json parameter handling
+    @patch('src.core.pipeline.run_generate')
+    def test_process_prompt_operation_with_sections(self, mock_run_generate, sample_edit_operation, sample_resume_lines, sample_job_text, mock_ai_success_response):
+        mock_run_generate.return_value = mock_ai_success_response
+        sections_json = '{"sections": [{"name": "SUMMARY", "start_line": 4, "end_line": 6}]}'
+        
+        process_prompt_operation(
+            edit_op=sample_edit_operation,
+            resume_lines=sample_resume_lines,
+            job_text=sample_job_text,
+            sections_json=sections_json,
+            model="gpt-4"
+        )
+        
+        # verify sections_json was passed to prompt builder
+        call_args = mock_run_generate.call_args[0]
+        prompt = call_args[0]
+        
+        # sections should be referenced in prompt somehow
+        assert len(prompt) > 500  # substantial prompt
+        
+    # * Test different operation types
+    @patch('src.core.pipeline.run_generate')
+    def test_process_prompt_operation_different_types(self, mock_run_generate, sample_resume_lines, sample_job_text):
+        from src.core.constants import EditOperation
+        
+        operation_types = ["replace_line", "replace_range", "insert_after", "delete_range"]
+        
+        for op_type in operation_types:
+            # create operation for each type
+            edit_op = EditOperation(
+                operation=op_type,
+                line_number=5,
+                start_line=5 if op_type in ["replace_range", "delete_range"] else None,
+                end_line=6 if op_type in ["replace_range", "delete_range"] else None,
+                content=f"Test content for {op_type}",
+                reasoning=f"Test {op_type} operation",
+                prompt_instruction=f"Test {op_type} instruction"
+            )
+            
+            mock_run_generate.return_value = MagicMock(
+                success=True,
+                data={
+                    "version": 1,
+                    "meta": {"strategy": "prompt_regeneration"},
+                    "ops": [{
+                        "op": op_type.replace("_", "_"),  # handle naming
+                        "text": f"AI generated content for {op_type}",
+                        "why": f"Updated {op_type} as requested"
+                    }]
+                },
+                error=None
+            )
+            
+            result = process_prompt_operation(
+                edit_op=edit_op,
+                resume_lines=sample_resume_lines,
+                job_text=sample_job_text,
+                sections_json=None,
+                model="gpt-4"
+            )
+            
+            # verify operation was processed correctly
+            assert result.content == f"AI generated content for {op_type}"
+            assert result.reasoning == f"Updated {op_type} as requested"

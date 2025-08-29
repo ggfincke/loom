@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.4-nightly.20250829] - 2025-08-29
+
+### Added
+- **Enhanced apply command**: Support for job description, model, and sections path in prompt operations.
+- **Interactive UI improvements**: Animated spinner and better loading displays for prompt processing.
+
+### Changed
+- **Prompt operation workflow**: Immediate AI processing with enhanced error handling and timing.
+- **Operation persistence**: Complete state tracking with modification flags for interactive sessions.
+- **MODIFY operation simplification**: Streamlined processing by removing dual workflow handling and relying entirely on interactive UI content updates.
+- **Special operations architecture**: Consolidated handling to eliminate redundant code paths and improve maintainability.
+
+### Removed
+- **`modify` CLI command**: Standalone modify command removed in favor of integrated interactive diff workflow.
+- **`modified_content` field**: Removed from EditOperation dataclass to simplify the data model and reduce complexity.
+
+### Fixed
+- **Interactive UI responsiveness**: Proper loading screen refresh and timing for AI operations.
+- **Special operations persistence**: All operations now correctly persist status back to edits.json.
+- **Test coverage**: Updated integration and unit tests to reflect simplified operation workflows and removed deprecated test cases.
+
+---
+
 ## [1.1.3-nightly.20250823] - 2025-08-23
 
 ### Added

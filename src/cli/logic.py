@@ -259,10 +259,10 @@ def process_special_operations(
     for operation in operations:
         try:
             if operation.status == DiffOp.MODIFY:
-                if operation.modified_content is not None:
+                if operation.content:
                     process_modify_operation(operation)
                 else:
-                    console.print(f"[yellow]Warning: MODIFY operation at line {operation.line_number} has no modified_content - skipping[/]")
+                    console.print(f"[yellow]Warning: MODIFY operation at line {operation.line_number} has no content - skipping[/]")
                     
             elif operation.status == DiffOp.PROMPT:
                 if operation.prompt_instruction is not None:
@@ -334,6 +334,59 @@ def convert_operations_to_dict_edits(operations: list[EditOperation], original_e
     }
 
 
+# * Convert ALL EditOperation objects back to dict format for persistence
+def convert_all_operations_to_dict_edits(operations: list[EditOperation], original_edits: dict) -> dict:
+    all_ops = []
+    
+    for op in operations:
+        # convert back to dict format
+        if op.operation == "replace_line":
+            dict_op = {
+                "op": "replace_line",
+                "line": op.line_number,
+                "text": op.content
+            }
+        elif op.operation == "replace_range":
+            dict_op = {
+                "op": "replace_range",
+                "start": op.start_line,
+                "end": op.end_line,
+                "text": op.content
+            }
+        elif op.operation == "insert_after":
+            dict_op = {
+                "op": "insert_after",
+                "line": op.line_number,
+                "text": op.content
+            }
+        elif op.operation == "delete_range":
+            dict_op = {
+                "op": "delete_range",
+                "start": op.start_line,
+                "end": op.end_line
+            }
+        else:
+            continue  # skip unknown operations
+            
+        # preserve original metadata if available
+        if hasattr(op, 'reasoning') and op.reasoning:
+            dict_op["reason"] = op.reasoning
+        if hasattr(op, 'confidence') and op.confidence:
+            dict_op["confidence"] = op.confidence
+        
+        # track user decision status
+        dict_op["_status"] = op.status.value
+            
+        all_ops.append(dict_op)
+    
+    # return new edits dict w/ all operations and their statuses
+    return {
+        "version": original_edits.get("version", 1),
+        "meta": original_edits.get("meta", {}),
+        "ops": all_ops
+    }
+
+
 # * Validate & apply edits to resume lines, returning new lines
 def apply_edits_core(
     settings: LoomSettings,
@@ -384,7 +437,7 @@ def apply_edits_core(
             
             # run interactive diff display for user review
             filename = "resume.docx"  # default filename for display
-            reviewed_operations = main_display_loop(
+            reviewed_operations, operations_modified_during_review = main_display_loop(
                 operations, 
                 filename, 
                 resume_lines=resume_lines,
@@ -397,41 +450,10 @@ def apply_edits_core(
             current[0] = convert_operations_to_dict_edits(reviewed_operations, current[0])
             
             # persist special operations back to edits.json if requested
-            if persist_special_ops and special_ops_processed and edits_json_path is not None:
+            if persist_special_ops and (special_ops_processed or operations_modified_during_review) and edits_json_path is not None:
                 
-                # create updated edits dict w/ all operations (not just approved)
-                all_operations_dict = convert_operations_to_dict_edits(reviewed_operations, edits)
-                # add rejected/skipped operations back for completeness
-                rejected_ops = []
-                for op in reviewed_operations:
-                    if op.status in (DiffOp.REJECT, DiffOp.SKIP):
-                        # convert back to dict format & mark as rejected/skipped
-                        if op.operation == "replace_line":
-                            dict_op = {"op": "replace_line", "line": op.line_number, "text": op.content}
-                        elif op.operation == "replace_range":
-                            dict_op = {"op": "replace_range", "start": op.start_line, "end": op.end_line, "text": op.content}
-                        elif op.operation == "insert_after":
-                            dict_op = {"op": "insert_after", "line": op.line_number, "text": op.content}
-                        elif op.operation == "delete_range":
-                            dict_op = {"op": "delete_range", "start": op.start_line, "end": op.end_line}
-                        else:
-                            continue
-                        
-                        # preserve metadata
-                        if hasattr(op, 'reasoning') and op.reasoning:
-                            dict_op["reason"] = op.reasoning
-                        if hasattr(op, 'confidence') and op.confidence:
-                            dict_op["confidence"] = op.confidence
-                        dict_op["_status"] = op.status.value  # track user decision
-                        
-                        rejected_ops.append(dict_op)
-                
-                # combine approved & rejected operations for complete persistence
-                complete_edits = {
-                    "version": edits.get("version", 1),
-                    "meta": edits.get("meta", {}),
-                    "ops": all_operations_dict["ops"] + rejected_ops
-                }
+                # create updated edits dict w/ all operations (including their statuses)
+                complete_edits = convert_all_operations_to_dict_edits(reviewed_operations, current[0])
                 
                 # write updated edits back to file
                 ensure_parent(edits_json_path)
