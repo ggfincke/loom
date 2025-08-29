@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **Documentation accuracy**: Removed outdated reference to `test_prompts.py` from architecture documentation.
 - **Test reliability**: Updated Ollama client tests to properly expect and handle `AIError` exceptions.
+- **Circular dependencies**: Resolved circular import issues in debug module by removing eager pipeline import from `core/__init__.py` and using direct imports with lazy console loading.
 
 ---
 

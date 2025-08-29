@@ -10,36 +10,22 @@ from ..ai.clients import run_generate
 
 from ..loom_io.types import Lines
 from .constants import EditOperation
-
-# ! Import debug functions only when needed to avoid circular imports
-def _debug_ai(message: str):
-    try:
-        from .debug import debug_ai
-        debug_ai(message)
-    except ImportError:
-        pass
-
-def _debug_error(error: Exception, context: str = ""):
-    try:
-        from .debug import debug_error
-        debug_error(error, context)
-    except ImportError:
-        pass
+from .debug import debug_ai, debug_error
 
 # * Generate edits.json for resume using AI model w/ job description & sections context
 def generate_edits(resume_lines: Lines, job_text: str, sections_json: str | None, model: str) -> dict:
-    _debug_ai(f"Starting edit generation - Model: {model}, Resume lines: {len(resume_lines)}, Job text: {len(job_text)} chars")
+    debug_ai(f"Starting edit generation - Model: {model}, Resume lines: {len(resume_lines)}, Job text: {len(job_text)} chars")
     
     # generate edits
     created_at = datetime.now(timezone.utc).isoformat()
     prompt = build_generate_prompt(job_text, number_lines(resume_lines), model, created_at, sections_json)
-    _debug_ai(f"Generated prompt: {len(prompt)} characters")
+    debug_ai(f"Generated prompt: {len(prompt)} characters")
     
     result = run_generate(prompt, model)
     
     # handle JSON parsing errors
     if not result.success:
-        _debug_error(Exception(result.error), f"AI generation failed for model {model}")
+        debug_error(Exception(result.error), f"AI generation failed for model {model}")
         # create a trimmed snippet from problematic JSON
         lines = result.json_text.split('\n') if result.json_text else []
         if len(lines) > 5:
@@ -52,15 +38,15 @@ def generate_edits(resume_lines: Lines, job_text: str, sections_json: str | None
         raise JSONParsingError(error_msg)
     
     edits = result.data
-    _debug_ai(f"AI generation successful - received {len(str(edits))} chars of JSON data")
-    _debug_ai(f"JSON structure: {list(edits.keys()) if isinstance(edits, dict) else type(edits).__name__}")
+    debug_ai(f"AI generation successful - received {len(str(edits))} chars of JSON data")
+    debug_ai(f"JSON structure: {list(edits.keys()) if isinstance(edits, dict) else type(edits).__name__}")
     
     # validate response structure
     if not isinstance(edits, dict):
         raise AIError(f"AI response is not a valid JSON object (got {type(edits).__name__}) for model '{model}'")
     
     if edits.get("version") != 1:
-        _debug_ai(f"Full JSON response: {str(edits)[:500]}{'...' if len(str(edits)) > 500 else ''}")
+        debug_ai(f"Full JSON response: {str(edits)[:500]}{'...' if len(str(edits)) > 500 else ''}")
         raise AIError(f"Invalid or missing version in AI response: {edits.get('version')} (expected 1) for model '{model}'")
     
     if "meta" not in edits or "ops" not in edits:
@@ -71,22 +57,22 @@ def generate_edits(resume_lines: Lines, job_text: str, sections_json: str | None
             missing_fields.append("ops")
         raise AIError(f"AI response missing required fields: {', '.join(missing_fields)} for model '{model}'")
     
-    _debug_ai(f"Edit generation completed successfully - {len(edits.get('ops', []))} operations generated")
+    debug_ai(f"Edit generation completed successfully - {len(edits.get('ops', []))} operations generated")
     return edits
 
 # * Generate corrected edits based on validation warnings
 def generate_corrected_edits(current_edits_json: str, resume_lines: Lines, job_text: str, sections_json: str | None, model: str, validation_warnings: List[str]) -> dict:
-    _debug_ai(f"Starting edit correction - Model: {model}, Warnings: {len(validation_warnings)}")
+    debug_ai(f"Starting edit correction - Model: {model}, Warnings: {len(validation_warnings)}")
     
     created_at = datetime.now(timezone.utc).isoformat()
     prompt = build_edit_prompt(job_text, number_lines(resume_lines), current_edits_json, validation_warnings, model, created_at, sections_json)
-    _debug_ai(f"Generated correction prompt: {len(prompt)} characters")
+    debug_ai(f"Generated correction prompt: {len(prompt)} characters")
     
     result = run_generate(prompt, model)
     
     # handle JSON parsing errors
     if not result.success:
-        _debug_error(Exception(result.error), f"AI correction failed for model {model}")
+        debug_error(Exception(result.error), f"AI correction failed for model {model}")
         # create a trimmed snippet from problematic JSON
         lines = result.json_text.split('\n') if result.json_text else []
         if len(lines) > 5:
@@ -99,7 +85,7 @@ def generate_corrected_edits(current_edits_json: str, resume_lines: Lines, job_t
         raise JSONParsingError(error_msg)
     
     edits = result.data
-    _debug_ai(f"AI correction successful - received {len(str(edits))} chars of JSON data")
+    debug_ai(f"AI correction successful - received {len(str(edits))} chars of JSON data")
     
     # validate response structure
     if not isinstance(edits, dict):
@@ -116,23 +102,23 @@ def generate_corrected_edits(current_edits_json: str, resume_lines: Lines, job_t
             missing_fields.append("ops")
         raise AIError(f"AI response missing required fields: {', '.join(missing_fields)} during correction for model '{model}'")
     
-    _debug_ai(f"Edit correction completed successfully - {len(edits.get('ops', []))} operations generated")
+    debug_ai(f"Edit correction completed successfully - {len(edits.get('ops', []))} operations generated")
     return edits
 
 # * Process MODIFY operation w/ user-modified content
 def process_modify_operation(edit_op: EditOperation) -> EditOperation:
-    _debug_ai(f"Processing MODIFY operation for {edit_op.operation} at line {edit_op.line_number}")
+    debug_ai(f"Processing MODIFY operation for {edit_op.operation} at line {edit_op.line_number}")
     
     # validate content exists (already updated by interactive UI)
     if not edit_op.content:
         raise EditError("MODIFY operation requires content to be set")
-    _debug_ai(f"MODIFY operation processed - content contains {len(edit_op.content)} characters")
+    debug_ai(f"MODIFY operation processed - content contains {len(edit_op.content)} characters")
     
     return edit_op
 
 # * Process PROMPT operation w/ user instruction & AI generation
 def process_prompt_operation(edit_op: EditOperation, resume_lines: Lines, job_text: str, sections_json: str | None, model: str) -> EditOperation:
-    _debug_ai(f"Processing PROMPT operation for {edit_op.operation} at line {edit_op.line_number} with model {model}")
+    debug_ai(f"Processing PROMPT operation for {edit_op.operation} at line {edit_op.line_number} with model {model}")
     
     if edit_op.prompt_instruction is None:
         raise EditError("PROMPT operation requires prompt_instruction to be set")
@@ -171,18 +157,18 @@ def process_prompt_operation(edit_op: EditOperation, resume_lines: Lines, job_te
         sections_json=sections_json
     )
     
-    _debug_ai(f"Generated PROMPT operation prompt: {len(prompt)} characters")
+    debug_ai(f"Generated PROMPT operation prompt: {len(prompt)} characters")
     
     # call AI to generate new content
     result = run_generate(prompt, model)
     
     if not result.success:
-        _debug_error(Exception(result.error), f"AI generation failed for PROMPT operation with model {model}")
+        debug_error(Exception(result.error), f"AI generation failed for PROMPT operation with model {model}")
         raise AIError(f"AI failed to process PROMPT operation: {result.error}")
     
     # parse JSON response containing the regenerated operation
     response_data = result.data
-    _debug_ai(f"PROMPT operation AI generation successful - received {len(str(response_data))} characters")
+    debug_ai(f"PROMPT operation AI generation successful - received {len(str(response_data))} characters")
     
     # validate response structure
     if not isinstance(response_data, dict):

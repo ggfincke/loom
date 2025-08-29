@@ -3,7 +3,6 @@
 
 import os
 from typing import Optional
-from ..loom_io.console import console
 
 # global debug state
 _debug_enabled = False
@@ -26,6 +25,8 @@ def is_debug_enabled() -> bool:
 # * Print debug message if debug mode is enabled
 def debug_print(message: str, category: str = "DEBUG"):
     if is_debug_enabled():
+        # lazy import to avoid circular dependencies
+        from ..loom_io.console import console
         console.print(f"[dim yellow]\\[{category}][/] {message}")
 
 # * Print AI-related debug information
