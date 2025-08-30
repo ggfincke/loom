@@ -1,4 +1,4 @@
-# tests/unit/test_ai_models.py
+# tests/unit/ai/test_models.py
 # Unit tests for AI model validation, alias resolution & provider detection
 
 from unittest.mock import Mock, patch

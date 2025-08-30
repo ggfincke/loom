@@ -1,4 +1,4 @@
-# tests/unit/test_config_settings.py
+# tests/unit/config/test_settings.py
 # Unit tests for configuration management including load/save, defaults & theme validation
 
 import pytest

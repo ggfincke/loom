@@ -1,4 +1,4 @@
-# tests/unit/test_models_command.py
+# tests/unit/cli/commands/test_models_command.py
 # Unit tests for models command functionality
 
 import pytest

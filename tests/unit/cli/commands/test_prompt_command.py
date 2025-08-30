@@ -1,4 +1,4 @@
-# tests/unit/test_prompt_command.py
+# tests/unit/cli/commands/test_prompt_command.py
 # Unit tests for the prompt command functionality
 
 import pytest

@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Rich component centralization**: Created dedicated `src/ui/core/rich_components.py` module to centralize all Rich library imports, reducing import redundancy and improving maintainability across UI modules
 - **Type hint standardization**: Added comprehensive type hints to functions across CLI, core, I/O, and UI modules, improving IDE support and code clarity
 - **Theme architecture refactoring**: Split `colors.py` into `theme_definitions.py` (pure theme data) and `theme_engine.py` (gradient utilities & logic), improving separation of concerns and maintainability
+- **Test structure reorganization**: Restructured unit tests to mirror source code directory hierarchy, improving test discoverability and maintainability
 
 ### Fixed
 - **Documentation accuracy**: Removed outdated reference to `test_prompts.py` from architecture documentation.

@@ -1,4 +1,4 @@
-# tests/unit/test_cli_logic.py
+# tests/unit/cli/test_logic.py
 # Unit tests for CLI logic including ArgResolver & orchestration pipeline w/ mocked AI
 
 import pytest
