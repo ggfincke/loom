@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Model detection refactoring**: Replaced individual `is_openai_model()`, `is_claude_model()`, and `is_ollama_model()` functions with unified `get_model_provider()` function that leverages existing validation logic for cleaner, more maintainable code.
 - **Console architecture refactoring**: UI module now uses `get_console()` for dynamic console resolution, improving test mocking and initialization control.
 - **Console module documentation**: Enhanced module-level documentation with usage patterns and architectural guidance for consistent console usage across the codebase.
+- **Code style standardization**: Updated comments throughout codebase to follow consistent style guide
 
 ### Fixed
 - **Documentation accuracy**: Removed outdated reference to `test_prompts.py` from architecture documentation.

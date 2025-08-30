@@ -1,5 +1,5 @@
 # src/cli/app.py
-# Root Typer application and command registration
+# Root Typer application & command registration
 
 from __future__ import annotations
 

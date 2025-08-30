@@ -154,7 +154,7 @@ def create_prompt_loading_display() -> RenderableType:
             lines.append(Text(f"  Instruction: {instruction_preview}", style="dim"))
         lines.append(Text(""))
     
-    # loading indicator with animated spinner
+    # loading indicator w/ animated spinner
     if not prompt_error:
         spinner_line = Columns([
             Spinner("dots", style="cyan"),
@@ -230,7 +230,7 @@ def get_diffs_by_opt():
         "Exit": op_lines,
     }
 
-# * Render main screen layout w/ header, menu & diff display panels, and footer
+# * Render main screen layout w/ header, menu & diff display panels, & footer
 def render_screen() -> RenderableType:
     # create main layout w/ 3 rows
     main_layout = Layout()
@@ -299,7 +299,7 @@ def process_prompt_immediately(operation: EditOperation, resume_lines: Lines, jo
         # call the core prompt processing function
         updated_operation = process_prompt_operation(operation, resume_lines, job_text, sections_json, model)
         
-        # update the current operation with new content
+        # update the current operation w/ new content
         operation.content = updated_operation.content
         operation.reasoning = updated_operation.reasoning
         operation.confidence = updated_operation.confidence
@@ -363,7 +363,7 @@ def main_display_loop(operations: list[EditOperation] | None = None, filename: s
                 elif k == key.ENTER:
                     # submit text input
                     if text_input_mode == "modify" and current_edit_operation:
-                        # immediately update operation content with modified text
+                        # immediately update operation content w/ modified text
                         current_edit_operation.content = text_input_buffer
                         # track that operations were modified
                         operations_modified_during_review = True
@@ -386,7 +386,7 @@ def main_display_loop(operations: list[EditOperation] | None = None, filename: s
                         live.update(render_screen())
                         live.refresh()  # Force immediate render
                         
-                        # Import time for timing and delays
+                        # Import time for timing & delays
                         import time
                         
                         # Track loading start time for minimum duration
@@ -435,7 +435,7 @@ def main_display_loop(operations: list[EditOperation] | None = None, filename: s
                                 console.print("[green]✓ AI regenerated the edit based on your prompt[/]")
                             else:
                                 console.print(f"[red]✗ Error processing prompt: {prompt_error}[/]")
-                                # keep loading screen visible with error for user to acknowledge
+                                # keep loading screen visible w/ error for user to acknowledge
                                 prompt_processing = True  # keep in processing mode to show error
                                 live.update(render_screen())
                         else:
@@ -553,7 +553,7 @@ def main_display_loop(operations: list[EditOperation] | None = None, filename: s
             elif k in (key.ESC, key.CTRL_C):
                 raise SystemExit
 
-    # return operations w/ user decisions and modification flag
+    # return operations w/ user decisions & modification flag
     return edit_operations, operations_modified_during_review
 
 

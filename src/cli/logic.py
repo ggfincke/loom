@@ -245,7 +245,7 @@ def convert_dict_edits_to_operations(edits: dict, resume_lines: Lines) -> list[E
     return operations
 
 
-# * Process MODIFY and PROMPT operations, requiring additional context
+# * Process MODIFY & PROMPT operations, requiring additional context
 def process_special_operations(
     operations: list[EditOperation],
     resume_lines: Lines,
@@ -379,7 +379,7 @@ def convert_all_operations_to_dict_edits(operations: list[EditOperation], origin
             
         all_ops.append(dict_op)
     
-    # return new edits dict w/ all operations and their statuses
+    # return new edits dict w/ all operations & their statuses
     return {
         "version": original_edits.get("version", 1),
         "meta": original_edits.get("meta", {}),
@@ -429,7 +429,7 @@ def apply_edits_core(
             # no operations to review - proceed w/ empty edits
             current[0] = {"version": current[0].get("version", 1), "meta": current[0].get("meta", {}), "ops": []}
         else:
-            # process MODIFY and PROMPT operations before interactive review
+            # process MODIFY & PROMPT operations before interactive review
             special_ops_processed = False
             if job_text is not None or any(op.status in (DiffOp.MODIFY, DiffOp.PROMPT) for op in operations):
                 operations = process_special_operations(operations, resume_lines, job_text, sections_json, model)

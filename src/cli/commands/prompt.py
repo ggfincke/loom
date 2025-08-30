@@ -1,5 +1,5 @@
 # src/cli/commands/prompt.py
-# Prompt command for processing PROMPT operations in edits.json with AI generation
+# Prompt command for processing PROMPT operations in edits.json w/ AI generation
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from ...loom_io import read_resume
 from ...config.settings import get_settings
 
 
-# * Process PROMPT operations in edits.json with AI-generated content
+# * Process PROMPT operations in edits.json w/ AI-generated content
 @app.command(help="Process PROMPT operations in edits.json with AI-generated content")
 @handle_loom_error
 def prompt(

@@ -16,7 +16,7 @@ def initialize_theme():
 def refresh_theme():
     try:
         from .colors import get_loom_theme
-        # pop existing theme and push new one
+        # pop existing theme & push new one
         if console._theme_stack:
             console.pop_theme()
         console.push_theme(get_loom_theme())

@@ -36,7 +36,7 @@ def get_available_models() -> List[str]:
     try:
         models_response = ollama.list()
         models = []
-        # ollama.list() returns a ListResponse object with a models attribute
+        # ollama.list() returns a ListResponse object w/ a models attribute
         for model in models_response.models:
             # extract model name from the model attribute
             model_name = model.model
@@ -52,7 +52,7 @@ def get_available_models_with_error() -> tuple[List[str], str]:
         debug_ai("Retrieving available Ollama models...")
         models_response = ollama.list()
         models = []
-        # ollama.list() returns a ListResponse object with a models attribute
+        # ollama.list() returns a ListResponse object w/ a models attribute
         for model in models_response.models:
             # extract model name from the model attribute
             model_name = model.model

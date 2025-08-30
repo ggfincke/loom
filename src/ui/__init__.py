@@ -1,5 +1,5 @@
 # src/ui/__init__.py
-# Main UI package - imports and re-exports from subpackages
+# Main UI package - imports & re-exports from subpackages
 
 # Core UI components
 from .core import (

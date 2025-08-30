@@ -301,7 +301,7 @@ class LoomColors:
     ACCENT_SECONDARY = get_active_theme()[2]
     ACCENT_DEEP = get_active_theme()[4]
     
-    # success gradient (complementary green works with all themes)
+    # success gradient (complementary green works w/ all themes)
     SUCCESS_BRIGHT = "#10b981"  # emerald green
     SUCCESS_MEDIUM = "#059669"  # darker emerald
     SUCCESS_DIM = "#047857"     # deep emerald

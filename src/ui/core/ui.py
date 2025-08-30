@@ -39,7 +39,7 @@ class UI:
         # initialize console reference to global instance (allows test mocking)
         self.console = get_console()
 
-    # pause timer and temporarily stop Progress rendering for clean prompts
+    # pause timer & temporarily stop Progress rendering for clean prompts
     @contextmanager
     def input_mode(self):
         self._timer.pause()
@@ -77,7 +77,7 @@ class UI:
             self.console.print(f"\n[error]Unexpected error: {e}, defaulting to (s)oft-fail[/]")
             return default
 
-    # print to console with rich formatting
+    # print to console w/ rich formatting
     def print(self, *args, **kwargs) -> None:
         self.console.print(*args, **kwargs)
 

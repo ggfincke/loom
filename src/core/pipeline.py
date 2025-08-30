@@ -186,7 +186,7 @@ def process_prompt_operation(edit_op: EditOperation, resume_lines: Lines, job_te
     # extract the single regenerated operation
     new_op = response_data["ops"][0]
     
-    # update operation content with AI-generated content
+    # update operation content w/ AI-generated content
     edit_op.content = new_op.get("text", "")
     
     # update reasoning if provided
@@ -226,7 +226,7 @@ def apply_edits(resume_lines: Lines, edits: dict) -> Lines:
             text = op["text"]
             
             # validate range exists
-            # align error message with tests: explicitly report missing 'end' if out of bounds
+            # align error message w/ tests: explicitly report missing 'end' if out of bounds
             if end not in new_lines:
                 raise EditError(f"Cannot replace range {start}-{end}: line {end} does not exist")
             for line_num in range(start, end + 1):
@@ -256,7 +256,7 @@ def apply_edits(resume_lines: Lines, edits: dict) -> Lines:
             for i, line_text in enumerate(text_lines):
                 new_lines[start + i] = line_text
             
-            # reinsert moved lines with new positions
+            # reinsert moved lines w/ new positions
             if line_diff != 0:
                 for k, v in lines_to_move:
                     new_lines[k + line_diff] = v

@@ -167,7 +167,7 @@ def check_openai_api_key() -> bool:
 def check_claude_api_key() -> bool:
     return bool(os.getenv("ANTHROPIC_API_KEY"))
 
-# * Get available Ollama models dynamically, with lazy import to avoid SDK at import time
+# * Get available Ollama models dynamically, w/ lazy import to avoid SDK at import time
 def get_ollama_models() -> List[str]:
     try:
         from .clients.ollama_client import get_available_models as _get
