@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from rich.text import Text
+from ..core.rich_components import Text
 from ...loom_io.console import console
 from ..theming.colors import get_active_theme, natural_gradient
 

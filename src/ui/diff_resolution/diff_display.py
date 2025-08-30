@@ -1,16 +1,10 @@
 # src/ui/diff_resolution/diff_display.py
 # Interactive diff display interface w/ rich UI components for edit operation review
 
-from rich.layout import Layout
-from rich.panel import Panel
-from rich.text import Text
-from rich.live import Live
-from rich.align import Align
-from rich.console import RenderableType
-from rich.table import Table
-from rich.padding import Padding
-from rich.spinner import Spinner
-from rich.columns import Columns
+from ..core.rich_components import (
+    Layout, Panel, Text, Live, Align, RenderableType, 
+    Table, Padding, Spinner, Columns
+)
 from readchar import readkey, key
 from ...loom_io.console import console
 from ...loom_io.types import Lines

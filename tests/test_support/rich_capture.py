@@ -7,7 +7,7 @@ from contextlib import contextmanager
 from typing import Generator
 from unittest.mock import patch
 
-from rich.console import Console
+from src.ui.core.rich_components import Console
 
 
 # * Console recording fixture for capturing Rich output in tests

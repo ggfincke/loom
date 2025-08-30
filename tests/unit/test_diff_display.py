@@ -2,7 +2,7 @@
 # Unit tests for diff display UI components & interactive functionality
 
 from unittest.mock import Mock, patch, MagicMock
-from rich.text import Text
+from src.ui.core.rich_components import Text
 
 from src.ui.diff_resolution.diff_display import (
     clamp, create_operation_display, create_header_layout, create_footer_layout,

@@ -4,10 +4,7 @@
 from __future__ import annotations
 
 import typer
-from rich.panel import Panel
-from rich.table import Table
-from rich.text import Text
-from rich.console import Group
+from ..core.rich_components import Panel, Table, Text, Group
 from typing import Any
 
 from ...loom_io.console import console

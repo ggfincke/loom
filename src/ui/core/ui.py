@@ -5,8 +5,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from datetime import timedelta
-from rich.progress import Progress, SpinnerColumn, TextColumn, ProgressColumn
-from rich.text import Text
+from .rich_components import Progress, SpinnerColumn, TextColumn, ProgressColumn, Text
 
 from ...loom_io.console import get_console
 from .pausable_timer import PausableTimer

@@ -3,8 +3,7 @@
 
 from __future__ import annotations
 
-from rich.theme import Theme
-from rich.text import Text
+from ..core.rich_components import Theme, Text
 
 
 # theme definitions w/ gradient color palettes for CLI styling

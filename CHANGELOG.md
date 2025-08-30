@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Console architecture refactoring**: UI module now uses `get_console()` for dynamic console resolution, improving test mocking and initialization control.
 - **Console module documentation**: Enhanced module-level documentation with usage patterns and architectural guidance for consistent console usage across the codebase.
 - **Code style standardization**: Updated comments throughout codebase to follow consistent style guide
+- **Rich component centralization**: Created dedicated `src/ui/core/rich_components.py` module to centralize all Rich library imports, reducing import redundancy and improving maintainability across UI modules
 
 ### Fixed
 - **Documentation accuracy**: Removed outdated reference to `test_prompts.py` from architecture documentation.
