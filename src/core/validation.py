@@ -9,7 +9,6 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import List, Callable, Any, Optional, Dict
 from pathlib import Path
-import typer
 from .constants import ValidationPolicy, RiskLevel
 from .exceptions import ValidationError
 from ..ai.models import SUPPORTED_MODELS, validate_model

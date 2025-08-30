@@ -5,35 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.1.5-nightly.20250829] - 2025-08-29
+## [1.1.5-nightly.20250830] - 2025-08-30
 
 ### Added
-- **Development dependency separation**: Created dedicated `requirements-dev.txt` for development-only dependencies.
-- **Missing dependencies**: Added `anthropic` and `ollama` client dependencies to production requirements.
-- **Console management functions**: Added `get_console()`, `configure_console()`, and `reset_console()` functions to `console.py` for better console lifecycle management and testing support.
-- **Comprehensive test coverage**: Added unit tests for AI models validation, CLI logic orchestration, console management, diff display, models command, OpenAI client, prompt command processing, and theme selector functionality (~4000 lines of test code).
+- **Development environment improvements**: Separated development dependencies into `requirements-dev.txt` and added missing production dependencies (`anthropic`, `ollama`, `simple-term-menu`, `readchar`)
+- **Console lifecycle management**: New `get_console()`, `configure_console()`, and `reset_console()` functions for better testing support and initialization control
+- **Comprehensive unit test coverage**: Added ~4000 lines of tests covering AI models, CLI logic, console management, diff display, and UI components
 
 ### Changed
-- **AI client refactoring**: Consolidated duplicate `strip_markdown_code_blocks` function into shared `src/ai/utils.py` module.
-- **Environment loading**: Centralized `load_dotenv()` to application startup in `src/cli/app.py` for single initialization.
-- **Dependency organization**: Moved development dependencies from `requirements.txt` to separate `requirements-dev.txt` file for cleaner production installs.
-- **Package dependencies**: Added missing interactive UI dependencies (`simple-term-menu`, `readchar`) to ensure full feature support.
-- **Error handling standardization**: AI clients now raise `AIError` exceptions instead of returning error results for consistent error propagation.
-- **Configuration validation**: OpenAI client now raises `ConfigurationError` for missing API keys.
-- **Model detection refactoring**: Replaced individual `is_openai_model()`, `is_claude_model()`, and `is_ollama_model()` functions with unified `get_model_provider()` function that leverages existing validation logic for cleaner, more maintainable code.
-- **Console architecture refactoring**: UI module now uses `get_console()` for dynamic console resolution, improving test mocking and initialization control.
-- **Console module documentation**: Enhanced module-level documentation with usage patterns and architectural guidance for consistent console usage across the codebase.
-- **Code style standardization**: Updated comments throughout codebase to follow consistent style guide
-- **Rich component centralization**: Created dedicated `src/ui/core/rich_components.py` module to centralize all Rich library imports, reducing import redundancy and improving maintainability across UI modules
-- **Type hint standardization**: Added comprehensive type hints to functions across CLI, core, I/O, and UI modules, improving IDE support and code clarity
-- **Theme architecture refactoring**: Split `colors.py` into `theme_definitions.py` (pure theme data) and `theme_engine.py` (gradient utilities & logic), improving separation of concerns and maintainability
-- **Test structure reorganization**: Restructured unit tests to mirror source code directory hierarchy, improving test discoverability and maintainability
+- **Codebase architecture refactoring**: 
+  - Consolidated AI utilities into `src/ai/utils.py` module
+  - Centralized Rich imports in `src/ui/core/rich_components.py`
+  - Split theming into `theme_definitions.py` and `theme_engine.py` for better separation
+  - Reorganized test structure to mirror source code hierarchy
+- **Error handling standardization**: AI clients now consistently raise typed exceptions (`AIError`, `ConfigurationError`)
+- **Model detection simplification**: Replaced individual model detection functions with unified `get_model_provider()`
+- **Code quality improvements**: Added comprehensive type hints and standardized comment styles throughout codebase
+- **Environment initialization**: Centralized `load_dotenv()` to application startup for single initialization
 
 ### Fixed
-- **Documentation accuracy**: Removed outdated reference to `test_prompts.py` from architecture documentation.
-- **Test reliability**: Updated Ollama client tests to properly expect and handle `AIError` exceptions.
-- **Circular dependencies**: Resolved circular import issues in debug module by removing eager pipeline import from `core/__init__.py` and using direct imports with lazy console loading.
-- **Test console mocking**: Improved rich output capture with comprehensive console patching for all UI modules, including banner display assertion fixes for Unicode block character variations.
+- **Circular import resolution**: Fixed debug module dependencies and console loading issues
+- **Test reliability**: Improved console mocking and exception handling in test suites
+- **Documentation accuracy**: Updated architecture docs to reflect current codebase structure
 
 ---
 
