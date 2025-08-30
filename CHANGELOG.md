@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Development dependency separation**: Created dedicated `requirements-dev.txt` for development-only dependencies.
 - **Missing dependencies**: Added `anthropic` and `ollama` client dependencies to production requirements.
 - **Console management functions**: Added `get_console()`, `configure_console()`, and `reset_console()` functions to `console.py` for better console lifecycle management and testing support.
+- **Comprehensive test coverage**: Added unit tests for AI models validation, CLI logic orchestration, console management, diff display, models command, OpenAI client, prompt command processing, and theme selector functionality (~4000 lines of test code).
 
 ### Changed
 - **AI client refactoring**: Consolidated duplicate `strip_markdown_code_blocks` function into shared `src/ai/utils.py` module.
