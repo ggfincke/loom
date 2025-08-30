@@ -7,7 +7,7 @@ from simple_term_menu import TerminalMenu
 
 from ...config.settings import settings_manager
 from ...loom_io.console import console, refresh_theme
-from .colors import THEMES
+from .theme_definitions import THEMES
 from ..display.ascii_art import show_loom_art
 
 # * Capture banner for preview pane

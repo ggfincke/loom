@@ -5,11 +5,14 @@ from __future__ import annotations
 
 import json
 from dataclasses import fields
+from typing import Any
 import typer
+from builtins import list as builtin_list
 
 from ...config.settings import settings_manager, LoomSettings
 from ...loom_io.console import console
-from ...ui.theming.colors import styled_checkmark, success_gradient, LoomColors, THEMES, accent_gradient, styled_bullet, styled_arrow
+from ...ui.theming.theme_definitions import THEMES
+from ...ui.theming.theme_engine import styled_checkmark, success_gradient, LoomColors, accent_gradient, styled_bullet, styled_arrow
 from ..app import app
 from ...ui.theming.theme_selector import interactive_theme_selector
 from ...ui.display.ascii_art import show_loom_art
@@ -31,7 +34,7 @@ def _valid_themes() -> set[str]:
     return set(THEMES.keys())
 
 # coerce string value to JSON value (numbers, bools, null) or keep raw string
-def _coerce_value(raw: str) -> str | int | float | bool | None | list | dict:
+def _coerce_value(raw: str) -> str | int | float | bool | None | builtin_list[Any] | dict[str, Any]:
     try:
         # parse JSON for numbers/bools/null/arrays/objects
         return json.loads(raw)

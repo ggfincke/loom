@@ -10,7 +10,7 @@ from .rich_components import Progress, SpinnerColumn, TextColumn, ProgressColumn
 
 from ...loom_io.console import get_console
 from .pausable_timer import PausableTimer
-from ..theming.colors import LoomColors
+from ..theming.theme_engine import LoomColors
 
 
 # elapsed time column that freezes while UI is in input mode

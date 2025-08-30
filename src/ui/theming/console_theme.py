@@ -6,16 +6,16 @@ from __future__ import annotations
 from ...loom_io.console import console
 
 
-# * initialize gradient theme after colors module is available
+# * initialize gradient theme after theme_engine module is available
 def initialize_theme() -> None:
-    from .colors import get_loom_theme
+    from .theme_engine import get_loom_theme
     console.push_theme(get_loom_theme())
 
 
 # * Refresh console theme w/ current settings
 def refresh_theme() -> None:
     try:
-        from .colors import get_loom_theme
+        from .theme_engine import get_loom_theme
         # pop existing theme & push new one
         if console._theme_stack:
             console.pop_theme()

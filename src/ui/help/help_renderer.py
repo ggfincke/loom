@@ -8,7 +8,7 @@ from ..core.rich_components import Panel, Table, Text, Group
 from typing import Any
 
 from ...loom_io.console import console
-from ..theming.colors import accent_gradient, get_active_theme
+from ..theming.theme_engine import accent_gradient, get_active_theme
 from ..display.ascii_art import show_loom_art
 from .help_data import get_command_help, get_option_help, get_command_metadata
 
