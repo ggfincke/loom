@@ -205,16 +205,10 @@ def get_models_by_provider() -> Dict[str, Dict[str, Any]]:
         }
     }
 
-# detect if model is from any provider
-def is_openai_model(model: str) -> bool:
-    return model in OPENAI_MODELS
-
-def is_claude_model(model: str) -> bool:
-    return model in CLAUDE_MODELS
-
-def is_ollama_model(model: str) -> bool:
-    ollama_models = get_ollama_models()
-    return model in ollama_models
+# * Get provider for a model (convenience wrapper around validate_model)
+def get_model_provider(model: str) -> Optional[str]:
+    valid, provider = validate_model(model)
+    return provider if valid else None
 
 # get the recommended default model
 def get_default_model() -> str:

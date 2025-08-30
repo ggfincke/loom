@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Package dependencies**: Added missing interactive UI dependencies (`simple-term-menu`, `readchar`) to ensure full feature support.
 - **Error handling standardization**: AI clients now raise `AIError` exceptions instead of returning error results for consistent error propagation.
 - **Configuration validation**: OpenAI client now raises `ConfigurationError` for missing API keys.
+- **Model detection refactoring**: Replaced individual `is_openai_model()`, `is_claude_model()`, and `is_ollama_model()` functions with unified `get_model_provider()` function that leverages existing validation logic for cleaner, more maintainable code.
 
 ### Fixed
 - **Documentation accuracy**: Removed outdated reference to `test_prompts.py` from architecture documentation.
