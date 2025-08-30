@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.5-nightly.20250830] - 2025-08-30
+
+### Added
+- **Development environment improvements**: Separated development dependencies into `requirements-dev.txt` and added missing production dependencies (`anthropic`, `ollama`, `simple-term-menu`, `readchar`)
+- **Console lifecycle management**: New `get_console()`, `configure_console()`, and `reset_console()` functions for better testing support and initialization control
+- **Comprehensive unit test coverage**: Added ~4000 lines of tests covering AI models, CLI logic, console management, diff display, and UI components
+
+### Changed
+- **Codebase architecture refactoring**: 
+  - Consolidated AI utilities into `src/ai/utils.py` module
+  - Centralized Rich imports in `src/ui/core/rich_components.py`
+  - Split theming into `theme_definitions.py` and `theme_engine.py` for better separation
+  - Reorganized test structure to mirror source code hierarchy
+- **Error handling standardization**: AI clients now consistently raise typed exceptions (`AIError`, `ConfigurationError`)
+- **Model detection simplification**: Replaced individual model detection functions with unified `get_model_provider()`
+- **Code quality improvements**: Added comprehensive type hints and standardized comment styles throughout codebase
+- **Environment initialization**: Centralized `load_dotenv()` to application startup for single initialization
+
+### Fixed
+- **Circular import resolution**: Fixed debug module dependencies and console loading issues
+- **Test reliability**: Improved console mocking and exception handling in test suites
+- **Documentation accuracy**: Updated architecture docs to reflect current codebase structure
+
+---
+
 ## [1.1.4-nightly.20250829] - 2025-08-29
 
 ### Added

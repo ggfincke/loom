@@ -1,16 +1,10 @@
 # src/ui/diff_resolution/diff_display.py
 # Interactive diff display interface w/ rich UI components for edit operation review
 
-from rich.layout import Layout
-from rich.panel import Panel
-from rich.text import Text
-from rich.live import Live
-from rich.align import Align
-from rich.console import RenderableType
-from rich.table import Table
-from rich.padding import Padding
-from rich.spinner import Spinner
-from rich.columns import Columns
+from ..core.rich_components import (
+    Layout, Panel, Text, Live, Align, RenderableType, 
+    Table, Padding, Spinner, Columns
+)
 from readchar import readkey, key
 from ...loom_io.console import console
 from ...loom_io.types import Lines
@@ -25,7 +19,7 @@ MIN_W, MAX_W = 60, 120
 MIN_H, MAX_H = 25, 25
 
 # * Clamp value between min & max bounds
-def clamp(n, lo, hi): 
+def clamp(n: int, lo: int, hi: int) -> int: 
     return max(lo, min(hi, n))
 
 # compute dimensions once
@@ -154,7 +148,7 @@ def create_prompt_loading_display() -> RenderableType:
             lines.append(Text(f"  Instruction: {instruction_preview}", style="dim"))
         lines.append(Text(""))
     
-    # loading indicator with animated spinner
+    # loading indicator w/ animated spinner
     if not prompt_error:
         spinner_line = Columns([
             Spinner("dots", style="cyan"),
@@ -208,7 +202,7 @@ def create_footer_layout() -> RenderableType:
     return Panel(Align.center(summary_text), border_style="dim", padding=(0, 1))
 
 # * Generate dynamic content for each menu option based on current edit operation
-def get_diffs_by_opt():
+def get_diffs_by_opt() -> dict:
     # If prompt is being processed, show loading interface
     if prompt_processing:
         loading_display = create_prompt_loading_display()
@@ -217,22 +211,20 @@ def get_diffs_by_opt():
     # If text input is active, show the input interface
     if text_input_active and text_input_mode:
         input_lines = create_text_input_display(text_input_mode)
-        input_display = Text("\n").join(input_lines)
-        return {opt: input_display for opt in options}
+        return {opt: input_lines for opt in options}
     
     # Otherwise show normal operation display
     op_lines = create_operation_display(current_edit_operation)
-    op_display = Text("\n").join(op_lines)
     return {
-        "Approve": op_display,
-        "Reject": op_display, 
-        "Skip": op_display,
-        "Modify": op_display,
-        "Prompt": op_display,
-        "Exit": op_display,
+        "Approve": op_lines,
+        "Reject": op_lines, 
+        "Skip": op_lines,
+        "Modify": op_lines,
+        "Prompt": op_lines,
+        "Exit": op_lines,
     }
 
-# * Render main screen layout w/ header, menu & diff display panels, and footer
+# * Render main screen layout w/ header, menu & diff display panels, & footer
 def render_screen() -> RenderableType:
     # create main layout w/ 3 rows
     main_layout = Layout()
@@ -270,7 +262,12 @@ def render_screen() -> RenderableType:
     # create right diff pane w/ operation details
     current = options[selected]
     diffs_by_opt = get_diffs_by_opt()
-    body_content = diffs_by_opt[current]
+    body_content_list = diffs_by_opt[current]
+    # join list of Text objects for display
+    if isinstance(body_content_list, list):
+        body_content = Text("\n").join(body_content_list)
+    else:
+        body_content = body_content_list
     body_panel = Panel(body_content, title="Current Edit", border_style="loom.accent2")
 
     content_layout["menu"].update(menu_panel)
@@ -296,7 +293,7 @@ def process_prompt_immediately(operation: EditOperation, resume_lines: Lines, jo
         # call the core prompt processing function
         updated_operation = process_prompt_operation(operation, resume_lines, job_text, sections_json, model)
         
-        # update the current operation with new content
+        # update the current operation w/ new content
         operation.content = updated_operation.content
         operation.reasoning = updated_operation.reasoning
         operation.confidence = updated_operation.confidence
@@ -360,7 +357,7 @@ def main_display_loop(operations: list[EditOperation] | None = None, filename: s
                 elif k == key.ENTER:
                     # submit text input
                     if text_input_mode == "modify" and current_edit_operation:
-                        # immediately update operation content with modified text
+                        # immediately update operation content w/ modified text
                         current_edit_operation.content = text_input_buffer
                         # track that operations were modified
                         operations_modified_during_review = True
@@ -383,7 +380,7 @@ def main_display_loop(operations: list[EditOperation] | None = None, filename: s
                         live.update(render_screen())
                         live.refresh()  # Force immediate render
                         
-                        # Import time for timing and delays
+                        # Import time for timing & delays
                         import time
                         
                         # Track loading start time for minimum duration
@@ -432,7 +429,7 @@ def main_display_loop(operations: list[EditOperation] | None = None, filename: s
                                 console.print("[green]✓ AI regenerated the edit based on your prompt[/]")
                             else:
                                 console.print(f"[red]✗ Error processing prompt: {prompt_error}[/]")
-                                # keep loading screen visible with error for user to acknowledge
+                                # keep loading screen visible w/ error for user to acknowledge
                                 prompt_processing = True  # keep in processing mode to show error
                                 live.update(render_screen())
                         else:
@@ -550,7 +547,7 @@ def main_display_loop(operations: list[EditOperation] | None = None, filename: s
             elif k in (key.ESC, key.CTRL_C):
                 raise SystemExit
 
-    # return operations w/ user decisions and modification flag
+    # return operations w/ user decisions & modification flag
     return edit_operations, operations_modified_during_review
 
 

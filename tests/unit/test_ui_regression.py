@@ -14,7 +14,7 @@ from tests.test_support.rich_capture import (
 
 from src.ui.display.ascii_art import show_loom_art
 from src.ui.core.progress import setup_ui_with_progress
-from src.ui.theming.colors import get_active_theme, natural_gradient
+from src.ui.theming.theme_engine import get_active_theme, natural_gradient
 from src.ui.display.reporting import report_result
 
 
@@ -75,7 +75,7 @@ def test_success_message_consistency():
     
     for result_type, kwargs in test_cases:
         with capture_rich_output() as console:
-            report_result(result_type, **kwargs)
+            report_result(result_type, settings=None, **kwargs)
             success_outputs.append(extract_plain_text(console))
     
     # verify all success messages have consistent checkmark & arrow patterns

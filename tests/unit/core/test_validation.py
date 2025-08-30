@@ -1,4 +1,4 @@
-# tests/unit/test_validation.py
+# tests/unit/core/test_validation.py
 # Unit tests for validation logic w/ bounds checking & strategy pattern
 
 import pytest

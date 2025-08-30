@@ -1,4 +1,4 @@
-# tests/unit/test_ai_prompts.py
+# tests/unit/ai/test_prompts.py
 # Unit tests for AI prompt assembly & validation
 
 import pytest

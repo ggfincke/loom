@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import patch, Mock
 
 from src.config.settings import SettingsManager, LoomSettings
-from src.ui.theming.colors import THEMES
+from src.ui.theming.theme_definitions import THEMES
 from src.cli.commands.config import _valid_themes, _known_keys
 
 

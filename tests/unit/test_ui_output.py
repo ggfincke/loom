@@ -47,13 +47,12 @@ def test_progress_setup_creates_ui_elements():
 # * Test progress updates appear in output
 def test_progress_updates_in_output():
     with capture_rich_output() as console:
-        # patch UI to use our recording console
-        with patch("src.ui.core.ui.console", console):
-            with setup_ui_with_progress("Processing files", total=2) as (ui, progress, task):
-                progress.update(task, description="Reading document...")
-                progress.advance(task)
-                progress.update(task, description="Processing content...")
-                progress.advance(task)
+        # UI now uses get_console() so no need to patch ui.console
+        with setup_ui_with_progress("Processing files", total=2) as (ui, progress, task):
+            progress.update(task, description="Reading document...")
+            progress.advance(task)
+            progress.update(task, description="Processing content...")
+            progress.advance(task)
         
         output = extract_plain_text(console)
         # check for any progress-related content (task descriptions)

@@ -7,7 +7,7 @@ import typer
 from ...ai.models import get_models_by_provider
 from ...ai.clients.ollama_client import check_ollama_with_error, get_available_models_with_error
 from ...loom_io.console import console
-from ...ui.theming.colors import styled_checkmark, accent_gradient, styled_bullet
+from ...ui.theming.theme_engine import styled_checkmark, accent_gradient, styled_bullet
 from ..app import app
 from ...ui.help.help_data import command_help
 from .help import show_command_help

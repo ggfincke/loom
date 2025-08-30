@@ -1,5 +1,5 @@
 # src/ui/__init__.py
-# Main UI package - imports and re-exports from subpackages
+# Main UI package - imports & re-exports from subpackages
 
 # Core UI components
 from .core import (
@@ -19,7 +19,6 @@ from .theming import (
     update_gradient_colors,
     LoomColors,
     natural_gradient,
-    gradient_text,
     success_gradient,
     accent_gradient,
     get_loom_theme,
@@ -73,7 +72,6 @@ __all__ = [
     "update_gradient_colors",
     "LoomColors",
     "natural_gradient",
-    "gradient_text",
     "success_gradient",
     "accent_gradient",
     "get_loom_theme",

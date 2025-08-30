@@ -1,7 +1,7 @@
 # src/ai/prompts.py
 # Prompt templates for AI-powered resume sectionizing & tailoring operations
 
-# build sectionizer prompt for LLM
+# * Build sectionizer prompt for LLM
 def build_sectionizer_prompt(resume_with_line_numbers: str) -> str:
     return (
         "You are a resume section parser. Your task is to analyze a resume provided as "
@@ -52,7 +52,7 @@ def build_sectionizer_prompt(resume_with_line_numbers: str) -> str:
         f"{resume_with_line_numbers}\n"
     )
 
-# build generate prompt for LLM
+# * Build generate prompt for LLM
 def build_generate_prompt(job_info: str,
                          resume_with_line_numbers: str,
                          model: str,
@@ -129,7 +129,7 @@ def build_generate_prompt(job_info: str,
         f"{resume_with_line_numbers}\n"
     )
 
-# build edit prompt for fixing validation errors in edits.json
+# * Build edit prompt for fixing validation errors in edits.json
 def build_edit_prompt(job_info: str,
                      resume_with_line_numbers: str, 
                      edits_json: str,
@@ -188,7 +188,7 @@ def build_edit_prompt(job_info: str,
         f"{edits_json}\n"
     )
 
-# build prompt operation prompt for user-driven content generation
+# * Build prompt operation prompt for user-driven content generation
 def build_prompt_operation_prompt(user_instruction: str,
                                 operation_type: str,
                                 operation_context: str,

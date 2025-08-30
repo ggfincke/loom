@@ -32,7 +32,7 @@ def read_json_safe(path: Path) -> dict[str, Any]:
     snippet_end = min(len(lines), line_num + 3)
     snippet_lines = lines[snippet_start:snippet_end]
     
-    # add line numbers and highlight the problematic line
+    # add line numbers & highlight the problematic line
     numbered_lines = []
     for i, line in enumerate(snippet_lines, start=snippet_start + 1):
       marker = ">>> " if i == e.lineno else "    "

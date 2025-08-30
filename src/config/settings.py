@@ -76,11 +76,7 @@ class LoomSettings:
         return self.loom_dir / self.plan_filename
 
 
-# * Settings management
-'''
-this class manages Loom settings, allowing for loading, saving, and modifying settings;
-it uses a JSON file for persistence and provides methods to get, set, reset, and list settings
-'''
+# * Settings management class w/ JSON persistence for loading, saving, & modifying settings
 class SettingsManager:    
     def __init__(self, config_path: Optional[Path] = None):
         self.config_path = config_path or Path.home() / ".loom" / "config.json"

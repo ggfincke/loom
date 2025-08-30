@@ -4,7 +4,6 @@
 import os
 import typer
 import sys
-from dotenv import load_dotenv
 from typing import List, Optional, Dict, Tuple, Any
 # supported OpenAI models
 OPENAI_MODELS: List[str] = [
@@ -163,14 +162,12 @@ def ensure_valid_model(model: Optional[str]) -> Optional[str]:
 
 # * Check if API keys are available for external providers
 def check_openai_api_key() -> bool:
-    load_dotenv()
     return bool(os.getenv("OPENAI_API_KEY"))
 
 def check_claude_api_key() -> bool:
-    load_dotenv()
     return bool(os.getenv("ANTHROPIC_API_KEY"))
 
-# * Get available Ollama models dynamically, with lazy import to avoid SDK at import time
+# * Get available Ollama models dynamically, w/ lazy import to avoid SDK at import time
 def get_ollama_models() -> List[str]:
     try:
         from .clients.ollama_client import get_available_models as _get
@@ -208,16 +205,10 @@ def get_models_by_provider() -> Dict[str, Dict[str, Any]]:
         }
     }
 
-# detect if model is from any provider
-def is_openai_model(model: str) -> bool:
-    return model in OPENAI_MODELS
-
-def is_claude_model(model: str) -> bool:
-    return model in CLAUDE_MODELS
-
-def is_ollama_model(model: str) -> bool:
-    ollama_models = get_ollama_models()
-    return model in ollama_models
+# * Get provider for a model (convenience wrapper around validate_model)
+def get_model_provider(model: str) -> Optional[str]:
+    valid, provider = validate_model(model)
+    return provider if valid else None
 
 # get the recommended default model
 def get_default_model() -> str:

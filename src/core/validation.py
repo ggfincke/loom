@@ -9,11 +9,10 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import List, Callable, Any, Optional, Dict
 from pathlib import Path
-import typer
 from .constants import ValidationPolicy, RiskLevel
 from .exceptions import ValidationError
 from ..ai.models import SUPPORTED_MODELS, validate_model
-from ..config.settings import settings_manager
+from ..config.settings import settings_manager, LoomSettings
 from ..loom_io.generics import ensure_parent
 
 
@@ -213,7 +212,7 @@ def validate(validate_fn: Callable[[], List[str]],
 
 
 # * Handle validation errors w/ strategy pattern - centralized validation flow
-def handle_validation_error(settings,
+def handle_validation_error(settings: LoomSettings | None,
                            validate_fn: Callable[[], List[str]], 
                            policy: ValidationPolicy,
                            edit_fn: Optional[Callable[[List[str]], Any]] = None,
@@ -238,9 +237,10 @@ def handle_validation_error(settings,
                 # use AI to generate corrected edits
                 prior_warnings: List[str] = outcome.value if isinstance(outcome.value, list) else []
                 result = edit_fn(prior_warnings)
-                settings.loom_dir.mkdir(parents=True, exist_ok=True)
-                ensure_parent(settings.edits_path)
-                settings.edits_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+                if settings is not None:
+                    settings.loom_dir.mkdir(parents=True, exist_ok=True)
+                    ensure_parent(settings.edits_path)
+                    settings.edits_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
                 if ui:
                     ui.print("✅ Generated corrected edits, re-validating...")
                 # continue loop for re-validation
@@ -248,7 +248,7 @@ def handle_validation_error(settings,
 
         # handle manual editing path
         warnings = validate_fn()
-        if ui:
+        if ui and settings is not None:
             ui.print(f"⚠️  Validation errors found. Please edit {settings.edits_path} manually:")
             for w in warnings:
                 ui.print(f"   {w}")
@@ -258,6 +258,8 @@ def handle_validation_error(settings,
                     ui.ask("Press Enter after editing edits.json to re-validate...")
 
                 try:
+                    if settings is None:
+                        break
                     text = settings.edits_path.read_text(encoding="utf-8")
                     data = json.loads(text)
                     if reload_fn is not None:
@@ -267,6 +269,8 @@ def handle_validation_error(settings,
                 except json.JSONDecodeError as e:
                     # generate error context snippet
                     try:
+                        if settings is None:
+                            continue
                         text = settings.edits_path.read_text(encoding="utf-8")
                         lines = text.split('\n')
                         line_num = e.lineno - 1

@@ -4,14 +4,18 @@
 import json
 import sys
 import types
-import importlib
 import pytest
 
 # ensure dummy ollama module exists before importing client
 if "ollama" not in sys.modules:
-    sys.modules["ollama"] = types.ModuleType("ollama")
+    ollama_module = types.ModuleType("ollama")
+    # add placeholders for methods that will be monkeypatched
+    setattr(ollama_module, "list", None)
+    setattr(ollama_module, "chat", None)
+    sys.modules["ollama"] = ollama_module
 
 from src.ai.clients import ollama_client as oc
+from src.core.exceptions import AIError
 
 
 class _FakeModel:
@@ -35,7 +39,7 @@ def test_run_generate_success_with_code_fence(patch_ollama):
     # simulate available model and successful chat response with JSON code fence
     patch_ollama.setattr(oc.ollama, "list", lambda: _ListResponse([_FakeModel("llama3.2")]))
 
-    def _chat(model, messages, options):
+    def _chat(**_kwargs):
         payload = {"sections": [{"name": "SUMMARY"}]}
         return {"message": {"content": f"```json\n{json.dumps(payload)}\n```"}}
 
@@ -52,10 +56,12 @@ def test_run_generate_model_not_found_lists_available(patch_ollama):
     # model requested is not in available list
     patch_ollama.setattr(oc.ollama, "list", lambda: _ListResponse([_FakeModel("llama3.1")]))
 
-    result = oc.run_generate("Prompt", model="llama3.2")
-    assert result.success is False
-    assert "not found" in result.error.lower()
-    assert "available models" in result.error.lower() or "available" in result.error.lower()
+    with pytest.raises(AIError) as exc_info:
+        oc.run_generate("Prompt", model="llama3.2")
+    
+    error_msg = str(exc_info.value).lower()
+    assert "not found" in error_msg
+    assert "available models" in error_msg or "available" in error_msg
 
 
 # * verify network error on availability check handled
@@ -66,16 +72,18 @@ def test_run_generate_network_error_on_availability_check(patch_ollama):
 
     patch_ollama.setattr(oc.ollama, "list", _raise)
 
-    result = oc.run_generate("Prompt", model="llama3.2")
-    assert result.success is False
-    assert "connection" in result.error.lower() or "ollama" in result.error.lower()
+    with pytest.raises(AIError) as exc_info:
+        oc.run_generate("Prompt", model="llama3.2")
+    
+    error_msg = str(exc_info.value).lower()
+    assert "connection" in error_msg or "ollama" in error_msg
 
 
 # * verify thinking tokens are stripped in json_text
 def test_run_generate_strips_thinking_tokens(patch_ollama):
     patch_ollama.setattr(oc.ollama, "list", lambda: _ListResponse([_FakeModel("llama3.2")]))
 
-    def _chat(model, messages, options):
+    def _chat(**_kwargs):
         content = "<think>some chain of thought</think> {\n  \"sections\": []\n}"
         return {"message": {"content": content}}
 

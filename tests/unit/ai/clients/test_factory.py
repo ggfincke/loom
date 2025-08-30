@@ -1,4 +1,4 @@
-# tests/unit/test_ai_clients.py
+# tests/unit/ai/clients/test_factory.py
 # Unit tests for AI client routing, response parsing & error handling
 
 import pytest

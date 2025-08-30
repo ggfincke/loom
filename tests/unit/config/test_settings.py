@@ -1,4 +1,4 @@
-# tests/unit/test_config_settings.py
+# tests/unit/config/test_settings.py
 # Unit tests for configuration management including load/save, defaults & theme validation
 
 import pytest
@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch, mock_open
 
 from src.config.settings import LoomSettings, SettingsManager
-from src.ui.theming.colors import THEMES
+from src.ui.theming.theme_definitions import THEMES
 
 
 # * Test LoomSettings dataclass behavior

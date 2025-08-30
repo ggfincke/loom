@@ -17,7 +17,7 @@ from ...loom_io.console import console
 from ...loom_io.types import Lines
 from ...core.pipeline import diff_lines
 from ...core.exceptions import LaTeXError
-from ..theming.colors import styled_checkmark, styled_arrow, success_gradient
+from ..theming.theme_engine import styled_checkmark, styled_arrow, success_gradient
 
 
 def persist_edits_json(

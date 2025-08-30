@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import TypedDict
+from typing import TypedDict, Any
 
 from ..config.settings import LoomSettings
 from ..loom_io.generics import ensure_parent
@@ -24,7 +24,7 @@ from ..core.validation import handle_validation_error
 from ..ui.diff_resolution.diff_display import main_display_loop
 
 
-def _resolve(provided_value, settings_default):
+def _resolve(provided_value: Any, settings_default: Any) -> Any:
     return settings_default if provided_value is None else provided_value
 
 
@@ -39,7 +39,7 @@ class ArgResolver:
     def __init__(self, settings: LoomSettings):
         self.settings = settings
 
-    def resolve_common(self, **kwargs):
+    def resolve_common(self, **kwargs) -> dict:
         return {
             "resume": _resolve(kwargs.get("resume"), self.settings.resume_path),
             "job": _resolve(kwargs.get("job"), self.settings.job_path),
@@ -55,7 +55,7 @@ class ArgResolver:
             ),
         }
 
-    def resolve_paths(self, **kwargs):
+    def resolve_paths(self, **kwargs) -> dict:
         return {
             "output_resume": _resolve(
                 kwargs.get("output_resume"),
@@ -112,14 +112,14 @@ def generate_edits_core(
     # validate using updatable closure
     current_edits = [edits]
 
-    def validate_current():
+    def validate_current() -> list[str]:
         if current_edits[0] is not None:
             return validate_edits(current_edits[0], resume_lines, risk)
         else:
             # return JSON parsing error as validation warning to trigger interactive handling
             return [json_error_warning] if json_error_warning else ["Edits not initialized"]
 
-    def edit_edits_and_update(validation_warnings):
+    def edit_edits_and_update(validation_warnings) -> dict | None:
         # load current edits from disk
         if settings.edits_path.exists():
             current_edits_json = settings.edits_path.read_text(encoding="utf-8")
@@ -146,7 +146,7 @@ def generate_edits_core(
             json_error_warning = str(e)
             return None
 
-    def reload_from_disk(data):
+    def reload_from_disk(data) -> None:
         current_edits[0] = data
 
     # perform validation
@@ -245,7 +245,7 @@ def convert_dict_edits_to_operations(edits: dict, resume_lines: Lines) -> list[E
     return operations
 
 
-# * Process MODIFY and PROMPT operations, requiring additional context
+# * Process MODIFY & PROMPT operations, requiring additional context
 def process_special_operations(
     operations: list[EditOperation],
     resume_lines: Lines,
@@ -379,7 +379,7 @@ def convert_all_operations_to_dict_edits(operations: list[EditOperation], origin
             
         all_ops.append(dict_op)
     
-    # return new edits dict w/ all operations and their statuses
+    # return new edits dict w/ all operations & their statuses
     return {
         "version": original_edits.get("version", 1),
         "meta": original_edits.get("meta", {}),
@@ -405,10 +405,10 @@ def apply_edits_core(
     # use mutable container for reload support
     current = [edits]
 
-    def validate_current():
+    def validate_current() -> list[str]:
         return validate_edits(current[0], resume_lines, risk)
 
-    def reload_from_disk(data):
+    def reload_from_disk(data) -> None:
         current[0] = data
 
     # validate before applying edits
@@ -429,7 +429,7 @@ def apply_edits_core(
             # no operations to review - proceed w/ empty edits
             current[0] = {"version": current[0].get("version", 1), "meta": current[0].get("meta", {}), "ops": []}
         else:
-            # process MODIFY and PROMPT operations before interactive review
+            # process MODIFY & PROMPT operations before interactive review
             special_ops_processed = False
             if job_text is not None or any(op.status in (DiffOp.MODIFY, DiffOp.PROMPT) for op in operations):
                 operations = process_special_operations(operations, resume_lines, job_text, sections_json, model)

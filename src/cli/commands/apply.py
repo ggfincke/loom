@@ -112,7 +112,8 @@ def apply(
         job_text = None
         if job is not None:
             progress.update(task, description="Reading job description...")
-            job_text = Path(job).read_text(encoding="utf-8")
+            if Path(job).exists():
+                job_text = Path(job).read_text(encoding="utf-8")
             progress.advance(task)
             
         # load optional sections for prompt support

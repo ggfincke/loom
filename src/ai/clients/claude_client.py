@@ -3,27 +3,15 @@
 
 import os
 import json
-import re
-from dotenv import load_dotenv
 from anthropic import Anthropic
 from ...config.settings import settings_manager
 from ..types import GenerateResult
 from ..models import ensure_valid_model
 from ...core.exceptions import AIError
-
-# strip markdown code blocks
-def strip_markdown_code_blocks(text: str) -> str:
-    code_block_pattern = r'^```(?:json)?\s*\n(.*?)\n```\s*$'
-    match = re.match(code_block_pattern, text.strip(), re.DOTALL)
-    
-    if match:
-        return match.group(1)
-    else:
-        return text.strip()
+from ..utils import strip_markdown_code_blocks
 
 # * generate JSON response via Claude API w/ model validation
 def run_generate(prompt: str, model: str = "claude-sonnet-4-20250514") -> GenerateResult:
-    load_dotenv()
     if not os.getenv("ANTHROPIC_API_KEY"):
         raise RuntimeError("Missing ANTHROPIC_API_KEY in environment or .env")
     

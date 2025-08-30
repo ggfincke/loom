@@ -1,4 +1,4 @@
-# tests/unit/test_loom_io_documents.py
+# tests/unit/loom_io/test_documents.py
 # Unit tests for document I/O operations w/ round-trip behaviors & formatting preservation
 
 import pytest
@@ -20,31 +20,31 @@ from src.core.exceptions import LaTeXError, JSONParsingError
 # * Path to basic formatted DOCX test fixture
 @pytest.fixture
 def sample_docx_path():
-    fixtures_dir = Path(__file__).parent.parent / "fixtures" / "documents"
+    fixtures_dir = Path(__file__).parent.parent.parent / "fixtures" / "documents"
     return fixtures_dir / "basic_formatted_resume.docx"
 
 # * Path to simple formatted DOCX test fixture
 @pytest.fixture
 def simple_docx_path():
-    fixtures_dir = Path(__file__).parent.parent / "fixtures" / "documents"
+    fixtures_dir = Path(__file__).parent.parent.parent / "fixtures" / "documents"
     return fixtures_dir / "simple_formatted.docx"
 
 # * Path to edge case DOCX test fixture
 @pytest.fixture
 def edge_case_docx_path():
-    fixtures_dir = Path(__file__).parent.parent / "fixtures" / "documents"
+    fixtures_dir = Path(__file__).parent.parent.parent / "fixtures" / "documents"
     return fixtures_dir / "edge_cases.docx"
 
 # * Path to formatted LaTeX test fixture
 @pytest.fixture
 def sample_latex_path():
-    fixtures_dir = Path(__file__).parent.parent / "fixtures" / "documents"
+    fixtures_dir = Path(__file__).parent.parent.parent / "fixtures" / "documents"
     return fixtures_dir / "basic_formatted_resume.tex"
 
 # * Path to simple LaTeX test fixture
 @pytest.fixture
 def simple_latex_path():
-    fixtures_dir = Path(__file__).parent.parent / "fixtures" / "documents"
+    fixtures_dir = Path(__file__).parent.parent.parent / "fixtures" / "documents"
     return fixtures_dir / "simple_latex.tex"
 
 # * Sample lines dict for edit testing
