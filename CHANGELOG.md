@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Development dependency separation**: Created dedicated `requirements-dev.txt` for development-only dependencies.
 - **Missing dependencies**: Added `anthropic` and `ollama` client dependencies to production requirements.
+- **Console management functions**: Added `get_console()`, `configure_console()`, and `reset_console()` functions to `console.py` for better console lifecycle management and testing support.
 
 ### Changed
 - **AI client refactoring**: Consolidated duplicate `strip_markdown_code_blocks` function into shared `src/ai/utils.py` module.
@@ -19,11 +20,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Error handling standardization**: AI clients now raise `AIError` exceptions instead of returning error results for consistent error propagation.
 - **Configuration validation**: OpenAI client now raises `ConfigurationError` for missing API keys.
 - **Model detection refactoring**: Replaced individual `is_openai_model()`, `is_claude_model()`, and `is_ollama_model()` functions with unified `get_model_provider()` function that leverages existing validation logic for cleaner, more maintainable code.
+- **Console architecture refactoring**: UI module now uses `get_console()` for dynamic console resolution, improving test mocking and initialization control.
+- **Console module documentation**: Enhanced module-level documentation with usage patterns and architectural guidance for consistent console usage across the codebase.
 
 ### Fixed
 - **Documentation accuracy**: Removed outdated reference to `test_prompts.py` from architecture documentation.
 - **Test reliability**: Updated Ollama client tests to properly expect and handle `AIError` exceptions.
 - **Circular dependencies**: Resolved circular import issues in debug module by removing eager pipeline import from `core/__init__.py` and using direct imports with lazy console loading.
+- **Test console mocking**: Improved rich output capture with comprehensive console patching for all UI modules, including banner display assertion fixes for Unicode block character variations.
 
 ---
 

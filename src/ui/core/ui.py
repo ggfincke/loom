@@ -8,7 +8,7 @@ from datetime import timedelta
 from rich.progress import Progress, SpinnerColumn, TextColumn, ProgressColumn
 from rich.text import Text
 
-from ...loom_io.console import console
+from ...loom_io.console import get_console
 from .pausable_timer import PausableTimer
 from ..theming.colors import LoomColors
 
@@ -34,9 +34,10 @@ class PausableElapsedColumn(ProgressColumn):
 # UI abstraction that safely coordinates console output w/ progress display
 class UI:
     def __init__(self, progress: Progress | None = None) -> None:
-        self.console = console
         self.progress = progress
         self._timer = PausableTimer()
+        # initialize console reference to global instance (allows test mocking)
+        self.console = get_console()
 
     # pause timer and temporarily stop Progress rendering for clean prompts
     @contextmanager
