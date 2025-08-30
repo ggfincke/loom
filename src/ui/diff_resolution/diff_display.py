@@ -19,7 +19,7 @@ MIN_W, MAX_W = 60, 120
 MIN_H, MAX_H = 25, 25
 
 # * Clamp value between min & max bounds
-def clamp(n, lo, hi): 
+def clamp(n: int, lo: int, hi: int) -> int: 
     return max(lo, min(hi, n))
 
 # compute dimensions once
@@ -202,7 +202,7 @@ def create_footer_layout() -> RenderableType:
     return Panel(Align.center(summary_text), border_style="dim", padding=(0, 1))
 
 # * Generate dynamic content for each menu option based on current edit operation
-def get_diffs_by_opt():
+def get_diffs_by_opt() -> dict:
     # If prompt is being processed, show loading interface
     if prompt_processing:
         loading_display = create_prompt_loading_display()

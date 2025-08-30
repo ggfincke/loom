@@ -258,7 +258,7 @@ def get_active_theme() -> list[str]:
 GRADIENT_COLORS = get_active_theme()
 
 # update global gradient colors w/ current theme
-def update_gradient_colors():
+def update_gradient_colors() -> None:
     global GRADIENT_COLORS
     GRADIENT_COLORS = get_active_theme()
 

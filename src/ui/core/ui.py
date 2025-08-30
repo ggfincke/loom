@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from datetime import timedelta
+from typing import Generator, Any
 from .rich_components import Progress, SpinnerColumn, TextColumn, ProgressColumn, Text
 
 from ...loom_io.console import get_console
@@ -19,7 +20,7 @@ class PausableElapsedColumn(ProgressColumn):
         self._timer = timer
 
     # render elapsed time in m:ss or h:mm:ss format
-    def render(self, task):
+    def render(self, task: Any) -> Text:
         seconds = int(self._timer.elapsed())
         
         # h:mm:ss if >= 1h, else m:ss
@@ -40,7 +41,7 @@ class UI:
 
     # pause timer & temporarily stop Progress rendering for clean prompts
     @contextmanager
-    def input_mode(self):
+    def input_mode(self) -> Generator[None, None, None]:
         self._timer.pause()
         progress = self.progress
         if progress is not None:

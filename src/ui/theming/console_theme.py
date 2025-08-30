@@ -7,13 +7,13 @@ from ...loom_io.console import console
 
 
 # * initialize gradient theme after colors module is available
-def initialize_theme():
+def initialize_theme() -> None:
     from .colors import get_loom_theme
     console.push_theme(get_loom_theme())
 
 
 # * Refresh console theme w/ current settings
-def refresh_theme():
+def refresh_theme() -> None:
     try:
         from .colors import get_loom_theme
         # pop existing theme & push new one
@@ -25,7 +25,7 @@ def refresh_theme():
 
 
 # lazy theme initialization to avoid circular imports
-def auto_initialize_theme():
+def auto_initialize_theme() -> None:
     try:
         initialize_theme()
     except ImportError:

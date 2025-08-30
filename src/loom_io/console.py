@@ -51,7 +51,7 @@ def reset_console() -> Console:
 
 
 # * Refresh console theme w/ current settings
-def refresh_theme():
+def refresh_theme() -> None:
     # ! import here to avoid circular dependency w/ ui module
     try:
         from ..ui.theming.console_theme import refresh_theme as _refresh_theme

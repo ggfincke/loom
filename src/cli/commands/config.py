@@ -31,7 +31,7 @@ def _valid_themes() -> set[str]:
     return set(THEMES.keys())
 
 # coerce string value to JSON value (numbers, bools, null) or keep raw string
-def _coerce_value(raw: str):
+def _coerce_value(raw: str) -> str | int | float | bool | None | list | dict:
     try:
         # parse JSON for numbers/bools/null/arrays/objects
         return json.loads(raw)
