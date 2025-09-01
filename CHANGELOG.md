@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.7-nightly.20250901] - 2025-09-01
+
+### Removed
+- **Verbose flags**: Removed -v/--verbose options from tailor and models test commands
+- **Emoji status indicators**: Replaced emoji characters with simpler text/symbol alternatives
+- **Standalone debug functions**: Removed enable_debug() and disable_debug() functions
+
+### Changed
+- **Debug mode integration**: Debug mode now controlled via dev_mode config setting instead of verbose flags
+- **Status indicator simplification**: Replaced ✅ with ✓, ✗ with X for better terminal compatibility
+- **Unified debug output**: All debug messages now use consistent theming with debug color
+- **Test coverage updates**: Removed verbose-specific test cases and simplified test logic
+
+---
+
 ## [1.1.6-nightly.20250901] - 2025-09-01
 
 ### Added

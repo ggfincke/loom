@@ -11,7 +11,6 @@ from ...ui.theming.theme_engine import styled_checkmark, accent_gradient, styled
 from ..app import app
 from ...ui.help.help_data import command_help
 from .help import show_command_help
-from ...core.debug import enable_debug
 
 # * Sub-app for models commands; registered on root app
 models_app = typer.Typer(
@@ -73,10 +72,10 @@ def _show_models_list() -> None:
             status_icon = styled_checkmark()
             status_text = "[green]Available[/]"
         elif models:
-            status_icon = "[red]✗[/]"
+            status_icon = "[red]X[/]"
             status_text = f"[dim]Requires {requirement}[/]"
         else:
-            status_icon = "[red]✗[/]"
+            status_icon = "[red]X[/]"
             status_text = "[dim]No models available[/]"
         
         console.print(f"[bold white]{provider_display}[/] {status_icon} {status_text}")
@@ -102,11 +101,7 @@ def _show_models_list() -> None:
 @models_app.command()
 def test(
     model: str = typer.Argument(help="Model name to test (e.g., deepseek-r1:14b)"),
-    verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose debug output"),
 ) -> None:
-    
-    if verbose:
-        enable_debug()
     
     console.print(f"\nTesting Ollama model: [loom.accent2]{model}[/]")
     console.print()
@@ -151,12 +146,10 @@ def test(
     
     if result.success:
         console.print(f"   {styled_checkmark()} [green]API call successful[/]")
-        if verbose:
-            console.print(f"   Response: {result.json_text[:100]}{'...' if len(result.json_text) > 100 else ''}")
     else:
         console.print(f"   {styled_bullet()} [red]API call failed[/]: {result.error}")
         return
     
     console.print()
-    console.print(f"[green]✓ Model '{model}' is fully functional![/]")
+    console.print(f"[green]Model '{model}' is fully functional![/]")
     console.print(f"You can use it with: [loom.accent2]loom tailor --model {model}[/]")

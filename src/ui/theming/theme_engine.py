@@ -91,6 +91,7 @@ class LoomColors:
     ERROR = "#ff4444"     # red
     INFO = "#4488ff"      # blue
     DIM = "#aaaaaa"       # lighter gray for better readability
+    DEBUG = "#00b5b5"     # dim cyan - consistent for all debug output
     
     # special effects
     CHECKMARK = SUCCESS_BRIGHT
@@ -159,6 +160,7 @@ def get_loom_theme() -> Theme:
         "error": LoomColors.ERROR,
         "info": LoomColors.INFO,
         "dim": LoomColors.DIM,
+        "debug": LoomColors.DEBUG,
         
         # loom-specific colors (dynamic)
         "loom.accent": colors[0],
@@ -197,7 +199,7 @@ LOOM_THEME = get_loom_theme()
 
 # style helpers for common CLI patterns
 def styled_checkmark() -> Text:
-    return Text("✅", style=LoomColors.CHECKMARK)
+    return Text("✓", style=LoomColors.CHECKMARK)
 
 def styled_arrow() -> Text:
     return Text("→", style=LoomColors.ARROW)

@@ -8,7 +8,6 @@ import typer
 
 from ...core.constants import RiskLevel, ValidationPolicy
 from ...core.exceptions import handle_loom_error
-from ...core.debug import enable_debug, disable_debug
 
 from ..app import app
 from ..helpers import validate_required_args, is_test_environment
@@ -69,7 +68,6 @@ def tailor(
     edits_only: bool = typer.Option(False, "--edits-only", help="Generate edits JSON only (don't apply)"),
     apply: bool = typer.Option(False, "--apply", help="Apply existing edits JSON to resume"),
     auto: bool = AutoOpt(),
-    verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose debug output"),
     help: bool = typer.Option(False, "--help", "-h", help="Show help message and exit."),
 ) -> None:
     # detect help flag & display custom help
@@ -77,12 +75,6 @@ def tailor(
         from .help import show_command_help
         show_command_help("tailor")
         ctx.exit()
-    
-    # enable debug mode if verbose
-    if verbose:
-        enable_debug()
-    else:
-        disable_debug()
     
     # validate mutually exclusive flags
     if edits_only and apply:

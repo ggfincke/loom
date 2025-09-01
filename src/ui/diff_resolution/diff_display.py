@@ -11,6 +11,7 @@ from ...loom_io.types import Lines
 from ...core.constants import DiffOp, EditOperation
 from ...core.pipeline import process_prompt_operation
 from ...core.exceptions import AIError, EditError
+from ...core.debug import is_debug_enabled, debug_print
 
 options = [DiffOp.APPROVE.value.capitalize(), DiffOp.REJECT.value.capitalize(), DiffOp.SKIP.value.capitalize(), DiffOp.MODIFY.value.capitalize(), DiffOp.PROMPT.value.capitalize(), "Exit"]
 selected = 0
@@ -89,10 +90,10 @@ def create_text_input_display(mode: str) -> list[Text]:
 
     # header
     if mode == "modify":
-        lines.append(Text("✏️  MODIFY OPERATION", style="bold yellow"))
+        lines.append(Text("MODIFY OPERATION", style="bold yellow"))
         lines.append(Text("Edit the suggested content below:", style="dim"))
     elif mode == "prompt":
-        lines.append(Text("💬 PROMPT LLM", style="bold cyan"))
+        lines.append(Text("PROMPT LLM", style="bold cyan"))
         lines.append(Text("Enter additional instructions for the LLM:", style="dim"))
 
     lines.append(Text(""))
@@ -133,7 +134,7 @@ def create_prompt_loading_display() -> RenderableType:
     lines: list[RenderableType] = []
     
     # header
-    lines.append(Text("🤖 PROCESSING PROMPT", style="bold cyan"))
+    lines.append(Text("PROCESSING PROMPT", style="bold cyan"))
     lines.append(Text("The AI is regenerating the edit based on your instructions...", style="dim"))
     lines.append(Text(""))
     
@@ -166,7 +167,7 @@ def create_prompt_loading_display() -> RenderableType:
     # error display if present
     if prompt_error:
         lines.append(Text(""))
-        lines.append(Text("❌ Error occurred:", style="bold red"))
+        lines.append(Text("Error occurred:", style="bold red"))
         lines.append(Text(str(prompt_error), style="red"))
         lines.append(Text(""))
         lines.append(Text("Press [Enter] to continue with original edit", style="dim italic"))
@@ -288,7 +289,8 @@ def process_prompt_immediately(operation: EditOperation, resume_lines: Lines, jo
     
     try:
         prompt_preview = operation.prompt_instruction or "(empty)"
-        console.print(f"[dim]Processing prompt: '{prompt_preview[:50]}{'...' if len(prompt_preview) > 50 else ''}'[/]")
+        if is_debug_enabled():
+            debug_print(f"Processing prompt: '{prompt_preview[:50]}{'...' if len(prompt_preview) > 50 else ''}'", "DIFF")
         
         # call the core prompt processing function
         updated_operation = process_prompt_operation(operation, resume_lines, job_text, sections_json, model)
@@ -302,7 +304,8 @@ def process_prompt_immediately(operation: EditOperation, resume_lines: Lines, jo
         operation.prompt_instruction = None
         # status remains unchanged so user can decide on new content
         
-        console.print(f"[green]AI generated {len(operation.content)} characters of new content[/]")
+        if is_debug_enabled():
+            debug_print(f"AI generated {len(operation.content)} characters of new content", "DIFF")
         return True
         
     except (AIError, EditError) as e:
@@ -361,7 +364,8 @@ def main_display_loop(operations: list[EditOperation] | None = None, filename: s
                         current_edit_operation.content = text_input_buffer
                         # track that operations were modified
                         operations_modified_during_review = True
-                        console.print(f"[green]Content modified: {text_input_buffer[:50]}...[/]")
+                        if is_debug_enabled():
+                            debug_print(f"Content modified: {text_input_buffer[:50]}...", "DIFF")
                     elif text_input_mode == "prompt" and current_edit_operation:
                         # store prompt instruction & trigger immediate AI processing
                         current_edit_operation.prompt_instruction = text_input_buffer
@@ -385,7 +389,8 @@ def main_display_loop(operations: list[EditOperation] | None = None, filename: s
                         
                         # Track loading start time for minimum duration
                         loading_start_time = time.time()
-                        console.print(f"[cyan]🤖 Starting AI processing at {time.strftime('%H:%M:%S')}...[/]")
+                        if is_debug_enabled():
+                            debug_print(f"Starting AI processing at {time.strftime('%H:%M:%S')}...", "DIFF")
                         
                         # Small delay to ensure the loading screen actually displays
                         time.sleep(0.1)  # 100ms to let the loading screen appear
@@ -398,7 +403,8 @@ def main_display_loop(operations: list[EditOperation] | None = None, filename: s
                             
                             # process the prompt immediately (blocking call)
                             ai_start_time = time.time()
-                            console.print(f"[cyan]Calling AI model '{prompt_processing_contexts['model']}'...[/]")
+                            if is_debug_enabled():
+                                debug_print(f"Calling AI model '{prompt_processing_contexts['model']}'...", "DIFF")
                             
                             success = process_prompt_immediately(
                                 current_edit_operation,
@@ -409,14 +415,16 @@ def main_display_loop(operations: list[EditOperation] | None = None, filename: s
                             )
                             
                             ai_duration = time.time() - ai_start_time
-                            console.print(f"[cyan]AI call completed in {ai_duration:.2f} seconds[/]")
+                            if is_debug_enabled():
+                                debug_print(f"AI call completed in {ai_duration:.2f} seconds", "DIFF")
                             
                             # ensure minimum loading screen duration (1.5 seconds total)
                             total_elapsed = time.time() - loading_start_time
                             min_duration = 1.5
                             if total_elapsed < min_duration:
                                 remaining_time = min_duration - total_elapsed
-                                console.print(f"[dim]Ensuring minimum loading duration... {remaining_time:.1f}s remaining[/]")
+                                if is_debug_enabled():
+                                    debug_print(f"Ensuring minimum loading duration... {remaining_time:.1f}s remaining", "DIFF")
                                 time.sleep(remaining_time)
                             
                             # processing complete - exit loading state
@@ -426,9 +434,9 @@ def main_display_loop(operations: list[EditOperation] | None = None, filename: s
                             if success:
                                 # track that operations were modified
                                 operations_modified_during_review = True
-                                console.print("[green]✓ AI regenerated the edit based on your prompt[/]")
+                                console.print("[green]AI regenerated the edit based on your prompt[/]")
                             else:
-                                console.print(f"[red]✗ Error processing prompt: {prompt_error}[/]")
+                                console.print(f"[red]Error processing prompt: {prompt_error}[/]")
                                 # keep loading screen visible w/ error for user to acknowledge
                                 prompt_processing = True  # keep in processing mode to show error
                                 live.update(render_screen())

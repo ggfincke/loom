@@ -296,34 +296,6 @@ class TestModelsTestCommand:
         api_failure = any("API call failed" in str(call) and "Model not responding" in str(call) for call in print_calls)
         assert api_failure
 
-    # * Test models test command with verbose flag
-    @patch('src.cli.commands.models.enable_debug')
-    @patch('src.ai.clients.ollama_client.run_generate')
-    @patch('src.cli.commands.models.get_available_models_with_error')
-    @patch('src.cli.commands.models.check_ollama_with_error')
-    @patch('src.cli.commands.models.console')
-    def test_models_test_verbose_flag(
-        self, mock_console, mock_check_ollama, mock_get_models, 
-        mock_run_generate, mock_enable_debug, runner
-    ):
-        mock_check_ollama.return_value = (True, None)
-        mock_get_models.return_value = (["deepseek-r1:14b"], None)
-        mock_run_generate.return_value = GenerateResult(
-            success=True,
-            json_text='{"test": "success"}' * 10  # long response
-        )
-
-        result = runner.invoke(app, ["models", "test", "deepseek-r1:14b", "--verbose"])
-
-        assert result.exit_code == 0
-        
-        # verify debug was enabled
-        mock_enable_debug.assert_called_once()
-        
-        # should show response content when verbose
-        print_calls = [call[0][0] for call in mock_console.print.call_args_list if call[0]]
-        response_shown = any("Response:" in str(call) for call in print_calls)
-        assert response_shown
 
     # * Test models test command with models retrieval error
     @patch('src.cli.commands.models.get_available_models_with_error')

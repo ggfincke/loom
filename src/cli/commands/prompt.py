@@ -118,9 +118,9 @@ def prompt(
                 try:
                     process_prompt_operation(operation, resume_lines, job_text, sections_json_str, model)
                     processed_count += 1
-                    ui.print(f"[green]✓[/] Processed PROMPT operation at line {operation.line_number}")
+                    ui.print(f"[green]Processed PROMPT operation at line {operation.line_number}[/]")
                 except (EditError, AIError) as e:
-                    ui.print(f"[red]✗[/] Error processing PROMPT operation at line {operation.line_number}: {e}")
+                    ui.print(f"[red]Error processing PROMPT operation at line {operation.line_number}: {e}[/]")
                     error_count += 1
                     continue
         
