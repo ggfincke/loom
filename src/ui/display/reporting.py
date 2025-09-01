@@ -85,9 +85,12 @@ def write_output_with_diff(
     # write output
     progress.update(task, description="Writing tailored resume...")
     try:
-        suffix = output_path.suffix.lower()
-        if suffix == ".docx":
-            if preserve_formatting:
+        output_suffix = output_path.suffix.lower()
+        resume_suffix = resume_path.suffix.lower()
+        
+        if output_suffix == ".docx":
+            # formatting preservation only works w/ DOCX input & output
+            if preserve_formatting and resume_suffix == ".docx":
                 apply_edits_to_docx(
                     resume_path, new_lines, output_path, preserve_mode=preserve_mode
                 )
@@ -96,7 +99,7 @@ def write_output_with_diff(
         else:
             # for .tex files, write as text (loom doesn't compile LaTeX)
             write_text_lines(new_lines, output_path)
-            if suffix == ".tex":
+            if output_suffix == ".tex":
                 console.print(f"[yellow]Note: LaTeX file written as text to {output_path}[/]")
                 console.print("[dim]To compile LaTeX: run 'pdflatex', 'xelatex', or 'lualatex' on the output file[/]")
         progress.advance(task)

@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.6-nightly.20250901] - 2025-09-01
+
+### Added
+- **Anti-injection security**: Guards in AI prompts to treat user data as data-only
+- **LaTeX editing rules**: Comprehensive guidelines for special chars, lists, spacing
+- **Dynamic output extensions**: Auto-match tailored resume extension to input type
+
+### Changed
+- **Modular prompt architecture**: Shared components eliminate redundancy
+- **Path resolution**: Smart output extension detection and handling
+- **Format preservation**: Only preserve DOCX formatting for DOCX→DOCX workflows
+
+### Fixed
+- **LaTeX output messaging**: Clear compilation guidance for .tex files
+- **Test coverage**: Updated for improved path resolution logic
+
+---
+
 ## [1.1.5-nightly.20250830] - 2025-08-30
 
 ### Added
