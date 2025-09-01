@@ -66,7 +66,10 @@ def apply(
         model=model,
         sections_path=sections_path
     )
-    path_resolved = resolver.resolve_paths(output_resume=output_resume)
+    path_resolved = resolver.resolve_paths(
+        resume_path=common_resolved["resume"], 
+        output_resume=output_resume
+    )
     option_resolved = resolver.resolve_options(risk=risk, on_error=on_error)
 
     resume, edits_json, job, model, sections_path = (

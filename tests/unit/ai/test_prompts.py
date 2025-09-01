@@ -102,7 +102,7 @@ class TestPromptAssembly:
         
         # validation rules
         assert "current_snippet" in prompt
-        assert "EXACT" in prompt  # emphasis on exactness
+        assert "exact" in prompt  # emphasis on exactness
         assert "newline" in prompt  # newline validation rules
         
         # content injection
@@ -215,10 +215,10 @@ class TestPromptRequiredElements:
         for field in required_fields:
             assert field in prompt, f"Missing required schema field: {field}"
         
-        # data type specifications
-        assert "<int>" in prompt
-        assert "<float>" in prompt
-        assert '"string"' in prompt
+        # data type specifications (check actual JSON examples)
+        assert '"start_line": 1' in prompt  # integer example
+        assert '"confidence": 0.95' in prompt  # float example  
+        assert '"name": "SUMMARY"' in prompt  # string example
     
     def test_generate_operation_schema_completeness(self):
         """Ensure generate prompt defines all operation schemas"""
@@ -234,13 +234,13 @@ class TestPromptRequiredElements:
         for op in operations:
             assert op in prompt, f"Missing operation type: {op}"
         
-        # required fields per operation
-        assert '"line": <int>' in prompt
-        assert '"start": <int>' in prompt
-        assert '"end": <int>' in prompt
-        assert '"text": "string"' in prompt
-        assert '"current_snippet": "string"' in prompt
-        assert '"why": "string (optional)"' in prompt
+        # required fields per operation (check examples)
+        assert '"line": 5' in prompt  # line field with integer example
+        assert '"start": 10' in prompt  # start field with integer example
+        assert '"end": 12' in prompt  # end field with integer example
+        assert '"text": "Enhanced bullet point"' in prompt  # text field example
+        assert '"current_snippet": "Original text"' in prompt  # current_snippet example
+        assert '"why": "Targets Python requirement"' in prompt  # why field example
     
     def test_validation_checklist_presence(self):
         """Ensure prompts include validation checklists"""
@@ -439,14 +439,14 @@ class TestLatexSectionDetection:
     def test_latex_schema_format(self, latex_resume_sample):
         prompt = build_sectionizer_prompt(latex_resume_sample)
         
-        # schema should include LaTeX command format
-        assert '"heading_text": "<exact heading line text or LaTeX command>"' in prompt
+        # schema should include LaTeX command format (check actual example)
+        assert '"heading_text": "Professional Summary"' in prompt
         
         # should still include basic schema elements
-        assert '"name": "SUMMARY|SKILLS|EXPERIENCE|PROJECTS|EDUCATION|OTHER"' in prompt
-        assert '"start_line": <int>' in prompt
-        assert '"end_line": <int>' in prompt
-        assert '"confidence": <float>' in prompt
+        assert '"name": "SUMMARY"' in prompt  # example name
+        assert '"start_line": 1' in prompt  # example start line
+        assert '"end_line": 5' in prompt  # example end line
+        assert '"confidence": 0.95' in prompt  # example confidence
     
     # * Test LaTeX resume content is preserved in prompt
     def test_latex_content_injection(self, latex_resume_sample):
@@ -608,9 +608,9 @@ class TestPromptOperationPrompt:
         assert '"ops": [' in prompt
         assert '"meta"' in prompt
         assert '"op": "replace_line"' in prompt
-        assert '"text": "string"' in prompt
-        assert '"current_snippet": "string"' in prompt
-        assert '"why": "string (optional)"' in prompt
+        assert '"text": "Custom user-requested content"' in prompt  # example text
+        assert '"current_snippet": "Original text"' in prompt  # example current_snippet
+        assert '"why": "User instruction fulfilled"' in prompt  # example why
     
     # * Test operation type handling for different edit types
     def test_operation_type_variants(self, sample_user_instruction, sample_job_text, sample_resume_text):
@@ -674,12 +674,12 @@ class TestPromptOperationPrompt:
         )
         
         # validation requirements
-        assert "CRITICAL JSON VALIDATION" in prompt
+        assert "VALIDATION CHECKLIST" in prompt
         assert "Include exactly ONE operation" in prompt
         assert "No unescaped quotes" in prompt
         assert "Use exact line numbers" in prompt
         assert "bounded embellishment only" in prompt
-        assert "replace_line': text must contain EXACTLY ONE LINE" in prompt
+        assert "replace_line operations contain NO \\n characters" in prompt
     
     # * Test user instruction content preservation
     def test_user_instruction_variants(self, sample_job_text, sample_resume_text):

@@ -104,7 +104,10 @@ def tailor(
         sections_path=sections_path,
         edits_json=edits_json,
     )
-    path_resolved = resolver.resolve_paths(output_resume=output_resume)
+    path_resolved = resolver.resolve_paths(
+        resume_path=common_resolved["resume"], 
+        output_resume=output_resume
+    )
     option_resolved = resolver.resolve_options(risk=risk, on_error=on_error)
 
     job, resume, model, sections_path, edits_json = (

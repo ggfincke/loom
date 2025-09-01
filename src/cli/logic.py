@@ -55,12 +55,17 @@ class ArgResolver:
             ),
         }
 
-    def resolve_paths(self, **kwargs) -> dict:
+    def resolve_paths(self, resume_path: Path | None = None, **kwargs) -> dict:
+        # determine default output extension based on resume file type
+        if resume_path and resume_path.suffix.lower() in [".tex", ".docx"]:
+            default_extension = resume_path.suffix.lower()
+        else:
+            default_extension = ".docx"  # fallback
+        
+        default_output = Path(self.settings.output_dir) / f"tailored_resume{default_extension}"
+        
         return {
-            "output_resume": _resolve(
-                kwargs.get("output_resume"),
-                Path(self.settings.output_dir) / "tailored_resume.docx",
-            ),
+            "output_resume": _resolve(kwargs.get("output_resume"), default_output),
         }
 
     def resolve_options(self, **kwargs) -> OptionsResolved:

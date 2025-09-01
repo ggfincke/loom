@@ -78,8 +78,16 @@ class TestArgResolver:
         settings = LoomSettings(output_dir="custom_output")
         resolver = ArgResolver(settings)
         
-        # test default output resume path
+        # test default output resume path (no resume path provided)
         result = resolver.resolve_paths()
+        assert result["output_resume"] == Path("custom_output") / "tailored_resume.docx"
+        
+        # test output extension matches resume extension for .tex
+        result = resolver.resolve_paths(resume_path=Path("resume.tex"))
+        assert result["output_resume"] == Path("custom_output") / "tailored_resume.tex"
+        
+        # test output extension matches resume extension for .docx
+        result = resolver.resolve_paths(resume_path=Path("resume.docx"))
         assert result["output_resume"] == Path("custom_output") / "tailored_resume.docx"
         
         # test provided path overrides default
