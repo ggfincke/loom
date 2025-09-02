@@ -1,0 +1,132 @@
+#!/bin/sh
+# .githooks/pre-commit
+# auto-version pyproject.toml & CHANGELOG.md on nightly branch
+
+# * only run on nightly branch
+current_branch=$(git rev-parse --abbrev-ref HEAD)
+if [ "$current_branch" != "nightly" ]; then
+    exit 0
+fi
+
+# * check if in rebase, merge, or cherry-pick
+if [ -d ".git/rebase-merge" ] || [ -d ".git/rebase-apply" ]; then
+    echo "📦 rebase in progress - skipping auto-versioning to avoid conflicts"
+    exit 0
+fi
+
+if [ -f ".git/MERGE_HEAD" ]; then
+    echo "🔀 merge in progress - skipping auto-versioning to avoid conflicts"
+    exit 0
+fi
+
+if [ -f ".git/CHERRY_PICK_HEAD" ]; then
+    echo "🍒 cherry-pick in progress - skipping auto-versioning to avoid conflicts"
+    exit 0
+fi
+
+echo "🔍 nightly branch detected - checking for auto-versioning..."
+
+# check if pyproject.toml or CHANGELOG.md are already staged (user manually updated)
+if git diff --cached --name-only | grep -E "(pyproject\.toml|CHANGELOG\.md)" > /dev/null; then
+    echo "✅ version files already staged - verifying version sync"
+    
+    # check if versions are in sync b/w pyproject.toml & CHANGELOG.md
+    pyproject_version=$(grep '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+    changelog_version=$(head -n 20 CHANGELOG.md | grep -o '\[[^]]*\]' | head -n 1 | tr -d '[]')
+    
+    if [ "$pyproject_version" != "$changelog_version" ]; then
+        echo "⚠️  version mismatch detected:"
+        echo "   pyproject.toml: $pyproject_version"
+        echo "   CHANGELOG.md: $changelog_version"
+        echo "📦 updating pyproject.toml to match CHANGELOG.md version"
+        
+        # update pyproject.toml version
+        if ! sed -i.bak "s/^version = \".*\"/version = \"$changelog_version\"/" pyproject.toml; then
+            echo "❌ failed to update pyproject.toml version"
+            exit 1
+        fi
+        rm -f pyproject.toml.bak
+        
+        # stage the updated pyproject.toml
+        git add pyproject.toml
+        echo "✅ version sync complete: $changelog_version"
+    else
+        echo "✅ versions are in sync: $pyproject_version"
+    fi
+    
+    exit 0
+fi
+
+# get current version from pyproject.toml
+current_version=$(grep '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+if [ -z "$current_version" ]; then
+    echo "❌ could not read version from pyproject.toml"
+    exit 1
+fi
+
+# extract version components
+# handle both regular versions (1.16.2) & nightly versions (1.16.2-nightly.20250827)
+base_version=$(echo "$current_version" | sed -E 's/(-nightly\.[0-9]+)?$//')
+major=$(echo "$base_version" | cut -d. -f1)
+minor=$(echo "$base_version" | cut -d. -f2)
+patch=$(echo "$base_version" | cut -d. -f3)
+
+# increment patch version
+new_patch=$((patch + 1))
+new_base_version="${major}.${minor}.${new_patch}"
+
+# create nightly version w/ current date
+date=$(date +%Y%m%d)
+new_version="${new_base_version}-nightly.${date}"
+
+echo "📦 auto-incrementing version: $current_version → $new_version"
+
+# update pyproject.toml
+if ! sed -i.bak "s/^version = \".*\"/version = \"$new_version\"/" pyproject.toml; then
+    echo "❌ failed to update pyproject.toml version"
+    exit 1
+fi
+rm -f pyproject.toml.bak
+
+# update CHANGELOG.md
+if [ -f "CHANGELOG.md" ]; then
+    # create new changelog entry
+    temp_file=$(mktemp)
+    {
+        # keep the header until the first version entry
+        awk '/^## \[/ { exit } { print }' CHANGELOG.md
+        echo "## [${new_version}] - $(date +%Y-%m-%d)"
+        echo ""
+        echo "### Added"
+        echo "- Auto-versioned nightly release"
+        echo ""
+        echo "---"
+        echo ""
+        # add the rest of the changelog starting from the first version entry
+        awk '/^## \[/ { found=1 } found { print }' CHANGELOG.md
+    } > "$temp_file"
+    mv "$temp_file" CHANGELOG.md
+    echo "📝 updated CHANGELOG.md w/ version $new_version"
+else
+    echo "⚠️  CHANGELOG.md not found - creating new one"
+    cat > CHANGELOG.md << EOF
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [${new_version}] - $(date +%Y-%m-%d)
+
+### Added
+- Auto-versioned nightly release
+
+EOF
+fi
+
+# stage the updated files
+git add pyproject.toml CHANGELOG.md
+
+echo "✅ auto-versioning complete: $new_version"
+exit 0
