@@ -58,5 +58,4 @@ from .commands import plan as _plan  # noqa: F401
 from .commands import config as _config  # noqa: F401
 from .commands import models as _models  # noqa: F401
 from .commands import help as _help  # noqa: F401
-from .commands import prompt as _prompt  # noqa: F401
 from .commands.dev import display as _display  # noqa: F401

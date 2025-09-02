@@ -137,8 +137,6 @@ def natural_gradient(text: str, colors: list[str] | None = None) -> Text:
     return result
 
 
-
-
 # create gradient effect for success messages  
 def success_gradient(text: str) -> Text:
     return natural_gradient(text, [LoomColors.SUCCESS_BRIGHT, LoomColors.SUCCESS_MEDIUM, LoomColors.SUCCESS_DIM])

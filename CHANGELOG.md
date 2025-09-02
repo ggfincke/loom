@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+don'i
+## [1.2.0] - 2025-09-01
+
+### Added
+- **Interactive MODIFY & PROMPT operations**: Complete implementation for diff resolution workflow
+- **Enhanced LaTeX support**: Improved editing guidelines and section detection
+- **AI prompt security**: Anti-injection guards for user data protection
+- **Comprehensive test coverage**: ~4000 lines of new tests across core modules
+- **Console lifecycle management**: Better initialization and testing support
+
+### Changed
+- **Debug mode integration**: Now controlled via `dev_mode` config instead of verbose flags
+- **Architecture refactoring**: Consolidated AI utilities, centralized Rich imports, reorganized theming
+- **Error handling**: Standardized AI client exceptions and model detection
+- **Operation workflows**: Streamlined MODIFY/PROMPT processing with better state management
+- **Status indicators**: Simplified symbols for better terminal compatibility
+
+### Removed
+- **Verbose flags**: Removed `-v/--verbose` options from commands
+- **Standalone modify command**: Integrated into interactive diff workflow
+- **Legacy debug functions**: Replaced with unified debug system
+
+### Fixed
+- **Circular imports**: Resolved debug module dependencies
+- **Interactive UI**: Improved responsiveness and loading displays
+- **Test reliability**: Enhanced mocking and environment detection
+
+---
 
 ## [1.1.7-nightly.20250901] - 2025-09-01
 
