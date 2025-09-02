@@ -1,4 +1,4 @@
-# tests/unit/test_dev_commands.py
+# tests/unit/cli/commands/dev/test_display.py
 # Unit tests for dev command functionality & dev mode requirements
 
 import pytest

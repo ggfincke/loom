@@ -310,31 +310,6 @@ def test_generate_with_sections_and_risk_settings(isolate_config, sample_files, 
             assert (output_dir / "risk_edits.json").exists()
 
 
-# * Test tailor w/ verbose flag
-def test_tailor_with_verbose_flag(isolate_config, sample_files, mock_ai_success):
-    from src.cli.app import app
-    
-    runner = CliRunner()
-    
-    with runner.isolated_filesystem():
-        output_dir = Path("output")
-        output_dir.mkdir()
-        
-        ai_mock = create_simple_ai_mock(mock_ai_success)
-        
-        with patch("src.core.pipeline.run_generate", side_effect=ai_mock):
-            result = runner.invoke(app, [
-                "tailor",
-                str(sample_files["job"]),
-                str(sample_files["resume"]),
-                "--edits-only",
-                "--edits-json", str(output_dir / "verbose_edits.json"),
-                "--model", "gpt-4o",
-                "--verbose"
-            ], env={"NO_COLOR": "1", "TERM": "dumb"})
-            
-            assert result.exit_code == 0
-            assert (output_dir / "verbose_edits.json").exists()
 
 
 # * Test config command basic functionality

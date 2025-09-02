@@ -1,39 +1,31 @@
 # src/core/debug.py
 # Debug logging utilities for verbose output & troubleshooting
 
-import os
 from typing import Optional
-from ..loom_io.console import console
 
-# global debug state
-_debug_enabled = False
-
-# * Enable debug mode
-def enable_debug():
-    global _debug_enabled
-    _debug_enabled = True
-
-# * Disable debug mode
-def disable_debug():
-    global _debug_enabled
-    _debug_enabled = False
-
-# * Check if debug mode is enabled
+# * Check if debug mode is enabled (based on dev_mode config)
 def is_debug_enabled() -> bool:
-    global _debug_enabled
-    return _debug_enabled or os.getenv("LOOM_DEBUG", "").lower() in ("1", "true", "yes")
+    try:
+        from ..config.settings import settings_manager
+        settings = settings_manager.load()
+        return settings.dev_mode
+    except (ImportError, AttributeError):
+        # fallback if settings not available
+        return False
 
 # * Print debug message if debug mode is enabled
-def debug_print(message: str, category: str = "DEBUG"):
+def debug_print(message: str, category: str = "DEBUG") -> None:
     if is_debug_enabled():
-        console.print(f"[dim yellow]\\[{category}][/] {message}")
+        # lazy import to avoid circular dependencies
+        from ..loom_io.console import console
+        console.print(f"[debug]\\[{category}][/] {message}")
 
 # * Print AI-related debug information
-def debug_ai(message: str):
+def debug_ai(message: str) -> None:
     debug_print(message, "AI")
 
 # * Print error details in debug mode
-def debug_error(error: Exception, context: str = ""):
+def debug_error(error: Exception, context: str = "") -> None:
     if is_debug_enabled():
         error_msg = f"Exception: {type(error).__name__}: {str(error)}"
         if context:
@@ -41,7 +33,7 @@ def debug_error(error: Exception, context: str = ""):
         debug_print(error_msg, "ERROR")
 
 # * Debug API request/response details
-def debug_api_call(provider: str, model: str, prompt_length: int, response_length: Optional[int] = None):
+def debug_api_call(provider: str, model: str, prompt_length: int, response_length: Optional[int] = None) -> None:
     if is_debug_enabled():
         msg = f"{provider} API call - Model: {model}, Prompt: {prompt_length} chars"
         if response_length is not None:

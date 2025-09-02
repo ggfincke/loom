@@ -17,7 +17,6 @@ src/
 │   ├── clients/ollama_client.py  # Local Ollama integration
 │   └── clients/factory.py        # Provider selection
 │   ├── prompts.py         # Prompt engineering for AI interactions
-│   ├── test_prompts.py    # Prompt sanity helpers
 │   └── types.py           # AI result types
 ├── cli/
 │   ├── app.py             # Typer app + command registration

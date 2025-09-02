@@ -25,21 +25,27 @@ class DiffOp(Enum):
     APPROVE = "approve"
     REJECT = "reject"
     SKIP = "skip"
-    # todo add modify & prompt operations
-    # MODIFY = "modify"
-    # PROMPT = "prompt"
+    MODIFY = "modify"
+    PROMPT = "prompt"
 
 # * Edit operation data structure for diff review workflow
 @dataclass
 class EditOperation:
-    operation: str                                              # "replace_line", "replace_range", "insert_after", "delete_range" 
+    # operation type: "replace_line", "replace_range", "insert_after", "delete_range"
+    operation: str
     line_number: int
     content: str = ""
-    start_line: Optional[int] = None                            # for replace_range, delete_range
-    end_line: Optional[int] = None                              # for replace_range, delete_range
+    # for replace_range & delete_range operations
+    start_line: Optional[int] = None
+    end_line: Optional[int] = None
     reasoning: str = ""
     confidence: float = 0.0
-    status: DiffOp = DiffOp.SKIP                                # user decision status
-    before_context: List[str] = field(default_factory=list)     # surrounding lines for display
+    # user decision status
+    status: DiffOp = DiffOp.SKIP
+    # surrounding lines for display
+    before_context: List[str] = field(default_factory=list)
     after_context: List[str] = field(default_factory=list)
-    original_content: str = ""                                  # original content for replace operations
+    # original content for replace operations
+    original_content: str = ""
+    # user prompt for PROMPT operations
+    prompt_instruction: Optional[str] = None

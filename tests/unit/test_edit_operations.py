@@ -14,13 +14,17 @@ class TestDiffOp:
         assert DiffOp.APPROVE.value == "approve"
         assert DiffOp.REJECT.value == "reject"
         assert DiffOp.SKIP.value == "skip"
+        assert DiffOp.MODIFY.value == "modify"
+        assert DiffOp.PROMPT.value == "prompt"
     
     # * Test enum membership & count validation
     def test_diff_op_enum_members(self):
-        assert len(DiffOp) == 3
+        assert len(DiffOp) == 5
         assert DiffOp.APPROVE in DiffOp
         assert DiffOp.REJECT in DiffOp
         assert DiffOp.SKIP in DiffOp
+        assert DiffOp.MODIFY in DiffOp
+        assert DiffOp.PROMPT in DiffOp
 
 
 # * Test EditOperation dataclass functionality & field validation

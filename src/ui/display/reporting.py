@@ -16,7 +16,8 @@ from ...loom_io import (
 from ...loom_io.console import console
 from ...loom_io.types import Lines
 from ...core.pipeline import diff_lines
-from ..theming.colors import styled_checkmark, styled_arrow, success_gradient
+from ...core.exceptions import LaTeXError
+from ..theming.theme_engine import styled_checkmark, styled_arrow, success_gradient
 
 
 def persist_edits_json(
@@ -83,14 +84,31 @@ def write_output_with_diff(
 
     # write output
     progress.update(task, description="Writing tailored resume...")
-    suffix = output_path.suffix.lower()
-    if suffix == ".docx":
-        if preserve_formatting:
-            apply_edits_to_docx(
-                resume_path, new_lines, output_path, preserve_mode=preserve_mode
+    try:
+        output_suffix = output_path.suffix.lower()
+        resume_suffix = resume_path.suffix.lower()
+        
+        if output_suffix == ".docx":
+            # formatting preservation only works w/ DOCX input & output
+            if preserve_formatting and resume_suffix == ".docx":
+                apply_edits_to_docx(
+                    resume_path, new_lines, output_path, preserve_mode=preserve_mode
+                )
+            else:
+                write_docx(new_lines, output_path)
+        else:
+            # for .tex files, write as text (loom doesn't compile LaTeX)
+            write_text_lines(new_lines, output_path)
+            if output_suffix == ".tex":
+                console.print(f"[yellow]Note: LaTeX file written as text to {output_path}[/]")
+                console.print("[dim]To compile LaTeX: run 'pdflatex', 'xelatex', or 'lualatex' on the output file[/]")
+        progress.advance(task)
+    except Exception as e:
+        if "Package not found" in str(e) or "LaTeX" in str(e):
+            raise LaTeXError(
+                f"LaTeX processing error: {e}\n"
+                f"This appears to be a LaTeX compilation issue, not a loom error.\n"
+                f"Check that all required LaTeX packages are installed & accessible."
             )
         else:
-            write_docx(new_lines, output_path)
-    else:
-        write_text_lines(new_lines, output_path)
-    progress.advance(task)
+            raise  # re-raise non-LaTeX errors as-is

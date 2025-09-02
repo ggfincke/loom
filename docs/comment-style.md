@@ -36,6 +36,9 @@ def important_function():
 # ! Deprecated method, do not use (we shouldn't have these anyways)
 def old_method():
 
+# ! import here to avoid circular dependency w/ module_name
+from some.module import something
+
 # ? Should this method be exposed in the public API?
 def questionable_method():
 
@@ -46,7 +49,7 @@ def needs_work():
 
 **Usage Guidelines:**
 - `*` (Green) - Important functions, not small helpers; also required for all test cases
-- `!` (Red) - Deprecated/warning items
+- `!` (Red) - Deprecated/warning items & circular import avoidance
 - `?` (Blue) - Design questions needing review  
 - `todo` (Orange) - Actual refactoring tasks
 

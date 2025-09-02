@@ -4,6 +4,162 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [1.2.0] - 2025-09-01
+
+### Added
+- **Interactive MODIFY & PROMPT operations**: Complete implementation for diff resolution workflow
+- **Enhanced LaTeX support**: Improved editing guidelines and section detection
+- **AI prompt security**: Anti-injection guards for user data protection
+- **Comprehensive test coverage**: ~4000 lines of new tests across core modules
+- **Console lifecycle management**: Better initialization and testing support
+
+### Changed
+- **Debug mode integration**: Now controlled via `dev_mode` config instead of verbose flags
+- **Architecture refactoring**: Consolidated AI utilities, centralized Rich imports, reorganized theming
+- **Error handling**: Standardized AI client exceptions and model detection
+- **Operation workflows**: Streamlined MODIFY/PROMPT processing with better state management
+- **Status indicators**: Simplified symbols for better terminal compatibility
+
+### Removed
+- **Verbose flags**: Removed `-v/--verbose` options from commands
+- **Standalone modify command**: Integrated into interactive diff workflow
+- **Legacy debug functions**: Replaced with unified debug system
+
+### Fixed
+- **Circular imports**: Resolved debug module dependencies
+- **Interactive UI**: Improved responsiveness and loading displays
+- **Test reliability**: Enhanced mocking and environment detection
+
+---
+
+## [1.1.7-nightly.20250901] - 2025-09-01
+
+### Removed
+- **Verbose flags**: Removed -v/--verbose options from tailor and models test commands
+- **Emoji status indicators**: Replaced emoji characters with simpler text/symbol alternatives
+- **Standalone debug functions**: Removed enable_debug() and disable_debug() functions
+
+### Changed
+- **Debug mode integration**: Debug mode now controlled via dev_mode config setting instead of verbose flags
+- **Status indicator simplification**: Replaced ✅ with ✓, ✗ with X for better terminal compatibility
+- **Unified debug output**: All debug messages now use consistent theming with debug color
+- **Test coverage updates**: Removed verbose-specific test cases and simplified test logic
+
+---
+
+## [1.1.6-nightly.20250901] - 2025-09-01
+
+### Added
+- **Anti-injection security**: Guards in AI prompts to treat user data as data-only
+- **LaTeX editing rules**: Comprehensive guidelines for special chars, lists, spacing
+- **Dynamic output extensions**: Auto-match tailored resume extension to input type
+
+### Changed
+- **Modular prompt architecture**: Shared components eliminate redundancy
+- **Path resolution**: Smart output extension detection and handling
+- **Format preservation**: Only preserve DOCX formatting for DOCX→DOCX workflows
+
+### Fixed
+- **LaTeX output messaging**: Clear compilation guidance for .tex files
+- **Test coverage**: Updated for improved path resolution logic
+
+---
+
+## [1.1.5-nightly.20250830] - 2025-08-30
+
+### Added
+- **Development environment improvements**: Separated development dependencies into `requirements-dev.txt` and added missing production dependencies (`anthropic`, `ollama`, `simple-term-menu`, `readchar`)
+- **Console lifecycle management**: New `get_console()`, `configure_console()`, and `reset_console()` functions for better testing support and initialization control
+- **Comprehensive unit test coverage**: Added ~4000 lines of tests covering AI models, CLI logic, console management, diff display, and UI components
+
+### Changed
+- **Codebase architecture refactoring**: 
+  - Consolidated AI utilities into `src/ai/utils.py` module
+  - Centralized Rich imports in `src/ui/core/rich_components.py`
+  - Split theming into `theme_definitions.py` and `theme_engine.py` for better separation
+  - Reorganized test structure to mirror source code hierarchy
+- **Error handling standardization**: AI clients now consistently raise typed exceptions (`AIError`, `ConfigurationError`)
+- **Model detection simplification**: Replaced individual model detection functions with unified `get_model_provider()`
+- **Code quality improvements**: Added comprehensive type hints and standardized comment styles throughout codebase
+- **Environment initialization**: Centralized `load_dotenv()` to application startup for single initialization
+
+### Fixed
+- **Circular import resolution**: Fixed debug module dependencies and console loading issues
+- **Test reliability**: Improved console mocking and exception handling in test suites
+- **Documentation accuracy**: Updated architecture docs to reflect current codebase structure
+
+---
+
+## [1.1.4-nightly.20250829] - 2025-08-29
+
+### Added
+- **Enhanced apply command**: Support for job description, model, and sections path in prompt operations.
+- **Interactive UI improvements**: Animated spinner and better loading displays for prompt processing.
+
+### Changed
+- **Prompt operation workflow**: Immediate AI processing with enhanced error handling and timing.
+- **Operation persistence**: Complete state tracking with modification flags for interactive sessions.
+- **MODIFY operation simplification**: Streamlined processing by removing dual workflow handling and relying entirely on interactive UI content updates.
+- **Special operations architecture**: Consolidated handling to eliminate redundant code paths and improve maintainability.
+
+### Removed
+- **`modify` CLI command**: Standalone modify command removed in favor of integrated interactive diff workflow.
+- **`modified_content` field**: Removed from EditOperation dataclass to simplify the data model and reduce complexity.
+
+### Fixed
+- **Interactive UI responsiveness**: Proper loading screen refresh and timing for AI operations.
+- **Special operations persistence**: All operations now correctly persist status back to edits.json.
+- **Test coverage**: Updated integration and unit tests to reflect simplified operation workflows and removed deprecated test cases.
+
+---
+
+## [1.1.3-nightly.20250823] - 2025-08-23
+
+### Added
+- **LaTeX section detection**: Enhanced sectionizer prompt with improved LaTeX document parsing capabilities.
+
+### Changed
+- **Prompt operation processing**: Immediate AI integration with enhanced UI for prompt operations workflow.
+- **Configuration path consistency**: Default sections_path moved from output_dir to data_dir for better organization.
+
+---
+
+## [1.1.2-nightly.20250822] - 2025-08-22
+
+### Added
+- **MODIFY & PROMPT CLI commands**: New specialized operation processing commands for enhanced user interaction.
+- **Enhanced special operations persistence**: Improved data handling and state management for MODIFY/PROMPT operations.
+
+### Changed
+- **Text input display improvements**: Enhanced diff resolution UI with better text input rendering and formatting.
+- **Error handling enhancements**: Improved error handling for special operations with better user feedback.
+
+### Fixed
+- **Special operations workflow**: Resolved issues with MODIFY & PROMPT operation processing and state persistence.
+
+> Note: MODIFY & PROMPT operations are still in development and not fully functional. Significant work remains to complete the implementation.
+
+---
+
+## [1.1.1-nightly.20250820] - 2025-08-20
+
+### Added
+- Initial UI support for **MODIFY** operation: rich text input interface with cursor navigation and editing.
+- Initial UI support for **PROMPT** operation: interactive prompt input interface for LLM instructions.
+- Expanded **EditOperation** dataclass with fields for `modified_content` and `prompt_instruction`.
+
+### Changed
+- Interactive diff display updated to support text input modes and dynamic content switching.
+- Keyboard navigation extended to handle editing behavior during MODIFY/PROMPT operations.
+- Operation workflow updated with new state handling logic.
+
+### Fixed
+- Issues around text input state management, cursor position and buffer handling.
+- Rendering/layout issues when switching between display modes.
+
+> Note: most of this release is UI implementation work; the operations are not fully wired up and remain non-functional.
+
+---
 
 ## [1.1.0] - 2025-08-19
 

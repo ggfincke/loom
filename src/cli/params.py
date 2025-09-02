@@ -49,7 +49,7 @@ def _normalize_validation_policy(value: str | None) -> ValidationPolicy:
         )
 
 
-def ResumeArg():
+def ResumeArg() -> typer.Argument:
     return typer.Argument(
         None,
         help="Path to resume (.docx or .tex)",
@@ -61,7 +61,7 @@ def ResumeArg():
     )
 
 
-def JobArg():
+def JobArg() -> typer.Argument:
     return typer.Argument(
         None,
         help="Path to job description",
@@ -73,7 +73,7 @@ def JobArg():
     )
 
 
-def ModelOpt():
+def ModelOpt() -> typer.Option:
     return typer.Option(
         None,
         "--model",
@@ -82,7 +82,7 @@ def ModelOpt():
     )
 
 
-def RiskOpt():
+def RiskOpt() -> typer.Option:
     return typer.Option(
         None,
         "--risk",
@@ -91,7 +91,7 @@ def RiskOpt():
     )
 
 
-def OnErrorOpt():
+def OnErrorOpt() -> typer.Option:
     return typer.Option(
         None,
         "--on-error",
@@ -100,19 +100,19 @@ def OnErrorOpt():
     )
 
 
-def ConfigKeyArg():
+def ConfigKeyArg() -> typer.Argument:
     return typer.Argument(
         help="Configuration setting name",
     )
 
 
-def ConfigValueArg():
+def ConfigValueArg() -> typer.Argument:
     return typer.Argument(
         help="New value to assign to the setting",
     )
 
 
-def EditsJsonOpt():
+def EditsJsonOpt() -> typer.Option:
     return typer.Option(
         None,
         "--edits-json",
@@ -122,7 +122,7 @@ def EditsJsonOpt():
     )
 
 
-def SectionsPathOpt():
+def SectionsPathOpt() -> typer.Option:
     return typer.Option(
         None,
         "--sections-path",
@@ -132,7 +132,7 @@ def SectionsPathOpt():
     )
 
 
-def PlanOpt():
+def PlanOpt() -> typer.Option:
     return typer.Option(
         None,
         "--plan",
@@ -140,7 +140,7 @@ def PlanOpt():
     )
 
 
-def PreserveFormattingOpt():
+def PreserveFormattingOpt() -> typer.Option:
     return typer.Option(
         True,
         "--preserve-formatting/--no-preserve-formatting",
@@ -149,7 +149,7 @@ def PreserveFormattingOpt():
     )
 
 
-def PreserveModeOpt():
+def PreserveModeOpt() -> typer.Option:
     return typer.Option(
         "in_place",
         "--preserve-mode",
@@ -161,7 +161,7 @@ def PreserveModeOpt():
     )
 
 
-def OutJsonOpt():
+def OutJsonOpt() -> typer.Option:
     return typer.Option(
         None,
         "--out-json",
@@ -171,7 +171,7 @@ def OutJsonOpt():
     )
 
 
-def OutputResumeOpt():
+def OutputResumeOpt() -> typer.Option:
     return typer.Option(
         None,
         "--output-resume",
@@ -181,9 +181,19 @@ def OutputResumeOpt():
     )
 
 
-def AutoOpt():
+def AutoOpt() -> typer.Option:
     return typer.Option(
         False,
         "--auto",
         help="Apply all edits automatically without interactive review",
+    )
+
+
+def OutputEditsOpt() -> typer.Option:
+    return typer.Option(
+        None,
+        "--output-edits",
+        "-o",
+        help="Path to write processed edits.json; defaults to input edits_json",
+        resolve_path=True,
     )

@@ -2,8 +2,11 @@
 # Custom exception hierarchy & centralized error handling for Loom
 
 import functools
-from typing import List
+from typing import List, Callable, TypeVar, Any, cast
 import typer
+
+# type var for decorator typing
+F = TypeVar('F', bound=Callable[..., Any])
 
 # * Base exception for Loom application
 class LoomError(Exception):
@@ -45,9 +48,9 @@ class DevModeError(LoomError):
 
 
 # * Decorator for handling Loom errors in CLI commands
-def handle_loom_error(func):
+def handle_loom_error(func: F) -> F:
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         # ! Lazy import to avoid circular dependencies  
         from ..loom_io.console import console
         
@@ -83,13 +86,13 @@ def handle_loom_error(func):
         except Exception as e:
             console.print(f"[red]Unexpected Error:[/] {str(e)}")
             raise SystemExit(1)
-    return wrapper
+    return cast(F, wrapper)
 
 
 # * Decorator to require dev mode for development commands
-def require_dev_mode(func):
+def require_dev_mode(func: F) -> F:
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         # ! Lazy import to avoid circular dependencies
         from ..config.settings import get_settings
         
@@ -106,4 +109,4 @@ def require_dev_mode(func):
             )
         
         return func(*args, **kwargs)
-    return wrapper
+    return cast(F, wrapper)

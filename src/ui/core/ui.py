@@ -5,12 +5,12 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from datetime import timedelta
-from rich.progress import Progress, SpinnerColumn, TextColumn, ProgressColumn
-from rich.text import Text
+from typing import Generator, Any
+from .rich_components import Progress, SpinnerColumn, TextColumn, ProgressColumn, Text
 
-from ...loom_io.console import console
+from ...loom_io.console import get_console
 from .pausable_timer import PausableTimer
-from ..theming.colors import LoomColors
+from ..theming.theme_engine import LoomColors
 
 
 # elapsed time column that freezes while UI is in input mode
@@ -20,7 +20,7 @@ class PausableElapsedColumn(ProgressColumn):
         self._timer = timer
 
     # render elapsed time in m:ss or h:mm:ss format
-    def render(self, task):
+    def render(self, task: Any) -> Text:
         seconds = int(self._timer.elapsed())
         
         # h:mm:ss if >= 1h, else m:ss
@@ -34,13 +34,14 @@ class PausableElapsedColumn(ProgressColumn):
 # UI abstraction that safely coordinates console output w/ progress display
 class UI:
     def __init__(self, progress: Progress | None = None) -> None:
-        self.console = console
         self.progress = progress
         self._timer = PausableTimer()
+        # initialize console reference to global instance (allows test mocking)
+        self.console = get_console()
 
-    # pause timer and temporarily stop Progress rendering for clean prompts
+    # pause timer & temporarily stop Progress rendering for clean prompts
     @contextmanager
-    def input_mode(self):
+    def input_mode(self) -> Generator[None, None, None]:
         self._timer.pause()
         progress = self.progress
         if progress is not None:
@@ -76,7 +77,7 @@ class UI:
             self.console.print(f"\n[error]Unexpected error: {e}, defaulting to (s)oft-fail[/]")
             return default
 
-    # print to console with rich formatting
+    # print to console w/ rich formatting
     def print(self, *args, **kwargs) -> None:
         self.console.print(*args, **kwargs)
 

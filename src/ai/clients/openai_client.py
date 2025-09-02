@@ -3,28 +3,17 @@
 
 import os
 import json
-import re
-from dotenv import load_dotenv
 from openai import OpenAI
 from ...config.settings import settings_manager
 from ..types import GenerateResult
 from ..models import ensure_valid_model
-
-# strip markdown code blocks
-def strip_markdown_code_blocks(text: str) -> str:
-    code_block_pattern = r'^```(?:json)?\s*\n(.*?)\n```\s*$'
-    match = re.match(code_block_pattern, text.strip(), re.DOTALL)
-    
-    if match:
-        return match.group(1)
-    else:
-        return text.strip()
+from ...core.exceptions import AIError, ConfigurationError
+from ..utils import strip_markdown_code_blocks
 
 # * Generate JSON response using OpenAI API w/ model validation
 def run_generate(prompt: str, model: str = "gpt-5-mini") -> GenerateResult:
-    load_dotenv()
     if not os.getenv("OPENAI_API_KEY"):
-        raise RuntimeError("Missing OPENAI_API_KEY in environment or .env")
+        raise ConfigurationError("Missing OPENAI_API_KEY in environment or .env")
     
     # validate model before making API call
     validated_model = ensure_valid_model(model)
@@ -34,12 +23,16 @@ def run_generate(prompt: str, model: str = "gpt-5-mini") -> GenerateResult:
     
     client = OpenAI()
     
-    # GPT-5 models don't support temperature parameter
-    if validated_model.startswith("gpt-5"):
-        resp = client.responses.create(model=validated_model, input=prompt)
-    else:
-        settings = settings_manager.load()
-        resp = client.responses.create(model=validated_model, input=prompt, temperature=settings.temperature)
+    try:
+        # GPT-5 models don't support temperature parameter
+        if validated_model.startswith("gpt-5"):
+            resp = client.responses.create(model=validated_model, input=prompt)
+        else:
+            settings = settings_manager.load()
+            resp = client.responses.create(model=validated_model, input=prompt, temperature=settings.temperature)
+    except Exception as e:
+        # normalize provider API errors to AIError for consistent handling
+        raise AIError(f"OpenAI API error: {str(e)}")
     
     # raw response text
     raw_text = resp.output_text

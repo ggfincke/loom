@@ -1,4 +1,4 @@
-# tests/unit/test_config_settings.py
+# tests/unit/config/test_settings.py
 # Unit tests for configuration management including load/save, defaults & theme validation
 
 import pytest
@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch, mock_open
 
 from src.config.settings import LoomSettings, SettingsManager
-from src.ui.theming.colors import THEMES
+from src.ui.theming.theme_definitions import THEMES
 
 
 # * Test LoomSettings dataclass behavior
@@ -50,7 +50,7 @@ class TestLoomSettings:
         # verify composed paths use custom directories
         assert settings.resume_path == Path("custom_data") / "my_resume.docx"
         assert settings.job_path == Path("custom_data") / "my_job.txt" 
-        assert settings.sections_path == Path("custom_output") / "sections.json"
+        assert settings.sections_path == Path("custom_data") / "sections.json"
         assert settings.edits_path == Path("custom_output") / "edits.json"
         
         # verify loom internal paths

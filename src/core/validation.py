@@ -9,11 +9,10 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import List, Callable, Any, Optional, Dict
 from pathlib import Path
-import typer
 from .constants import ValidationPolicy, RiskLevel
 from .exceptions import ValidationError
 from ..ai.models import SUPPORTED_MODELS, validate_model
-from ..config.settings import settings_manager
+from ..config.settings import settings_manager, LoomSettings
 from ..loom_io.generics import ensure_parent
 
 
@@ -40,7 +39,7 @@ class AskStrategy(ValidationStrategy):
         
         # display warnings to user
         ui.print()
-        ui.print("⚠️  Validation errors found:")
+        ui.print("Validation errors found:")
         for warning in warnings:
             ui.print(f"   {warning}")
         
@@ -176,7 +175,7 @@ class FailHardStrategy(ValidationStrategy):
                         deleted_files.append(str(file_path))
                     except Exception as e:
                         if ui:
-                            ui.print(f"   ⚠️  Could not delete {file_path}: {e}")
+                            ui.print(f"   Could not delete {file_path}: {e}")
             
             if ui and deleted_files:
                 ui.print("   Deleted files:")
@@ -213,7 +212,7 @@ def validate(validate_fn: Callable[[], List[str]],
 
 
 # * Handle validation errors w/ strategy pattern - centralized validation flow
-def handle_validation_error(settings,
+def handle_validation_error(settings: LoomSettings | None,
                            validate_fn: Callable[[], List[str]], 
                            policy: ValidationPolicy,
                            edit_fn: Optional[Callable[[List[str]], Any]] = None,
@@ -232,15 +231,16 @@ def handle_validation_error(settings,
         if want_retry:
             if edit_fn is None:
                 if ui:
-                    ui.print("❌ Retry requested but no AI correction is available; switching to manual...")
+                    ui.print("Retry requested but no AI correction is available; switching to manual...")
                 # fall through to manual path below
             else:
                 # use AI to generate corrected edits
                 prior_warnings: List[str] = outcome.value if isinstance(outcome.value, list) else []
                 result = edit_fn(prior_warnings)
-                settings.loom_dir.mkdir(parents=True, exist_ok=True)
-                ensure_parent(settings.edits_path)
-                settings.edits_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+                if settings is not None:
+                    settings.loom_dir.mkdir(parents=True, exist_ok=True)
+                    ensure_parent(settings.edits_path)
+                    settings.edits_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
                 if ui:
                     ui.print("✅ Generated corrected edits, re-validating...")
                 # continue loop for re-validation
@@ -248,8 +248,8 @@ def handle_validation_error(settings,
 
         # handle manual editing path
         warnings = validate_fn()
-        if ui:
-            ui.print(f"⚠️  Validation errors found. Please edit {settings.edits_path} manually:")
+        if ui and settings is not None:
+            ui.print(f"Validation errors found. Please edit {settings.edits_path} manually:")
             for w in warnings:
                 ui.print(f"   {w}")
 
@@ -258,6 +258,8 @@ def handle_validation_error(settings,
                     ui.ask("Press Enter after editing edits.json to re-validate...")
 
                 try:
+                    if settings is None:
+                        break
                     text = settings.edits_path.read_text(encoding="utf-8")
                     data = json.loads(text)
                     if reload_fn is not None:
@@ -267,18 +269,20 @@ def handle_validation_error(settings,
                 except json.JSONDecodeError as e:
                     # generate error context snippet
                     try:
+                        if settings is None:
+                            continue
                         text = settings.edits_path.read_text(encoding="utf-8")
                         lines = text.split('\n')
                         line_num = e.lineno - 1
                         snippet_start = max(0, line_num - 1)
                         snippet_end = min(len(lines), line_num + 2)
                         snippet = '\n'.join(f"{i+snippet_start+1}: {lines[i+snippet_start]}" for i in range(snippet_end - snippet_start))
-                        if ui: ui.print(f"❌ JSON error in edits.json at line {e.lineno}:\n{snippet}\n{e.msg}")
+                        if ui: ui.print(f"JSON error in edits.json at line {e.lineno}:\n{snippet}\n{e.msg}")
                     except:
-                        if ui: ui.print(f"❌ JSON error in edits.json: {e}")
+                        if ui: ui.print(f"JSON error in edits.json: {e}")
                     continue
                 except FileNotFoundError as e:
-                    if ui: ui.print(f"❌ File not found: {e}")
+                    if ui: ui.print(f"File not found: {e}")
                     continue
 
 # * Edit JSON validation logic (moved from pipeline.py)

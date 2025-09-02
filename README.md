@@ -1,6 +1,12 @@
 # Loom — Resume Tailoring Tool
 
-A Python-based CLI for tailoring resumes to job descriptions using AI models from OpenAI, Anthropic (Claude), or local Ollama.
+[![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)](https://github.com/ggfincke/loom)
+[![Python](https://img.shields.io/badge/python-3.12+-blue.svg)](https://python.org)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![AI Models](https://img.shields.io/badge/AI-OpenAI%20%7C%20Claude%20%7C%20Ollama-purple.svg)](https://github.com/ggfincke/loom)
+[![CLI](https://img.shields.io/badge/interface-CLI-orange.svg)](https://github.com/ggfincke/loom)
+
+A Python-based CLI that intelligently tailors resumes to job descriptions using AI models. Features structured JSON edits, interactive diff resolution, and support for OpenAI, Anthropic (Claude), and local Ollama models.
 
 ## Installation
 
@@ -37,6 +43,12 @@ Loom is a Typer-based CLI organized into focused packages. For internals & packa
 - Preserves DOCX formatting (DOCX in-place or rebuild modes); supports LaTeX/text
 - Works with OpenAI, Anthropic (Claude), & local Ollama models
 - Offers validation controls via `--risk` & `--on-error` policies
+
+## Interactive Features
+
+**Diff Resolution Workflow**: Review and approve changes with a built-in diff viewer before applying them to your resume. Use `--auto` flag for streamlined interactive editing.
+
+**Planning Mode**: Experimental step-by-step planning workflow (`loom plan`) that provides detailed reasoning for complex tailoring scenarios.
 
 ## Usage
 
@@ -90,16 +102,19 @@ This command:
 - Identifies and categorizes different sections (e.g., Summary, Experience, Skills)
 - Outputs structured section data for more precise edits
 
-### Split Workflow: Generate then Apply
+### Split Workflow: Review Before Apply
 
 If you prefer to review edits before applying:
 
 ```bash
-# Generate edits only
-loom generate job_description.txt resume.docx --sections-path sections.json --out-json edits.json
+# Generate edits only (review them first)
+loom tailor job_description.txt resume.docx --edits-only --edits-json edits.json
 
 # Apply previously generated edits
-loom apply resume.docx edits.json --output-resume tailored_resume.docx
+loom tailor resume.docx --apply --edits-json edits.json --output-resume tailored_resume.docx
+
+# Alternative: Use the experimental planning workflow
+loom plan job_description.txt resume.docx --edits-json planned_edits.json
 ```
 
 ### Streamlined Workflow with Configuration
@@ -127,6 +142,11 @@ loom --help
 loom models      # List available models by provider
 ```
 
+**Supported AI Models:**
+- **OpenAI**: gpt-5, gpt-5-mini, gpt-5-nano, gpt-4o, gpt-4o-mini
+- **Claude**: claude-opus-4-1-20250805, claude-sonnet-4-20250514, claude-3-7-sonnet-20250219
+- Local LLMs supported via **Ollama**
+
 ## Quick Build & Smoke Tests
 
 - Create env: `conda create -n loom python=3.12 && conda activate loom`
@@ -139,10 +159,12 @@ loom models      # List available models by provider
 
 ## Testing
 
-- Fast tests: `pytest` (slow tests skipped by default)
-- Coverage: `make test-coverage` (HTML in `htmlcov/`)
-- Stress tests: `pytest tests/stress -m slow`
-- Full guide: see `docs/testing.md` for markers, isolation, CI behavior, and mutation testing.
+Run tests with `pytest -q`. Smoke test via:
+
+```bash
+loom sectionize data/resume.docx --out-json data/sections.json
+loom tailor data/job.txt data/resume.docx --output-resume output/tailored_resume.docx
+```
 
 ## Configuration Management
 

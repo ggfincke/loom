@@ -4,6 +4,7 @@
 from pathlib import Path
 from docx import Document
 from docx.text.paragraph import Paragraph
+from docx.text.run import Run
 from docx.oxml import OxmlElement
 from typing import Dict, Tuple, Any, List, Set
 from .types import Lines
@@ -185,7 +186,7 @@ def _insert_paragraph_after(paragraph: Paragraph, text: str) -> Paragraph:
         new_para.add_run(text)
     return new_para
 
-def _copy_run_formatting(source_run, target_run) -> None:
+def _copy_run_formatting(source_run: Run, target_run: Run) -> None:
     # copy run-level formatting if available
     if not source_run:
         return
@@ -218,7 +219,7 @@ def _set_paragraph_text_preserving_format(target_para: Paragraph, new_text: str,
     if template_run:
         _copy_run_formatting(template_run, new_run)
 
-def _categorize_edits(original_lines: Dict[int, str], new_lines: Lines):
+def _categorize_edits(original_lines: Dict[int, str], new_lines: Lines) -> Tuple[Dict[int, str], List[Tuple[int | None, int, str]], Set[int]]:
     # categorize edits by type
     modifications: Dict[int, str] = {}
     additions: List[Tuple[int | None, int, str]] = []
@@ -303,7 +304,7 @@ def _apply_edits_rebuild(original_path: Path, new_lines: Lines, output_path: Pat
     ensure_parent(output_path)
     new_doc.save(str(output_path))
 
-def _copy_paragraph_format(source_format, target_format):
+def _copy_paragraph_format(source_format: Any, target_format: Any) -> None:
     # copy paragraph formatting properties
     for prop in dir(source_format):
         if prop.startswith('_'):

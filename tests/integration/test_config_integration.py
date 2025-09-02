@@ -48,7 +48,7 @@ def test_settings_paths_work_correctly(isolate_config):
     
     # test path properties
     assert settings.resume_path == Path("data") / "resume.docx"
-    assert settings.sections_path == Path("output") / "sections.json" 
+    assert settings.sections_path == Path("data") / "sections.json" 
     assert settings.loom_dir == Path(".loom")
     assert settings.warnings_path == Path(".loom") / "edits.warnings.txt"
 

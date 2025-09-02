@@ -1,13 +1,12 @@
 # src/ui/theming/__init__.py
 # Theming utilities: colors, console theme, Typer styles, selectors
 
-from .colors import (
-    THEMES,
+from .theme_definitions import THEMES
+from .theme_engine import (
     get_active_theme,
     update_gradient_colors,
     LoomColors,
     natural_gradient,
-    gradient_text,
     success_gradient,
     accent_gradient,
     get_loom_theme,
@@ -25,7 +24,6 @@ __all__ = [
     "update_gradient_colors", 
     "LoomColors",
     "natural_gradient",
-    "gradient_text",
     "success_gradient",
     "accent_gradient",
     "get_loom_theme",
