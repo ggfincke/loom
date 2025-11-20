@@ -13,6 +13,14 @@ from .documents import (
 )
 from .generics import write_json_safe, read_json_safe, ensure_parent, exit_with_error
 from .types import Lines
+from .latex_handler import (
+    detect_template,
+    analyze_latex,
+    sections_to_payload,
+    filter_latex_edits,
+    TemplateDescriptor,
+    load_descriptor,
+)
 
 __all__ = [
     "read_docx",
@@ -28,4 +36,10 @@ __all__ = [
     "ensure_parent",
     "exit_with_error",
     "Lines",
+    "detect_template",
+    "analyze_latex",
+    "sections_to_payload",
+    "filter_latex_edits",
+    "TemplateDescriptor",
+    "load_descriptor",
 ]

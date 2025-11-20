@@ -21,3 +21,6 @@ dependencies = [
 
 [project.scripts]
 loom = "src.main:app"
+
+[tool.setuptools]
+include-package-data = true
