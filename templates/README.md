@@ -113,6 +113,16 @@ A compact itemize environment for bullet points:
 
 This template is designed to work seamlessly with Loom's resume tailoring system.
 
+### Initialize via Loom CLI
+
+```bash
+# List bundled templates
+loom templates
+
+# Initialize this template into a working directory
+loom init --template swe-latex --output my-resume
+```
+
 ### Current Usage (Manual)
 
 1. Compile your base resume:
@@ -129,21 +139,6 @@ This template is designed to work seamlessly with Loom's resume tailoring system
    ```bash
    pdflatex tailored.tex
    ```
-
-### Future Integration (Planned)
-
-Once Loom's LaTeX template system is implemented (see [latex-templates-design.md](../docs/latex-templates-design.md)):
-
-```bash
-# Initialize a new resume from this template
-loom init --template swe-latex
-
-# Template will include loom-template.toml for enhanced processing
-# Loom will automatically understand:
-# - Section boundaries (\sectionhead commands)
-# - Editable vs frozen zones
-# - Item splitting rules
-```
 
 ## Design Philosophy
 
