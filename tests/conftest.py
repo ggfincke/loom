@@ -55,10 +55,14 @@ def isolate_config(tmp_path, monkeypatch):
 
 @pytest.fixture(autouse=True)
 def block_network():
-    # block all network calls by default using pytest-socket
+    # block all network calls by default w/ pytest-socket
     # tests requiring network must explicitly enable w/ pytest.mark.enable_socket
-    pytest_socket = pytest.importorskip("pytest_socket")
-    pytest_socket.disable_socket()
+    try:
+        pytest_socket = pytest.importorskip("pytest_socket")
+        pytest_socket.disable_socket()
+    except pytest.skip.Exception:
+        # pytest-socket not installed, skip network blocking
+        pass
 
 
 @pytest.fixture

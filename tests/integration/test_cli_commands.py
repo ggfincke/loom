@@ -5,6 +5,7 @@ import pytest
 from typer.testing import CliRunner
 from pathlib import Path
 from unittest.mock import patch, Mock
+import json
 
 from tests.test_support.mock_ai import DeterministicMockAI, create_ai_client_mocks, create_simple_ai_mock, get_ai_patch_path
 
@@ -87,6 +88,56 @@ def test_sectionize_success_with_model_selection(isolate_config, sample_files, m
             
             assert result.exit_code == 0
             assert (output_dir / "sections.json").exists()
+
+
+# * Ensure LaTeX sectionize path uses handler without AI dependency
+def test_sectionize_latex_uses_handler(isolate_config):
+    from src.cli.app import app
+
+    runner = CliRunner()
+    fixtures_dir = Path(__file__).parent.parent / "fixtures" / "documents"
+    sample_latex = fixtures_dir / "basic_formatted_resume.tex"
+
+    with runner.isolated_filesystem():
+        resume_path = Path("resume.tex")
+        resume_path.write_text(sample_latex.read_text(encoding="utf-8"), encoding="utf-8")
+
+        result = runner.invoke(
+            app,
+            ["sectionize", str(resume_path), "--out-json", "sections.json"],
+            env={"NO_COLOR": "1", "TERM": "dumb"},
+        )
+
+        assert result.exit_code == 0
+        data = json.loads(Path("sections.json").read_text(encoding="utf-8"))
+        assert data.get("handler") == "latex"
+        section_names = {section["name"] for section in data.get("sections", [])}
+        assert "EXPERIENCE" in section_names
+
+
+# * Templates command should list bundled templates & init should copy files
+def test_templates_and_init_commands(isolate_config):
+    from src.cli.app import app
+
+    runner = CliRunner()
+
+    with runner.isolated_filesystem():
+        list_result = runner.invoke(
+            app, ["templates"], env={"NO_COLOR": "1", "TERM": "dumb"}
+        )
+        assert list_result.exit_code == 0
+        assert "swe-latex" in list_result.output
+
+        target_dir = Path("my-resume")
+        init_result = runner.invoke(
+            app,
+            ["init", "--template", "swe-latex", "--output", str(target_dir)],
+            env={"NO_COLOR": "1", "TERM": "dumb"},
+        )
+
+        assert init_result.exit_code == 0
+        assert (target_dir / "resume.tex").exists()
+        assert (target_dir / "loom-template.toml").exists()
 
 
 # * Test generate command w/ basic parameters
