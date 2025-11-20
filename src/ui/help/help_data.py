@@ -9,7 +9,7 @@ from typing import Dict, List, Optional, Callable
 
 @dataclass
 class CommandHelp:
-    # help metadata for a command
+    # help metadata for command
     name: str
     description: str
     long_description: str | None = None
@@ -17,9 +17,9 @@ class CommandHelp:
     see_also: List[str] | None = None
 
 
-@dataclass 
+@dataclass
 class OptionHelp:
-    # help metadata for a command option
+    # help metadata for command option
     name: str
     type_name: str
     description: str
@@ -60,7 +60,7 @@ def command_help(
 
 
 def get_command_metadata(command_name: str) -> CommandHelp | None:
-    # get help metadata for a command
+    # get help metadata for command
     return _command_metadata.get(command_name)
 
 
@@ -74,7 +74,7 @@ def extract_help_from_function(func: Callable) -> CommandHelp | None:
     return getattr(func, '_help_metadata', None)
 
 
-# * legacy command help dict - kept for backwards compatibility
+# * legacy command help dict - kept for backward compatibility
 COMMAND_HELP = {}
 
 
@@ -120,6 +120,19 @@ OPTION_HELP = {
         aliases=["-e"],
         default="from config: edits_path",
         config_key="edits_path",
+    ),
+    "template": OptionHelp(
+        name="--template",
+        type_name="TEXT",
+        description="Template id to initialize from",
+        aliases=["-t"],
+        required=True,
+    ),
+    "output": OptionHelp(
+        name="--output",
+        type_name="PATH",
+        description="Destination directory for template copy",
+        aliases=["-o"],
     ),
     "out_json": OptionHelp(
         name="--out-json",
@@ -216,12 +229,12 @@ WORKFLOW_HELP = {
 }
 
 
-# retrieve help metadata for a command (legacy function - now uses decorator registry)
+# retrieve help metadata for command (legacy function - now uses decorator registry)
 def get_command_help(command_name: str) -> CommandHelp | None:
     return get_command_metadata(command_name)
 
 
-# get help metadata for an option
+# get help metadata for option
 def get_option_help(option_name: str) -> OptionHelp | None:
     return OPTION_HELP.get(option_name)
 

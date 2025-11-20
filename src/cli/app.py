@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 # load environment variables once at startup
 load_dotenv()
 
-# patch Typer's Rich help styles before creating the app
+# patch Typer's Rich help styles before creating app
 from ..ui.theming import typer_styles  # noqa: F401
 
 from ..config.settings import settings_manager
@@ -28,7 +28,7 @@ app = typer.Typer(
 def main_callback(
     ctx: typer.Context,
     help_raw: bool = typer.Option(False, "--help-raw", help="Show raw Typer help instead of branded help"),
-    help: bool = typer.Option(False, "--help", "-h", help="Show help message and exit."),
+    help: bool = typer.Option(False, "--help", "-h", help="Show help message & exit."),
 ) -> None:
     # respect injected ctx.obj from tests/embedding; only load if absent
     if getattr(ctx, "obj", None) is None:
@@ -58,4 +58,6 @@ from .commands import plan as _plan  # noqa: F401
 from .commands import config as _config  # noqa: F401
 from .commands import models as _models  # noqa: F401
 from .commands import help as _help  # noqa: F401
+from .commands import templates as _templates  # noqa: F401
+from .commands import init as _init  # noqa: F401
 from .commands.dev import display as _display  # noqa: F401
