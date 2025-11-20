@@ -13,7 +13,9 @@ from ..app import app
 from ..helpers import validate_required_args, is_test_environment
 from ...ui.core.progress import setup_ui_with_progress, load_resume_and_job, load_sections
 from ...ui.display.reporting import persist_edits_json, report_result, write_output_with_diff
-from ..logic import ArgResolver, generate_edits_core, apply_edits_core
+from ..logic import ArgResolver, generate_edits_core, apply_edits_core, build_latex_context
+from ...loom_io import read_resume, TemplateDescriptor
+from ...loom_io.types import Lines
 from ...ui.help.help_data import command_help
 from ..params import (
     JobArg,
@@ -31,13 +33,68 @@ from ..params import (
 from ...config.settings import get_settings
 
 
+def _prepare_resume_context(
+    resume_path: Path,
+    job_path: Path | None,
+    is_latex: bool,
+    progress,
+    task,
+) -> tuple[
+    Lines,
+    str | None,
+    TemplateDescriptor | None,
+    str | None,
+    list[str],
+]:
+    if job_path is not None:
+        lines, job_text = load_resume_and_job(resume_path, job_path, progress, task)
+    else:
+        progress.update(task, description="Reading resume document...")
+        lines = read_resume(resume_path)
+        progress.advance(task)
+        job_text = None
+
+    descriptor = None
+    auto_sections_json = None
+    template_notes: list[str] = []
+    if is_latex:
+        progress.update(task, description="Analyzing LaTeX structure...")
+        descriptor, auto_sections_json, template_notes = build_latex_context(resume_path, lines)
+        progress.advance(task)
+
+    return lines, job_text, descriptor, auto_sections_json, template_notes
+
+
+def _display_latex_info(ui, descriptor: TemplateDescriptor | None, template_notes: list[str]) -> None:
+    if descriptor:
+        ui.print(f"[green]Detected LaTeX template:[/] {descriptor.id}")
+    if template_notes:
+        ui.print("[yellow]Template notes:[/]")
+        for note in template_notes:
+            ui.print(f" - {note}")
+
+
+def _resolve_sections_context(
+    sections_path: Path | None,
+    is_latex: bool,
+    auto_sections_json: str | None,
+    progress,
+    task,
+) -> str | None:
+    if sections_path:
+        return load_sections(sections_path, progress, task)
+    if is_latex:
+        return auto_sections_json
+    return None
+
+
 # * Complete end-to-end resume tailoring: generate edits & apply to create tailored resume
 @command_help(
     name="tailor",
     description="Complete end-to-end resume tailoring: generate edits & apply in one step",
     long_description=(
-        "Runs generation and apply in one pass: analyzes the job description, "
-        "produces edits, then writes a tailored resume. Accepts the same safety "
+        "run generation & apply in one pass: analyze job description, "
+        "produce edits & write tailored resume. Accepts same safety "
         "and formatting controls as 'generate'/'apply'. Use --edits-only to stop "
         "after generating edits, or --apply to apply existing edits."
     ),
@@ -68,7 +125,7 @@ def tailor(
     edits_only: bool = typer.Option(False, "--edits-only", help="Generate edits JSON only (don't apply)"),
     apply: bool = typer.Option(False, "--apply", help="Apply existing edits JSON to resume"),
     auto: bool = AutoOpt(),
-    help: bool = typer.Option(False, "--help", "-h", help="Show help message and exit."),
+    help: bool = typer.Option(False, "--help", "-h", help="Show help message & exit."),
 ) -> None:
     # detect help flag & display custom help
     if help:
@@ -79,7 +136,7 @@ def tailor(
     # validate mutually exclusive flags
     if edits_only and apply:
         from ...loom_io.console import console
-        console.print("[red]Error: --edits-only and --apply are mutually exclusive[/]")
+        console.print("[red]Error: --edits-only & --apply are mutually exclusive[/]")
         ctx.exit(1)
     
     settings = get_settings(ctx)
@@ -155,22 +212,27 @@ def tailor(
         # output_resume required for application
         assert output_resume is not None
 
+    is_latex = resume.suffix.lower() == ".tex"
+
     if apply:
         # apply mode: read edits & apply to resume
         assert output_resume is not None
         
-        from ...loom_io import read_resume
         from ...ui.core.progress import load_edits_json
         
-        with setup_ui_with_progress("Applying edits...", total=5) as (
+        apply_total = 5 + (1 if is_latex else 0) + (1 if sections_path else 0)
+        with setup_ui_with_progress("Applying edits...", total=apply_total) as (
             ui,
             progress,
             task,
         ):
-            # read resume
-            progress.update(task, description="Reading resume document...")
-            lines = read_resume(resume)
-            progress.advance(task)
+            lines, _, descriptor, auto_sections_json, template_notes = _prepare_resume_context(
+                resume, None, is_latex, progress, task
+            )
+            _display_latex_info(ui, descriptor, template_notes)
+            sections_json_str = _resolve_sections_context(
+                sections_path, is_latex, auto_sections_json, progress, task
+            )
 
             # read edits
             edits_obj = load_edits_json(edits_json, progress, task)
@@ -179,7 +241,8 @@ def tailor(
             progress.update(task, description="Applying edits...")
             new_lines = apply_edits_core(
                 settings, lines, edits_obj, risk_enum, on_error_policy, ui, interactive_mode,
-                persist_special_ops=interactive_mode, edits_json_path=edits_json
+                persist_special_ops=interactive_mode, edits_json_path=edits_json,
+                resume_path=resume, sections_json=sections_json_str, descriptor=descriptor
             )
             progress.advance(task)
 
@@ -201,16 +264,19 @@ def tailor(
         assert job is not None
         assert model is not None
         
-        with setup_ui_with_progress("Generating edits...", total=4) as (
+        edits_total = 4 + (1 if is_latex else 0) + (1 if sections_path else 0)
+        with setup_ui_with_progress("Generating edits...", total=edits_total) as (
             ui,
             progress,
             task,
         ):
-            # read resume + job
-            lines, job_text = load_resume_and_job(resume, job, progress, task)
-
-            # load optional sections
-            sections_json_str = load_sections(sections_path, progress, task)
+            lines, job_text, descriptor, auto_sections_json, template_notes = _prepare_resume_context(
+                resume, job, is_latex, progress, task
+            )
+            _display_latex_info(ui, descriptor, template_notes)
+            sections_json_str = _resolve_sections_context(
+                sections_path, is_latex, auto_sections_json, progress, task
+            )
 
             # generate edits using core helper
             progress.update(task, description="Generating edits with AI...")
@@ -239,16 +305,19 @@ def tailor(
         assert model is not None
         assert output_resume is not None
         
-        with setup_ui_with_progress("Tailoring resume...", total=6) as (
+        tailor_total = 7 + (1 if is_latex else 0) + (1 if sections_path else 0)
+        with setup_ui_with_progress("Tailoring resume...", total=tailor_total) as (
             ui,
             progress,
             task,
         ):
-            # read resume + job
-            lines, job_text = load_resume_and_job(resume, job, progress, task)
-
-            # load optional sections
-            sections_json_str = load_sections(sections_path, progress, task)
+            lines, job_text, descriptor, auto_sections_json, template_notes = _prepare_resume_context(
+                resume, job, is_latex, progress, task
+            )
+            _display_latex_info(ui, descriptor, template_notes)
+            sections_json_str = _resolve_sections_context(
+                sections_path, is_latex, auto_sections_json, progress, task
+            )
 
             # generate edits using core helper
             progress.update(task, description="Generating edits with AI...")
@@ -279,7 +348,8 @@ def tailor(
             new_lines = apply_edits_core(
                 settings, lines, edits, risk_enum, on_error_policy, ui, interactive_mode,
                 job_text=job_text, sections_json=sections_json_str, model=model,
-                persist_special_ops=interactive_mode, edits_json_path=edits_json
+                persist_special_ops=interactive_mode, edits_json_path=edits_json,
+                resume_path=resume, descriptor=descriptor
             )
             progress.advance(task)
 

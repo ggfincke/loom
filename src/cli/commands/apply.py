@@ -13,7 +13,7 @@ from ..app import app
 from ..helpers import validate_required_args, is_test_environment
 from ...ui.core.progress import setup_ui_with_progress, load_edits_json
 from ...ui.display.reporting import report_result, write_output_with_diff
-from ..logic import ArgResolver, apply_edits_core
+from ..logic import ArgResolver, apply_edits_core, build_latex_context
 from ..params import (
     ResumeArg,
     EditsJsonOpt,
@@ -45,7 +45,7 @@ def apply(
     job: Path | None = JobArg(),
     model: str | None = ModelOpt(),
     sections_path: Path | None = SectionsPathOpt(),
-    help: bool = typer.Option(False, "--help", "-h", help="Show help message and exit."),
+    help: bool = typer.Option(False, "--help", "-h", help="Show help message & exit."),
 ) -> None:
     # detect help flag & show custom help
     if help:
@@ -94,13 +94,16 @@ def apply(
     assert edits_json is not None
     assert output_resume is not None
 
-    # calculate total steps (base 5 + optional job/sections)
+    # calculate total steps (base 5 + optional job/sections/latex)
     total_steps = 5
+    is_latex = resume.suffix.lower() == ".tex"
     if job is not None:
+        total_steps += 1
+    if is_latex:
         total_steps += 1
     if sections_path is not None:
         total_steps += 1
-        
+
     with setup_ui_with_progress("Applying edits...", total=total_steps) as (
         ui,
         progress,
@@ -110,7 +113,23 @@ def apply(
         progress.update(task, description="Reading resume document...")
         lines = read_resume(resume)
         progress.advance(task)
-        
+
+        descriptor = None
+        auto_sections_json = None
+        latex_notes: list[str] = []
+
+        if is_latex:
+            progress.update(task, description="Analyzing LaTeX structure...")
+            descriptor, auto_sections_json, latex_notes = build_latex_context(resume, lines)
+            progress.advance(task)
+
+            if descriptor:
+                ui.print(f"[green]Detected LaTeX template:[/] {descriptor.id}")
+            if latex_notes:
+                ui.print("[yellow]Template notes:[/]")
+                for note in latex_notes:
+                    ui.print(f" - {note}")
+
         # read job description if available (for prompt support)
         job_text = None
         if job is not None:
@@ -118,10 +137,15 @@ def apply(
             if Path(job).exists():
                 job_text = Path(job).read_text(encoding="utf-8")
             progress.advance(task)
-            
+        
         # load optional sections for prompt support
         from ...ui.core.progress import load_sections
-        sections_json_str = load_sections(sections_path, progress, task) if sections_path else None
+        if sections_path:
+            sections_json_str = load_sections(sections_path, progress, task)
+        elif is_latex:
+            sections_json_str = auto_sections_json
+        else:
+            sections_json_str = None
 
         # read edits
         edits_obj = load_edits_json(edits_json, progress, task)
@@ -131,7 +155,8 @@ def apply(
         new_lines = apply_edits_core(
             settings, lines, edits_obj, risk, on_error, ui, interactive_mode,
             job_text=job_text, sections_json=sections_json_str, model=model,
-            persist_special_ops=interactive_mode, edits_json_path=edits_json
+            persist_special_ops=interactive_mode, edits_json_path=edits_json,
+            resume_path=resume, descriptor=descriptor
         )
         progress.advance(task)
 

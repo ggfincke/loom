@@ -10,6 +10,13 @@ from typing import TypedDict, Any
 from ..config.settings import LoomSettings
 from ..loom_io.generics import ensure_parent
 from ..loom_io.types import Lines
+from ..loom_io import (
+    filter_latex_edits,
+    detect_template,
+    analyze_latex,
+    sections_to_payload,
+    TemplateDescriptor,
+)
 from ..core.constants import RiskLevel, ValidationPolicy, EditOperation, DiffOp
 from ..core.pipeline import (
     generate_edits,
@@ -28,12 +35,31 @@ def _resolve(provided_value: Any, settings_default: Any) -> Any:
     return settings_default if provided_value is None else provided_value
 
 
+# * Build LaTeX context (descriptor, sections JSON, notes) for LaTeX resume files
+def build_latex_context(
+    resume_path: Path, lines: Lines
+) -> tuple[TemplateDescriptor | None, str | None, list[str]]:
+    # detect template, analyze sections, & collect notes for LaTeX resume; returns tuple of (descriptor, sections_json, notes) or (None, None, []) for non-LaTeX files
+    descriptor = None
+    sections_json = None
+    notes: list[str] = []
+
+    if resume_path.suffix.lower() == ".tex":
+        resume_text = resume_path.read_text(encoding="utf-8")
+        descriptor = detect_template(resume_path, resume_text)
+        analysis = analyze_latex(lines, descriptor)
+        sections_json = json.dumps(sections_to_payload(analysis), indent=2)
+        notes = analysis.notes
+
+    return descriptor, sections_json, notes
+
+
 class OptionsResolved(TypedDict):
     risk: RiskLevel
     on_error: ValidationPolicy
 
 
-# * Resolve CLI arguments using settings defaults when values are not provided
+# * Resolve CLI arguments & use settings defaults when values are not provided
 class ArgResolver:
 
     def __init__(self, settings: LoomSettings):
@@ -286,6 +312,45 @@ def process_special_operations(
     return operations
 
 
+# * Shared converter for EditOperation -> dict representation
+def _operation_to_dict(op: EditOperation, include_status: bool = False) -> dict | None:
+    if op.operation == "replace_line":
+        dict_op = {
+            "op": "replace_line",
+            "line": op.line_number,
+            "text": op.content
+        }
+    elif op.operation == "replace_range":
+        dict_op = {
+            "op": "replace_range",
+            "start": op.start_line,
+            "end": op.end_line,
+            "text": op.content
+        }
+    elif op.operation == "insert_after":
+        dict_op = {
+            "op": "insert_after",
+            "line": op.line_number,
+            "text": op.content
+        }
+    elif op.operation == "delete_range":
+        dict_op = {
+            "op": "delete_range",
+            "start": op.start_line,
+            "end": op.end_line
+        }
+    else:
+        return None
+
+    if hasattr(op, 'reasoning') and op.reasoning:
+        dict_op["reason"] = op.reasoning
+    if hasattr(op, 'confidence') and op.confidence:
+        dict_op["confidence"] = op.confidence
+    if include_status:
+        dict_op["_status"] = op.status.value
+    return dict_op
+
+
 # * Convert approved EditOperation objects back to dict format for application
 def convert_operations_to_dict_edits(operations: list[EditOperation], original_edits: dict) -> dict:
     approved_ops = []
@@ -294,41 +359,9 @@ def convert_operations_to_dict_edits(operations: list[EditOperation], original_e
         if op.status != DiffOp.APPROVE:
             continue
             
-        # convert back to dict format
-        if op.operation == "replace_line":
-            dict_op = {
-                "op": "replace_line",
-                "line": op.line_number,
-                "text": op.content
-            }
-        elif op.operation == "replace_range":
-            dict_op = {
-                "op": "replace_range",
-                "start": op.start_line,
-                "end": op.end_line,
-                "text": op.content
-            }
-        elif op.operation == "insert_after":
-            dict_op = {
-                "op": "insert_after",
-                "line": op.line_number,
-                "text": op.content
-            }
-        elif op.operation == "delete_range":
-            dict_op = {
-                "op": "delete_range",
-                "start": op.start_line,
-                "end": op.end_line
-            }
-        else:
-            continue  # skip unknown operations
-            
-        # preserve original metadata if available
-        if hasattr(op, 'reasoning') and op.reasoning:
-            dict_op["reason"] = op.reasoning
-        if hasattr(op, 'confidence') and op.confidence:
-            dict_op["confidence"] = op.confidence
-            
+        dict_op = _operation_to_dict(op)
+        if dict_op is None:
+            continue
         approved_ops.append(dict_op)
     
     # return new edits dict w/ only approved operations
@@ -344,44 +377,9 @@ def convert_all_operations_to_dict_edits(operations: list[EditOperation], origin
     all_ops = []
     
     for op in operations:
-        # convert back to dict format
-        if op.operation == "replace_line":
-            dict_op = {
-                "op": "replace_line",
-                "line": op.line_number,
-                "text": op.content
-            }
-        elif op.operation == "replace_range":
-            dict_op = {
-                "op": "replace_range",
-                "start": op.start_line,
-                "end": op.end_line,
-                "text": op.content
-            }
-        elif op.operation == "insert_after":
-            dict_op = {
-                "op": "insert_after",
-                "line": op.line_number,
-                "text": op.content
-            }
-        elif op.operation == "delete_range":
-            dict_op = {
-                "op": "delete_range",
-                "start": op.start_line,
-                "end": op.end_line
-            }
-        else:
-            continue  # skip unknown operations
-            
-        # preserve original metadata if available
-        if hasattr(op, 'reasoning') and op.reasoning:
-            dict_op["reason"] = op.reasoning
-        if hasattr(op, 'confidence') and op.confidence:
-            dict_op["confidence"] = op.confidence
-        
-        # track user decision status
-        dict_op["_status"] = op.status.value
-            
+        dict_op = _operation_to_dict(op, include_status=True)
+        if dict_op is None:
+            continue
         all_ops.append(dict_op)
     
     # return new edits dict w/ all operations & their statuses
@@ -406,15 +404,30 @@ def apply_edits_core(
     model: str | None = None,
     persist_special_ops: bool = False,
     edits_json_path: Path | None = None,
+    resume_path: Path | None = None,
+    descriptor: TemplateDescriptor | None = None,
 ) -> Lines:
+    latex_notes: list[str] = []
+    resume_suffix = resume_path.suffix.lower() if resume_path else ""
+    is_latex = resume_suffix == ".tex"
+
+    def sanitize_edits(data: dict) -> dict:
+        if not isinstance(data, dict):
+            return data
+        if is_latex:
+            filtered, notes = filter_latex_edits(data, resume_lines, descriptor)
+            latex_notes.extend(notes)
+            return filtered
+        return data
+
     # use mutable container for reload support
-    current = [edits]
+    current = [sanitize_edits(edits)]
 
     def validate_current() -> list[str]:
         return validate_edits(current[0], resume_lines, risk)
 
     def reload_from_disk(data) -> None:
-        current[0] = data
+        current[0] = sanitize_edits(data)
 
     # validate before applying edits
     handle_validation_error(
@@ -465,5 +478,11 @@ def apply_edits_core(
                 edits_json_path.write_text(json.dumps(complete_edits, indent=2), encoding="utf-8")
                 ui.print(f"[green]Updated edits saved to {edits_json_path}[/]")
     
+    # re-run LaTeX safety checks before applying edits
+    current[0] = sanitize_edits(current[0])
+    if latex_notes and ui:
+        for note in sorted(set(latex_notes)):
+            ui.print(f"[yellow]{note}[/]")
+
     # execute edit application w/ approved operations only
     return apply_edits(resume_lines, current[0])
