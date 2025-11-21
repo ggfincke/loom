@@ -7,89 +7,89 @@ from typing import Dict, Any, Optional, cast
 import typer
 from dataclasses import dataclass, asdict
 
+
 # * Default settings dataclass for Loom CLI w/ paths & OpenAI model configuration
 @dataclass
 class LoomSettings:
     # default paths
     data_dir: str = "data"
-    output_dir: str = "output" 
+    output_dir: str = "output"
     resume_filename: str = "resume.docx"
     job_filename: str = "job.txt"
     sections_filename: str = "sections.json"
     edits_filename: str = "edits.json"
-    
+
     # loom internal paths
     base_dir: str = ".loom"
     warnings_filename: str = "edits.warnings.txt"
     diff_filename: str = "diff.patch"
     plan_filename: str = "plan.txt"
-    
+
     # OpenAI model setting
     model: str = "gpt-5-mini"
     # temp setting (note: GPT-5 models don't support temperature parameter)
     temperature: float = 0.2
-    
+
     # risk management setting
     risk: str = "ask"
-    
+
     # theme setting
     theme: str = "deep_blue"
-    
+
     # interactive diff setting
     interactive: bool = True
-    
+
     # dev mode setting (enables access to development commands)
     dev_mode: bool = False
-    
+
     @property
     def resume_path(self) -> Path:
         return Path(self.data_dir) / self.resume_filename
-    
+
     @property
     def job_path(self) -> Path:
         return Path(self.data_dir) / self.job_filename
-    
+
     @property
     def sections_path(self) -> Path:
         return Path(self.data_dir) / self.sections_filename
-    
+
     @property
     def edits_path(self) -> Path:
         return Path(self.output_dir) / self.edits_filename
-    
+
     # loom internal paths
     @property
     def loom_dir(self) -> Path:
         return Path(self.base_dir)
-    
-    
+
     @property
     def warnings_path(self) -> Path:
         return self.loom_dir / self.warnings_filename
-    
+
     @property
     def diff_path(self) -> Path:
         return self.loom_dir / self.diff_filename
-    
+
     @property
     def plan_path(self) -> Path:
         return self.loom_dir / self.plan_filename
 
 
 # * Settings management class w/ JSON persistence for loading, saving, & modifying settings
-class SettingsManager:    
+class SettingsManager:
     def __init__(self, config_path: Optional[Path] = None):
         self.config_path = config_path or Path.home() / ".loom" / "config.json"
         self._settings = None
-    
+
     # load settings from file or return defaults
     def load(self) -> LoomSettings:
         if self._settings is not None:
             return self._settings
-        
+
         if self.config_path.exists():
             try:
-                with open(self.config_path, 'r') as f:
+                with open(self.config_path, "r") as f:
                     data = json.load(f)
                 self._settings = LoomSettings(**data)
             except (json.JSONDecodeError, TypeError, ValueError) as e:
@@ -98,36 +98,36 @@ class SettingsManager:
                 self._settings = LoomSettings()
         else:
             self._settings = LoomSettings()
-        
+
         return self._settings
-    
-    # save setting to file 
+
+    # save setting to file
     def save(self, settings: LoomSettings) -> None:
         self.config_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        with open(self.config_path, 'w') as f:
+
+        with open(self.config_path, "w") as f:
             json.dump(asdict(settings), f, indent=2)
-        
+
         self._settings = settings
-    
+
     # get a specific setting value
     def get(self, key: str) -> Any:
         settings = self.load()
         return getattr(settings, key, None)
-    
-    # set a specific setting value 
+
+    # set a specific setting value
     def set(self, key: str, value: Any) -> None:
         settings = self.load()
         if not hasattr(settings, key):
             raise ValueError(f"Unknown setting: {key}")
-        
+
         setattr(settings, key, value)
         self.save(settings)
-    
+
     # reset to default settings
     def reset(self) -> None:
         self.save(LoomSettings())
-    
+
     # list all settings as a dictionary
     def list_settings(self) -> Dict[str, Any]:
         return asdict(self.load())
@@ -136,12 +136,15 @@ class SettingsManager:
 # global settings manager instance
 settings_manager = SettingsManager()
 
+
 # * Retrieve settings preferring injected object from Typer context
-def get_settings(ctx: typer.Context, provided: Optional[LoomSettings] = None) -> LoomSettings:
+def get_settings(
+    ctx: typer.Context, provided: Optional[LoomSettings] = None
+) -> LoomSettings:
     # prefer explicitly provided settings
     if provided is not None:
         return provided
-    
+
     # search ctx, parent, & root for LoomSettings
     candidates: list[typer.Context] = [ctx]
     parent = cast(Optional[typer.Context], getattr(ctx, "parent", None))
@@ -149,7 +152,9 @@ def get_settings(ctx: typer.Context, provided: Optional[LoomSettings] = None) ->
         candidates.append(parent)
     # Typer Context has find_root method; call if present
     find_root = getattr(ctx, "find_root", None)
-    root_ctx = cast(Optional[typer.Context], find_root()) if callable(find_root) else None
+    root_ctx = (
+        cast(Optional[typer.Context], find_root()) if callable(find_root) else None
+    )
     if root_ctx is not None:
         candidates.append(root_ctx)
 

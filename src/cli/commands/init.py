@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Optional
 import shutil
 import typer
 
@@ -27,8 +28,8 @@ from .templates import discover_templates
 @handle_loom_error
 def init_template(
     template: str = typer.Option(..., "--template", "-t", help="Template id to copy"),
-    output: Path | None = typer.Option(
-        None, "--output", "-o", help="Destination directory (defaults to ./<template>)"
+    output: Optional[Path] = typer.Option(
+        None, "--output", "-o", help="Destination directory (defaults to ./resume)"
     ),
 ) -> None:
     templates = discover_templates()
@@ -38,11 +39,13 @@ def init_template(
             selected = (descriptor_path, descriptor)
             break
     if selected is None:
-        raise typer.BadParameter(f"Template '{template}' not found. Run 'loom templates' to list options.")
+        raise typer.BadParameter(
+            f"Template '{template}' not found. Run 'loom templates' to list options."
+        )
 
     descriptor_path, descriptor = selected
     template_dir = descriptor_path.parent
-    target_dir = output or (Path.cwd() / descriptor.id)
+    target_dir = output or (Path.cwd() / "resume")
 
     if target_dir.resolve() == template_dir.resolve():
         raise typer.BadParameter("Output path cannot be the template source directory")

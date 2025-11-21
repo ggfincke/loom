@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import typer
-from typing import Any
+from typing import Any, Optional
 
 from ..app import app
 from ...ui.help.help_renderer import HelpRenderer
@@ -32,7 +32,7 @@ def show_command_help(command_name: str, command: Any = None) -> None:
 # * Show detailed help for specific command
 @app.command()
 def help(
-    command: str | None = typer.Argument(None, help="Command to show help for"),
+    command: Optional[str] = typer.Argument(None, help="Command to show help for"),
 ) -> None:
     # prefer metadata registry for listing & validation
     if command is None:

@@ -16,12 +16,13 @@ from .theme_engine import (
 )
 from .console_theme import initialize_theme, refresh_theme, auto_initialize_theme
 from .theme_selector import interactive_theme_selector
+
 # typer_styles doesn't export functions, it just patches typer
 
 __all__ = [
     "THEMES",
     "get_active_theme",
-    "update_gradient_colors", 
+    "update_gradient_colors",
     "LoomColors",
     "natural_gradient",
     "success_gradient",
@@ -31,8 +32,7 @@ __all__ = [
     "styled_arrow",
     "styled_bullet",
     "initialize_theme",
-    "refresh_theme", 
+    "refresh_theme",
     "auto_initialize_theme",
     "interactive_theme_selector",
 ]
-

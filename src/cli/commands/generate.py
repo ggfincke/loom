@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Optional
 import typer
 
 from ...core.constants import RiskLevel, ValidationPolicy
@@ -11,30 +12,47 @@ from ...core.exceptions import handle_loom_error
 
 from ..app import app
 from ..helpers import validate_required_args
-from ...ui.core.progress import setup_ui_with_progress, load_resume_and_job, load_sections
+from ...ui.core.progress import (
+    setup_ui_with_progress,
+    load_resume_and_job,
+    load_sections,
+)
 from ...ui.display.reporting import persist_edits_json, report_result
 from ..logic import ArgResolver, generate_edits_core
-from ..params import ModelOpt, EditsJsonOpt, SectionsPathOpt, ResumeArg, JobArg, RiskOpt, OnErrorOpt
+from ..params import (
+    ModelOpt,
+    EditsJsonOpt,
+    SectionsPathOpt,
+    ResumeArg,
+    JobArg,
+    RiskOpt,
+    OnErrorOpt,
+)
 from ...config.settings import get_settings
 
 
 # * Generate edits.json for resume tailoring using AI model & job requirements
-@app.command(help="Generate edits.json with AI-powered resume tailoring for job requirements")
+@app.command(
+    help="Generate edits.json with AI-powered resume tailoring for job requirements"
+)
 @handle_loom_error
 def generate(
     ctx: typer.Context,
-    model: str | None = ModelOpt(),
-    edits_json: Path | None = EditsJsonOpt(),
-    sections_path: Path | None = SectionsPathOpt(),
-    resume: Path | None = ResumeArg(),
-    job: Path | None = JobArg(),
-    risk: RiskLevel | None = RiskOpt(),
-    on_error: ValidationPolicy | None = OnErrorOpt(),
-    help: bool = typer.Option(False, "--help", "-h", help="Show help message and exit."),
+    model: Optional[str] = ModelOpt(),
+    edits_json: Optional[Path] = EditsJsonOpt(),
+    sections_path: Optional[Path] = SectionsPathOpt(),
+    resume: Optional[Path] = ResumeArg(),
+    job: Optional[Path] = JobArg(),
+    risk: Optional[RiskLevel] = RiskOpt(),
+    on_error: Optional[ValidationPolicy] = OnErrorOpt(),
+    help: bool = typer.Option(
+        False, "--help", "-h", help="Show help message and exit."
+    ),
 ) -> None:
     # detect help flag & show custom help
     if help:
         from .help import show_command_help
+
         show_command_help("generate")
         ctx.exit()
     settings = get_settings(ctx)

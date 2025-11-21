@@ -1,4 +1,4 @@
-# src/ui/help/help_data.py  
+# src/ui/help/help_data.py
 # Help data structures & option metadata for CLI help system
 
 from __future__ import annotations
@@ -50,12 +50,12 @@ def command_help(
             see_also=see_also,
         )
         _command_metadata[name] = metadata
-        
+
         # attach metadata to function for introspection
-        setattr(func, '_help_metadata', metadata)
-        
+        setattr(func, "_help_metadata", metadata)
+
         return func
-    
+
     return decorator
 
 
@@ -71,7 +71,7 @@ def get_all_command_metadata() -> Dict[str, CommandHelp]:
 
 def extract_help_from_function(func: Callable) -> CommandHelp | None:
     # extract help metadata directly from a function if it has the decorator
-    return getattr(func, '_help_metadata', None)
+    return getattr(func, "_help_metadata", None)
 
 
 # * legacy command help dict - kept for backward compatibility
@@ -95,7 +95,6 @@ OPTION_HELP = {
         required=True,
         config_key="job_path",
     ),
-
     # shared options
     "model": OptionHelp(
         name="--model",
@@ -206,7 +205,7 @@ WORKFLOW_HELP = {
         ],
     },
     "step_by_step": {
-        "title": "Step-by-Step Workflow", 
+        "title": "Step-by-Step Workflow",
         "description": "Break down the process for more control",
         "steps": [
             "loom sectionize resume.docx --out-json sections.json",
@@ -221,7 +220,7 @@ WORKFLOW_HELP = {
         "steps": [
             "loom config themes  # Choose your preferred visual theme",
             "loom config set data_dir /path/to/job_applications",
-            "loom config set output_dir /path/to/tailored_resumes", 
+            "loom config set output_dir /path/to/tailored_resumes",
             "loom config set model gpt-5-mini",
             "loom config set resume_filename my_standard_resume.docx",
         ],

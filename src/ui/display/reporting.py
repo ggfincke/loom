@@ -21,7 +21,11 @@ from ..theming.theme_engine import styled_checkmark, styled_arrow, success_gradi
 
 
 def persist_edits_json(
-    edits: dict, out_path: Path, progress, task, description: str = "Writing edits JSON..."
+    edits: dict,
+    out_path: Path,
+    progress,
+    task,
+    description: str = "Writing edits JSON...",
 ) -> None:
     # persist edits JSON to disk w/ progress update
     progress.update(task, description=description)
@@ -30,37 +34,60 @@ def persist_edits_json(
 
 
 # * Report results consistently across commands to the console
-def report_result(result_type: str, settings: LoomSettings | None = None, **paths) -> None:
+def report_result(
+    result_type: str, settings: LoomSettings | None = None, **paths
+) -> None:
     checkmark = styled_checkmark()
     arrow = styled_arrow()
-    
+
     if result_type == "sections":
-        console.print(checkmark, success_gradient("Wrote sections to"), f"{paths['sections_path']}")
+        console.print(
+            checkmark,
+            success_gradient("Wrote sections to"),
+            f"{paths['sections_path']}",
+        )
     elif result_type == "edits":
-        console.print(checkmark, success_gradient("Wrote edits"), arrow, f"{paths['edits_path']}")
+        console.print(
+            checkmark, success_gradient("Wrote edits"), arrow, f"{paths['edits_path']}"
+        )
     elif result_type == "tailor":
         console.print(checkmark, success_gradient("Complete tailoring finished"))
         console.print(f"   Edits {arrow} {paths['edits_path']}", style="loom.accent2")
-        console.print(f"   Resume {arrow} {paths['output_path']}", style="loom.accent2") 
+        console.print(f"   Resume {arrow} {paths['output_path']}", style="loom.accent2")
         if settings:
-            console.print(f"   Diff {arrow} {settings.diff_path}", style="progress.path")
+            console.print(
+                f"   Diff {arrow} {settings.diff_path}", style="progress.path"
+            )
     elif result_type == "apply":
-        out_path = Path(paths['output_path'])
+        out_path = Path(paths["output_path"])
         if out_path.suffix.lower() == ".docx":
             format_msg = (
                 f" (formatting preserved via {paths.get('preserve_mode', 'unknown')} mode)"
                 if paths.get("preserve_formatting")
                 else " (plain text)"
             )
-            console.print(checkmark, success_gradient(f"Wrote DOCX{format_msg}"), arrow, f"{out_path}")
+            console.print(
+                checkmark,
+                success_gradient(f"Wrote DOCX{format_msg}"),
+                arrow,
+                f"{out_path}",
+            )
         else:
-            console.print(checkmark, success_gradient("Wrote text"), arrow, f"{out_path}")
+            console.print(
+                checkmark, success_gradient("Wrote text"), arrow, f"{out_path}"
+            )
         if settings:
-            console.print(checkmark, f"Diff {arrow} {settings.diff_path}", style="loom.accent2")
+            console.print(
+                checkmark, f"Diff {arrow} {settings.diff_path}", style="loom.accent2"
+            )
     elif result_type == "plan":
-        console.print(checkmark, success_gradient("Wrote edits"), arrow, f"{paths['edits_path']}")
+        console.print(
+            checkmark, success_gradient("Wrote edits"), arrow, f"{paths['edits_path']}"
+        )
         if settings:
-            console.print(checkmark, f"Plan {arrow} {settings.plan_path}", style="loom.accent2")
+            console.print(
+                checkmark, f"Plan {arrow} {settings.plan_path}", style="loom.accent2"
+            )
 
 
 # * Generate diff & write tailored resume output w/ formatting preservation
@@ -87,7 +114,7 @@ def write_output_with_diff(
     try:
         output_suffix = output_path.suffix.lower()
         resume_suffix = resume_path.suffix.lower()
-        
+
         if output_suffix == ".docx":
             # formatting preservation only works w/ DOCX input & output
             if preserve_formatting and resume_suffix == ".docx":
@@ -100,8 +127,12 @@ def write_output_with_diff(
             # for .tex files, write as text (loom doesn't compile LaTeX)
             write_text_lines(new_lines, output_path)
             if output_suffix == ".tex":
-                console.print(f"[yellow]Note: LaTeX file written as text to {output_path}[/]")
-                console.print("[dim]To compile LaTeX: run 'pdflatex', 'xelatex', or 'lualatex' on the output file[/]")
+                console.print(
+                    f"[yellow]Note: LaTeX file written as text to {output_path}[/]"
+                )
+                console.print(
+                    "[dim]To compile LaTeX: run 'pdflatex', 'xelatex', or 'lualatex' on the output file[/]"
+                )
         progress.advance(task)
     except Exception as e:
         if "Package not found" in str(e) or "LaTeX" in str(e):

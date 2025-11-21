@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Optional
 import typer
 
 from ...ai.prompts import build_sectionizer_prompt
@@ -49,14 +50,15 @@ from ...config.settings import get_settings
 @handle_loom_error
 def sectionize(
     ctx: typer.Context,
-    resume_path: Path | None = ResumeArg(),
-    out_json: Path | None = OutJsonOpt(),
-    model: str | None = ModelOpt(),
+    resume_path: Optional[Path] = ResumeArg(),
+    out_json: Optional[Path] = OutJsonOpt(),
+    model: Optional[str] = ModelOpt(),
     help: bool = typer.Option(False, "--help", "-h", help="Show help message & exit."),
 ) -> None:
     # detect help flag & show custom help
     if help:
         from .help import show_command_help
+
         show_command_help("sectionize")
         ctx.exit()
     settings = get_settings(ctx)
@@ -120,9 +122,7 @@ def sectionize(
             numbered = number_lines(lines)
             progress.advance(task)
 
-            progress.update(
-                task, description="Building prompt and calling OpenAI..."
-            )
+            progress.update(task, description="Building prompt and calling OpenAI...")
             prompt = build_sectionizer_prompt(numbered)
             result = run_generate(prompt, model=model)
 

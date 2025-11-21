@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Optional
 import typer
 
 from ...core.constants import RiskLevel, ValidationPolicy
@@ -11,7 +12,11 @@ from ...core.exceptions import handle_loom_error
 
 from ..app import app
 from ..helpers import validate_required_args
-from ...ui.core.progress import setup_ui_with_progress, load_resume_and_job, load_sections
+from ...ui.core.progress import (
+    setup_ui_with_progress,
+    load_resume_and_job,
+    load_sections,
+)
 from ...ui.display.reporting import persist_edits_json, report_result
 from ..logic import ArgResolver, generate_edits_core
 from ..params import (
@@ -49,19 +54,22 @@ from ...config.settings import get_settings
 @handle_loom_error
 def plan(
     ctx: typer.Context,
-    resume: Path | None = ResumeArg(),
-    job: Path | None = JobArg(),
-    edits_json: Path | None = EditsJsonOpt(),
-    plan: int | None = PlanOpt(),
-    risk: RiskLevel | None = RiskOpt(),
-    on_error: ValidationPolicy | None = OnErrorOpt(),
-    model: str | None = ModelOpt(),
-    sections_path: Path | None = SectionsPathOpt(),
-    help: bool = typer.Option(False, "--help", "-h", help="Show help message and exit."),
+    resume: Optional[Path] = ResumeArg(),
+    job: Optional[Path] = JobArg(),
+    edits_json: Optional[Path] = EditsJsonOpt(),
+    plan: Optional[int] = PlanOpt(),
+    risk: Optional[RiskLevel] = RiskOpt(),
+    on_error: Optional[ValidationPolicy] = OnErrorOpt(),
+    model: Optional[str] = ModelOpt(),
+    sections_path: Optional[Path] = SectionsPathOpt(),
+    help: bool = typer.Option(
+        False, "--help", "-h", help="Show help message and exit."
+    ),
 ) -> None:
     # detect help flag & show custom help
     if help:
         from .help import show_command_help
+
         show_command_help("plan")
         ctx.exit()
     settings = get_settings(ctx)
@@ -69,7 +77,11 @@ def plan(
 
     # resolve args w/ defaults
     common_resolved = resolver.resolve_common(
-        resume=resume, job=job, edits_json=edits_json, model=model, sections_path=sections_path
+        resume=resume,
+        job=job,
+        edits_json=edits_json,
+        model=model,
+        sections_path=sections_path,
     )
     option_resolved = resolver.resolve_options(risk=risk, on_error=on_error)
 
@@ -133,7 +145,9 @@ def plan(
         from ...loom_io import ensure_parent
 
         ensure_parent(settings.plan_path)
-        settings.plan_path.write_text("# Plan\n\n- single-shot (stub)\n", encoding="utf-8")
+        settings.plan_path.write_text(
+            "# Plan\n\n- single-shot (stub)\n", encoding="utf-8"
+        )
         progress.advance(task)
 
     report_result("plan", settings=settings, edits_path=edits_json)

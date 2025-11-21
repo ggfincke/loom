@@ -24,24 +24,22 @@ from rich.spinner import Spinner
 __all__ = [
     # Core
     "Console",
-    "RenderableType", 
+    "RenderableType",
     "Group",
     "Text",
     "Theme",
-    
     # Layout & display
     "Panel",
-    "Table", 
+    "Table",
     "Layout",
     "Live",
     "Align",
     "Columns",
     "Padding",
-    
     # Progress & interaction
     "Progress",
     "SpinnerColumn",
-    "TextColumn", 
+    "TextColumn",
     "ProgressColumn",
     "Spinner",
 ]

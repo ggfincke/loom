@@ -8,7 +8,7 @@ from __future__ import annotations
 THEMES = {
     "pink_purple": [
         "#ff69b4",  # hot pink
-        "#ff1493",  # deep pink  
+        "#ff1493",  # deep pink
         "#da70d6",  # orchid
         "#ba55d3",  # medium orchid
         "#9932cc",  # dark orchid
@@ -142,7 +142,7 @@ THEMES = {
         "#9370DB",  # medium purple
         "#663399",  # rebecca purple
     ],
-        "cobalt_wave": [
+    "cobalt_wave": [
         "#93c5fd",  # light blue
         "#60a5fa",  # blue
         "#3b82f6",  # vivid blue
@@ -237,5 +237,5 @@ THEMES = {
         "#b8860b",  # goldenrod
         "#4b5563",  # slate
         "#111827",  # near black
-    ]
+    ],
 }

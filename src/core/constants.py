@@ -5,12 +5,14 @@ from enum import Enum
 from dataclasses import dataclass, field
 from typing import List, Optional
 
+
 # * Risk level constants for validation strictness
 class RiskLevel(Enum):
     LOW = "low"
     MED = "med"
     HIGH = "high"
     STRICT = "strict"
+
 
 # * Validation policy constants for error handling
 class ValidationPolicy(Enum):
@@ -20,6 +22,7 @@ class ValidationPolicy(Enum):
     FAIL_SOFT = "fail_soft"
     FAIL_HARD = "fail_hard"
 
+
 # * Diff operation status constants for interactive review
 class DiffOp(Enum):
     APPROVE = "approve"
@@ -27,6 +30,7 @@ class DiffOp(Enum):
     SKIP = "skip"
     MODIFY = "modify"
     PROMPT = "prompt"
+
 
 # * Edit operation data structure for diff review workflow
 @dataclass

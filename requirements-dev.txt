@@ -1,4 +1,5 @@
 # Development dependencies
+# For primary reference, see pyproject.toml [project.optional-dependencies]
 pytest
 pytest-cov
 pytest-mock
@@ -7,3 +8,4 @@ pytest-xdist
 freezegun
 faker
 mutmut
+black

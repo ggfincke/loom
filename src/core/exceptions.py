@@ -6,14 +6,16 @@ from typing import List, Callable, TypeVar, Any, cast
 import typer
 
 # type var for decorator typing
-F = TypeVar('F', bound=Callable[..., Any])
+F = TypeVar("F", bound=Callable[..., Any])
+
 
 # * Base exception for Loom application
 class LoomError(Exception):
     pass
 
+
 # * Validation-specific error for handling warnings & recoverable errors w/ context
-class ValidationError(LoomError):    
+class ValidationError(LoomError):
     def __init__(self, warnings: List[str], recoverable: bool = True):
         self.warnings = warnings
         self.recoverable = recoverable
@@ -22,25 +24,31 @@ class ValidationError(LoomError):
         message = f"Validation failed with {len(warnings)} warnings: {details}"
         super().__init__(message)
 
+
 # * AI-related exceptions
 class AIError(LoomError):
     pass
+
 
 # * Edit application errors
 class EditError(LoomError):
     pass
 
+
 # * Configuration errors
 class ConfigurationError(LoomError):
     pass
+
 
 # * JSON parsing errors
 class JSONParsingError(LoomError):
     pass
 
+
 # * LaTeX-specific errors
 class LaTeXError(LoomError):
     pass
+
 
 # * Dev mode access control errors
 class DevModeError(LoomError):
@@ -51,9 +59,9 @@ class DevModeError(LoomError):
 def handle_loom_error(func: F) -> F:
     @functools.wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
-        # ! Lazy import to avoid circular dependencies  
+        # ! Lazy import to avoid circular dependencies
         from ..loom_io.console import console
-        
+
         try:
             return func(*args, **kwargs)
         except ValidationError as e:
@@ -86,6 +94,7 @@ def handle_loom_error(func: F) -> F:
         except Exception as e:
             console.print(f"[red]Unexpected Error:[/] {str(e)}")
             raise SystemExit(1)
+
     return cast(F, wrapper)
 
 
@@ -95,18 +104,19 @@ def require_dev_mode(func: F) -> F:
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         # ! Lazy import to avoid circular dependencies
         from ..config.settings import get_settings
-        
+
         # extract ctx from args (first positional arg is always typer.Context)
         ctx = args[0] if args and isinstance(args[0], typer.Context) else None
         if ctx is None:
             raise DevModeError("Cannot access development commands: missing context")
-        
+
         # check if dev_mode is enabled
         settings = get_settings(ctx)
         if not settings.dev_mode:
             raise DevModeError(
                 "Development mode required. Enable with: loom config set dev_mode true"
             )
-        
+
         return func(*args, **kwargs)
+
     return cast(F, wrapper)

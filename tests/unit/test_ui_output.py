@@ -48,12 +48,16 @@ def test_progress_setup_creates_ui_elements():
 def test_progress_updates_in_output():
     with capture_rich_output() as console:
         # UI now uses get_console() so no need to patch ui.console
-        with setup_ui_with_progress("Processing files", total=2) as (ui, progress, task):
+        with setup_ui_with_progress("Processing files", total=2) as (
+            ui,
+            progress,
+            task,
+        ):
             progress.update(task, description="Reading document...")
             progress.advance(task)
             progress.update(task, description="Processing content...")
             progress.advance(task)
-        
+
         output = extract_plain_text(console)
         # check for any progress-related content (task descriptions)
         assert "Reading document" in output or "Processing content" in output
@@ -77,13 +81,13 @@ def test_success_reporting_edits():
 def test_success_reporting_tailor():
     mock_settings = Mock(spec=LoomSettings)
     mock_settings.diff_path = Path("/tmp/diff.txt")
-    
+
     with capture_rich_output() as console:
         report_result(
             "tailor",
             settings=mock_settings,
             edits_path=Path("/tmp/edits.json"),
-            output_path=Path("/tmp/output.docx")
+            output_path=Path("/tmp/output.docx"),
         )
         output = extract_plain_text(console)
         assert "Complete tailoring finished" in output
@@ -95,14 +99,14 @@ def test_success_reporting_tailor():
 def test_success_reporting_apply_with_formatting():
     mock_settings = Mock(spec=LoomSettings)
     mock_settings.diff_path = Path("/tmp/diff.txt")
-    
+
     with capture_rich_output() as console:
         report_result(
             "apply",
             settings=mock_settings,
             output_path=Path("/tmp/output.docx"),
             preserve_formatting=True,
-            preserve_mode="smart"
+            preserve_mode="smart",
         )
         output = extract_plain_text(console)
         assert "Wrote DOCX" in output
@@ -113,13 +117,13 @@ def test_success_reporting_apply_with_formatting():
 def test_success_reporting_apply_plain_text():
     mock_settings = Mock(spec=LoomSettings)
     mock_settings.diff_path = Path("/tmp/diff.txt")
-    
+
     with capture_rich_output() as console:
         report_result(
             "apply",
             settings=mock_settings,
             output_path=Path("/tmp/output.txt"),
-            preserve_formatting=False
+            preserve_formatting=False,
         )
         output = extract_plain_text(console)
         assert "Wrote text" in output
@@ -129,11 +133,9 @@ def test_success_reporting_apply_plain_text():
 def test_success_reporting_plan():
     mock_settings = Mock(spec=LoomSettings)
     mock_settings.plan_path = Path("/tmp/plan.json")
-    
+
     with capture_rich_output() as console:
         report_result(
-            "plan",
-            settings=mock_settings,
-            edits_path=Path("/tmp/edits.json")
+            "plan", settings=mock_settings, edits_path=Path("/tmp/edits.json")
         )
         assert_success_output(console, ["Wrote edits", "/tmp/edits.json"])

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Optional
 import typer
 
 from ...core.constants import RiskLevel, ValidationPolicy
@@ -35,40 +36,40 @@ from ...config.settings import get_settings
 @handle_loom_error
 def apply(
     ctx: typer.Context,
-    resume: Path | None = ResumeArg(),
-    edits_json: Path | None = EditsJsonOpt(),
-    output_resume: Path | None = OutputResumeOpt(),
-    risk: RiskLevel | None = RiskOpt(),
-    on_error: ValidationPolicy | None = OnErrorOpt(),
+    resume: Optional[Path] = ResumeArg(),
+    edits_json: Optional[Path] = EditsJsonOpt(),
+    output_resume: Optional[Path] = OutputResumeOpt(),
+    risk: Optional[RiskLevel] = RiskOpt(),
+    on_error: Optional[ValidationPolicy] = OnErrorOpt(),
     preserve_formatting: bool = PreserveFormattingOpt(),
     preserve_mode: str = PreserveModeOpt(),
-    job: Path | None = JobArg(),
-    model: str | None = ModelOpt(),
-    sections_path: Path | None = SectionsPathOpt(),
+    job: Optional[Path] = JobArg(),
+    model: Optional[str] = ModelOpt(),
+    sections_path: Optional[Path] = SectionsPathOpt(),
     help: bool = typer.Option(False, "--help", "-h", help="Show help message & exit."),
 ) -> None:
     # detect help flag & show custom help
     if help:
         from .help import show_command_help
+
         show_command_help("apply")
         ctx.exit()
     settings = get_settings(ctx)
     resolver = ArgResolver(settings)
-    
+
     # determine interactive mode: use interactive setting unless in test environment
     interactive_mode = settings.interactive and not is_test_environment()
 
     # resolve arguments w/ settings defaults
     common_resolved = resolver.resolve_common(
-        resume=resume, 
+        resume=resume,
         edits_json=edits_json,
         job=job,
         model=model,
-        sections_path=sections_path
+        sections_path=sections_path,
     )
     path_resolved = resolver.resolve_paths(
-        resume_path=common_resolved["resume"], 
-        output_resume=output_resume
+        resume_path=common_resolved["resume"], output_resume=output_resume
     )
     option_resolved = resolver.resolve_options(risk=risk, on_error=on_error)
 
@@ -120,7 +121,9 @@ def apply(
 
         if is_latex:
             progress.update(task, description="Analyzing LaTeX structure...")
-            descriptor, auto_sections_json, latex_notes = build_latex_context(resume, lines)
+            descriptor, auto_sections_json, latex_notes = build_latex_context(
+                resume, lines
+            )
             progress.advance(task)
 
             if descriptor:
@@ -137,9 +140,10 @@ def apply(
             if Path(job).exists():
                 job_text = Path(job).read_text(encoding="utf-8")
             progress.advance(task)
-        
+
         # load optional sections for prompt support
         from ...ui.core.progress import load_sections
+
         if sections_path:
             sections_json_str = load_sections(sections_path, progress, task)
         elif is_latex:
@@ -153,10 +157,20 @@ def apply(
         # apply edits using core helper
         progress.update(task, description="Applying edits...")
         new_lines = apply_edits_core(
-            settings, lines, edits_obj, risk, on_error, ui, interactive_mode,
-            job_text=job_text, sections_json=sections_json_str, model=model,
-            persist_special_ops=interactive_mode, edits_json_path=edits_json,
-            resume_path=resume, descriptor=descriptor
+            settings,
+            lines,
+            edits_obj,
+            risk,
+            on_error,
+            ui,
+            interactive_mode,
+            job_text=job_text,
+            sections_json=sections_json_str,
+            model=model,
+            persist_special_ops=interactive_mode,
+            edits_json_path=edits_json,
+            resume_path=resume,
+            descriptor=descriptor,
         )
         progress.advance(task)
 

@@ -16,7 +16,9 @@ def test_init_creates_resume_from_template(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 
     # run init command w/ swe-latex template
-    result = runner.invoke(app, ["init", "--template", "swe-latex", "--output", "my-resume"])
+    result = runner.invoke(
+        app, ["init", "--template", "swe-latex", "--output", "my-resume"]
+    )
 
     # verify command succeeded (or skip if templates not found in test env)
     if "not found" in result.stdout.lower() or result.exit_code != 0:

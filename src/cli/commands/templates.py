@@ -13,22 +13,26 @@ from ..app import app
 from ...ui.help.help_data import command_help
 
 
-# * Resolve path to bundled templates directory
-def get_templates_root() -> Path:
+# * Resolve path to bundled templates directory (if available)
+def get_templates_root() -> Path | None:
+    # search multiple parent levels to support both dev & installed package structures
     candidates = [
-        Path(__file__).resolve().parents[3] / "templates",
-        Path(__file__).resolve().parents[2] / "templates",
-        Path.cwd() / "templates",
+        Path(__file__).resolve().parents[4] / "templates",  # installed package
+        Path(__file__).resolve().parents[3] / "templates",  # editable install
+        Path(__file__).resolve().parents[2] / "templates",  # development
+        Path.cwd() / "templates",  # current directory fallback
     ]
     for candidate in candidates:
-        if candidate.exists():
+        if candidate.exists() and candidate.is_dir():
             return candidate
-    raise typer.BadParameter("No templates directory found. Ensure templates are bundled with Loom.")
+    return None
 
 
 # * Load all available template descriptors
 def discover_templates() -> list[tuple[Path, TemplateDescriptor]]:
     root = get_templates_root()
+    if root is None:
+        return []
     templates: list[tuple[Path, object]] = []
     for descriptor_path in sorted(root.rglob("loom-template.toml")):
         try:
@@ -55,8 +59,12 @@ def list_templates() -> None:
 
     console.print("[green]Available templates:[/]")
     for descriptor_path, descriptor in templates:
-        template_id = getattr(descriptor, "id", None) or getattr(descriptor, "inline_marker", "unknown")
+        template_id = getattr(descriptor, "id", None) or getattr(
+            descriptor, "inline_marker", "unknown"
+        )
         name = getattr(descriptor, "name", None) or template_id or "Unnamed template"
         template_type = getattr(descriptor, "type", "resume")
         location = descriptor_path.parent
-        console.print(f" - {template_id} ({template_type}) -> {name} [{location}]")
+        console.print(
+            f" - {template_id} ({template_type}) -> {name} [{location}]", markup=False
+        )

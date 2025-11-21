@@ -65,7 +65,6 @@ __all__ = [
     "load_sections",
     "load_edits_json",
     "PausableTimer",
-    
     # Theming
     "THEMES",
     "get_active_theme",
@@ -82,13 +81,11 @@ __all__ = [
     "refresh_theme",
     "auto_initialize_theme",
     "interactive_theme_selector",
-    
     # Display
     "show_loom_art",
     "persist_edits_json",
     "report_result",
     "write_output_with_diff",
-    
     # Help
     "CommandHelp",
     "OptionHelp",
@@ -100,7 +97,6 @@ __all__ = [
     "get_option_help",
     "get_workflow_help",
     "HelpRenderer",
-    
     # Quick
     "show_quick_usage",
 ]
