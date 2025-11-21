@@ -55,13 +55,13 @@ Thumbs.db
 # ========================
 # LaTeX Build Artifacts
 # ========================
-templates/*.aux
-templates/*.fdb_latexmk
-templates/*.fls
-templates/*.log
-templates/*.out
-templates/*.synctex.gz
-templates/*.pdf
+templates/**/*.aux
+templates/**/*.fdb_latexmk
+templates/**/*.fls
+templates/**/*.log
+templates/**/*.out
+templates/**/*.synctex.gz
+templates/**/*.pdf
 
 # ========================
 # Claude

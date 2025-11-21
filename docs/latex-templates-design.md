@@ -355,7 +355,8 @@ The new LaTeX handler will live in `src/loom_io/latex_handler.py` and integrate 
 
 - [Architecture Overview](architecture.md) - Overall Loom architecture
 - [Comment Style Guide](comment-style.md) - Code style conventions
-- [Templates README](../templates/README.md) - swe-latex template usage
+- [Templates README](../templates/README.md) - templates layout & CLI usage
+- [swe-latex README](../templates/swe-latex/README.md) - template-specific usage
 
 ---
 
