@@ -5,25 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.8] - Unreleased
+## [1.2.8] - 2025-11-23
 
 ### Changed
 - **Templates directory structure**: Reorganized swe-latex template into `templates/swe-latex/` subdirectory for multi-template support
 - **Templates README**: Updated to generic layout documentation with CLI usage examples (`loom templates`, `loom init`)
 - **LaTeX build artifacts**: Updated `.gitignore` patterns to support nested templates (`templates/**/*.aux` etc.)
 - **Documentation references**: Updated `docs/latex-templates-design.md` to reference both templates layout and template-specific documentation
-
----
-
-## [1.2.7] - Unreleased
-
-### Changed
 - **PEP 440 version format**: Updated nightly release format from `-nightly.20251120` to `.dev20251120` for consistency with Python standards
 - **Code formatting**: Applied Black formatter to entire codebase for consistent PEP 8 compliance
 
 ### Infrastructure
 - **Black code formatter**: Integrated into development tooling with configuration in pyproject.toml
 - **Optional dependencies**: Moved dev dependencies to `[project.optional-dependencies]` section in pyproject.toml
+
+### Fixed
+- **Test failures**: Updated model validation tests to handle "not found" error messages
+- **Template path**: Fixed LaTeX handler test to use new template path `templates/swe-latex/resume.tex`
 
 ---
 

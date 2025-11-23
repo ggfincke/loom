@@ -59,7 +59,7 @@ def test_filter_latex_edits_enforces_command_preservation():
 # * Detect template descriptor & inline marker from bundled template
 def test_detect_template_uses_descriptor_and_inline_marker():
     root = Path(__file__).resolve().parents[3]
-    template_resume = (root / "templates" / "resume.tex").resolve()
+    template_resume = (root / "templates" / "swe-latex" / "resume.tex").resolve()
     content = template_resume.read_text(encoding="utf-8")
 
     descriptor = detect_template(template_resume, content)

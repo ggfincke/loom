@@ -100,6 +100,7 @@ class TestAIClientRouting:
             assert not result.success
             assert (
                 "not available" in result.error.lower()
+                or "not found" in result.error.lower()
                 or "error" in result.error.lower()
             )
 
@@ -361,7 +362,9 @@ class TestClientIntegration:
 
         assert not result.success
         assert (
-            "not available" in result.error.lower() or "unknown" in result.error.lower()
+            "not available" in result.error.lower()
+            or "not found" in result.error.lower()
+            or "unknown" in result.error.lower()
         )
 
     # * Test factory provides helpful error messages

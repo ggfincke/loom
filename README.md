@@ -1,6 +1,6 @@
 # Loom — Resume Tailoring Tool
 
-[![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)](https://github.com/ggfincke/loom)
+[![Version](https://img.shields.io/badge/version-1.2.8-blue.svg)](https://github.com/ggfincke/loom)
 [![Python](https://img.shields.io/badge/python-3.12+-blue.svg)](https://python.org)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![AI Models](https://img.shields.io/badge/AI-OpenAI%20%7C%20Claude%20%7C%20Ollama-purple.svg)](https://github.com/ggfincke/loom)
