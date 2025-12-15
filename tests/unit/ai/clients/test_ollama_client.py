@@ -28,6 +28,14 @@ class _ListResponse:
         self.models = models
 
 
+@pytest.fixture(autouse=True)
+def reset_ollama_cache():
+    # reset cache before each test to avoid stale data
+    oc.reset_cache()
+    yield
+    oc.reset_cache()
+
+
 @pytest.fixture
 def patch_ollama(monkeypatch):
     # safely monkeypatch list/chat on imported module

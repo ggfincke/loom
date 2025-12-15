@@ -370,10 +370,10 @@ class TestOpenAIClientIntegration:
         call_args = mock_client.responses.create.call_args
         assert call_args[1]["temperature"] == 0.3
 
-    # * Test strip_markdown_code_blocks integration
+    # * Test strip_markdown_code_blocks integration (via process_json_response)
     @patch("src.ai.clients.openai_client.OpenAI")
     @patch("src.ai.clients.openai_client.ensure_valid_model")
-    @patch("src.ai.clients.openai_client.strip_markdown_code_blocks")
+    @patch("src.ai.utils.strip_markdown_code_blocks")
     @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
     def test_markdown_stripping_integration(
         self, mock_strip_markdown, mock_ensure_valid, mock_openai_class

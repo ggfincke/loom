@@ -20,12 +20,21 @@ from src.ai.models import (
     get_default_model,
     _is_test_model,
     _get_test_model_provider,
+    reset_model_cache,
     OPENAI_MODELS,
     CLAUDE_MODELS,
     SUPPORTED_MODELS,
     MODEL_ALIASES,
     MODEL_CATEGORIES,
 )
+
+
+@pytest.fixture(autouse=True)
+def reset_caches():
+    # reset model cache before each test to avoid stale data
+    reset_model_cache()
+    yield
+    reset_model_cache()
 
 
 # * Test model alias resolution
@@ -314,37 +323,45 @@ class TestAPIKeyChecking:
 
 
 class TestOllamaIntegration:
-    # * Test get_ollama_models success
-    @patch("src.ai.clients.ollama_client.get_available_models")
-    def test_get_ollama_models_success(self, mock_get_models):
-        mock_get_models.return_value = ["llama3", "mistral"]
+    # * Test get_ollama_models success (via check_ollama_status)
+    @patch("src.ai.clients.ollama_client.check_ollama_status")
+    def test_get_ollama_models_success(self, mock_check_status):
+        from src.ai.types import OllamaStatus
+
+        mock_check_status.return_value = OllamaStatus(
+            available=True, models=["llama3", "mistral"], error=""
+        )
 
         result = get_ollama_models()
 
         assert result == ["llama3", "mistral"]
 
     # * Test get_ollama_models exception handling
-    @patch("src.ai.clients.ollama_client.get_available_models")
-    def test_get_ollama_models_exception(self, mock_get_models):
-        mock_get_models.side_effect = Exception("Connection failed")
+    @patch("src.ai.clients.ollama_client.check_ollama_status")
+    def test_get_ollama_models_exception(self, mock_check_status):
+        mock_check_status.side_effect = Exception("Connection failed")
 
         result = get_ollama_models()
 
         assert result == []
 
-    # * Test is_ollama_available success
-    @patch("src.ai.clients.ollama_client.is_ollama_available")
-    def test_is_ollama_available_success(self, mock_available):
-        mock_available.return_value = True
+    # * Test is_ollama_available success (via check_ollama_status)
+    @patch("src.ai.clients.ollama_client.check_ollama_status")
+    def test_is_ollama_available_success(self, mock_check_status):
+        from src.ai.types import OllamaStatus
+
+        mock_check_status.return_value = OllamaStatus(
+            available=True, models=["llama3"], error=""
+        )
 
         result = is_ollama_available()
 
         assert result is True
 
     # * Test is_ollama_available exception handling
-    @patch("src.ai.clients.ollama_client.is_ollama_available")
-    def test_is_ollama_available_exception(self, mock_available):
-        mock_available.side_effect = Exception("Import failed")
+    @patch("src.ai.clients.ollama_client.check_ollama_status")
+    def test_is_ollama_available_exception(self, mock_check_status):
+        mock_check_status.side_effect = Exception("Import failed")
 
         result = is_ollama_available()
 
