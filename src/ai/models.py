@@ -6,6 +6,41 @@ import typer
 import sys
 from typing import List, Optional, Dict, Tuple, Any
 
+
+# * Per-invocation cache for provider availability (API keys + Ollama status)
+class _ProviderCache:
+    _openai_key: Optional[bool] = None
+    _claude_key: Optional[bool] = None
+
+    @classmethod
+    def check_openai_key(cls) -> bool:
+        if cls._openai_key is None:
+            cls._openai_key = bool(os.getenv("OPENAI_API_KEY"))
+        return cls._openai_key
+
+    @classmethod
+    def check_claude_key(cls) -> bool:
+        if cls._claude_key is None:
+            cls._claude_key = bool(os.getenv("ANTHROPIC_API_KEY"))
+        return cls._claude_key
+
+    @classmethod
+    def reset(cls) -> None:
+        cls._openai_key = None
+        cls._claude_key = None
+        # also reset Ollama cache
+        try:
+            from .clients.ollama_client import reset_cache
+
+            reset_cache()
+        except Exception:
+            pass
+
+
+# * Reset all model-related caches (call at start of each CLI invocation)
+def reset_model_cache() -> None:
+    _ProviderCache.reset()
+
 # supported OpenAI models
 OPENAI_MODELS: List[str] = [
     "gpt-5",
@@ -84,7 +119,7 @@ def resolve_model_alias(model: str) -> str:
     return model
 
 
-# * Model validation checking all providers
+# * Model validation checking all providers (uses cached status via wrappers)
 def validate_model(model: str) -> Tuple[bool, Optional[str]]:
     # allow test models during testing
     if _is_test_model(model):
@@ -103,7 +138,7 @@ def validate_model(model: str) -> Tuple[bool, Optional[str]]:
         else:
             return False, "claude_key_missing"
 
-    # check dynamic Ollama models
+    # check Ollama models via cached wrapper functions
     ollama_models = get_ollama_models()
     if model in ollama_models:
         return True, "ollama"
@@ -190,31 +225,31 @@ def ensure_valid_model(model: Optional[str]) -> Optional[str]:
     return resolved_model
 
 
-# * Check if API keys are available for external providers
+# * Check if API keys are available for external providers (cached)
 def check_openai_api_key() -> bool:
-    return bool(os.getenv("OPENAI_API_KEY"))
+    return _ProviderCache.check_openai_key()
 
 
 def check_claude_api_key() -> bool:
-    return bool(os.getenv("ANTHROPIC_API_KEY"))
+    return _ProviderCache.check_claude_key()
 
 
-# * Get available Ollama models dynamically, w/ lazy import to avoid SDK at import time
+# * Get available Ollama models dynamically via cached status
 def get_ollama_models() -> List[str]:
     try:
-        from .clients.ollama_client import get_available_models as _get
+        from .clients.ollama_client import check_ollama_status
 
-        return _get()
+        return check_ollama_status().models
     except Exception:
         return []
 
 
-# * Check if Ollama is available (lazy import)
+# * Check if Ollama is available via cached status
 def is_ollama_available() -> bool:
     try:
-        from .clients.ollama_client import is_ollama_available as _available
+        from .clients.ollama_client import check_ollama_status
 
-        return _available()
+        return check_ollama_status().available
     except Exception:
         return False
 
