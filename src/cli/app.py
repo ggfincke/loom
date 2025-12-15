@@ -33,6 +33,11 @@ def main_callback(
     ),
     help: bool = typer.Option(False, "--help", "-h", help="Show help message & exit."),
 ) -> None:
+    # reset model cache at start of each CLI invocation
+    from ..ai.models import reset_model_cache
+
+    reset_model_cache()
+
     # respect injected ctx.obj from tests/embedding; only load if absent
     if getattr(ctx, "obj", None) is None:
         ctx.obj = settings_manager.load()
