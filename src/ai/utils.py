@@ -55,3 +55,111 @@ def strip_markdown_code_blocks(text: str) -> str:
         return match.group(1)
     else:
         return text.strip()
+
+
+# * Convert GenerateResult to dict, raising JSONParsingError on failure
+def convert_result_to_dict(
+    result: GenerateResult,
+    model: str,
+    context: str,
+    *,
+    include_snippets: bool = True,
+) -> dict:
+    # ! import here to avoid circular dependency w/ core module
+    from ..core.exceptions import JSONParsingError
+    from ..core.debug import debug_error
+
+    if not result.success:
+        debug_error(Exception(result.error), f"AI {context} failed for model {model}")
+        lines = result.json_text.split("\n") if result.json_text else []
+        snippet = (
+            "\n".join(lines[:5]) + "\n..." if len(lines) > 5 else result.json_text
+        )
+        error_msg = f"AI generated invalid JSON during {context} using model '{model}':\n{snippet}\nError: {result.error}"
+        if result.raw_text and result.raw_text != result.json_text:
+            error_msg += f"\nFull raw response: {result.raw_text[:300]}{'...' if len(result.raw_text) > 300 else ''}"
+        raise JSONParsingError(error_msg)
+
+    return result.data
+
+
+# * Validate AI response structure for edit JSON
+def validate_edits_structure(
+    data: dict,
+    model: str,
+    context: str,
+    *,
+    require_ops: bool = True,
+    require_single_op: bool = False,
+    log_version_debug: bool = False,
+    log_structure: bool = False,
+) -> dict:
+    # ! import here to avoid circular dependency w/ core module
+    from ..core.exceptions import AIError
+    from ..core.debug import debug_ai
+
+    context_hint = f" during {context}" if context else ""
+
+    if not isinstance(data, dict):
+        raise AIError(
+            f"AI response is not a valid JSON object (got {type(data).__name__}){context_hint} for model '{model}'"
+        )
+
+    if data.get("version") != 1:
+        if log_version_debug:
+            debug_ai(
+                f"Full JSON response: {str(data)[:500]}{'...' if len(str(data)) > 500 else ''}"
+            )
+        raise AIError(
+            f"Invalid or missing version in AI response: {data.get('version')} (expected 1){context_hint} for model '{model}'"
+        )
+
+    if require_ops and ("meta" not in data or "ops" not in data):
+        missing_fields = []
+        if "meta" not in data:
+            missing_fields.append("meta")
+        if "ops" not in data:
+            missing_fields.append("ops")
+        raise AIError(
+            f"AI response missing required fields: {', '.join(missing_fields)}{context_hint} for model '{model}'"
+        )
+
+    if require_single_op:
+        if "ops" not in data or not data["ops"]:
+            raise AIError(
+                "AI response missing 'ops' array or ops array is empty for PROMPT operation"
+            )
+        if len(data["ops"]) != 1:
+            raise AIError(
+                f"AI response must contain exactly one operation, got {len(data['ops'])} for PROMPT operation"
+            )
+
+    if log_structure:
+        debug_ai(
+            f"JSON structure: {list(data.keys()) if isinstance(data, dict) else type(data).__name__}"
+        )
+
+    return data
+
+
+# * High-level helper: process GenerateResult to validated dict
+def process_ai_response(
+    result: GenerateResult,
+    model: str,
+    context: str,
+    *,
+    require_ops: bool = True,
+    require_single_op: bool = False,
+    log_version_debug: bool = False,
+    log_structure: bool = False,
+) -> dict:
+    data = convert_result_to_dict(result, model, context)
+    return validate_edits_structure(
+        data,
+        model,
+        context,
+        require_ops=require_ops,
+        require_single_op=require_single_op,
+        log_version_debug=log_version_debug,
+        log_structure=log_structure,
+    )
