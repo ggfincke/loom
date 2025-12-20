@@ -34,7 +34,9 @@ def check_ollama_status(*, with_debug: bool = False) -> OllamaStatus:
         response = ollama.list()
         models = [m.model for m in response.models if m.model]
         if with_debug:
-            debug_ai(f"Ollama server available - found {len(models)} models: {', '.join(models)}")
+            debug_ai(
+                f"Ollama server available - found {len(models)} models: {', '.join(models)}"
+            )
         _cached_status = OllamaStatus(available=True, models=models, error="")
     except Exception as e:
         if with_debug:
@@ -72,7 +74,9 @@ def _make_ollama_call(prompt: str, model: str) -> APICallContext:
     settings = settings_manager.load()
 
     debug_api_call("Ollama", model, len(prompt))
-    debug_ai(f"Making Ollama API call with model: {model}, temperature: {settings.temperature}")
+    debug_ai(
+        f"Making Ollama API call with model: {model}, temperature: {settings.temperature}"
+    )
 
     try:
         response = ollama.chat(
