@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2025-12-20
+
+### Added
+- **Universal LaTeX handler**: Complete template metadata system with section detection and safe edit filtering
+- **Template commands**: `loom templates` for discovery, `loom init` for scaffolding from bundled templates
+- **swe-latex template**: Bundled LaTeX resume template with TOML metadata and inline markers
+- **Provider caching**: API key and availability caching for OpenAI, Claude, and Ollama
+- **GitHub Actions**: CI/CD workflows for testing, releases, and prerelease tagging
+
+### Changed
+- **AI architecture**: Centralized JSON parsing, response validation, and error handling in `ai/utils.py`
+- **Unified tailoring runner**: New `runner.py` consolidates command orchestration logic
+- **Diff display**: Refactored with state machine pattern for improved maintainability
+- **LaTeX patterns**: Consolidated into dedicated `latex_patterns.py` module
+- **Edit helpers**: Extracted shared operation logic to `edit_helpers.py`
+- **Code formatting**: Applied Black formatter across entire codebase
+
+### Infrastructure
+- **Test coverage**: 809 tests at 88% coverage with pytest-socket network isolation
+- **Build system**: Package data support for template distribution
+
+---
+
 ## [1.2.11] - 2025-12-20
 
 ### Changed
