@@ -31,7 +31,9 @@ def process_json_response(
         )
     except json.JSONDecodeError as e:
         truncated = json_text[:200] + ("..." if len(json_text) > 200 else "")
-        msg = f"JSON parsing failed: {e}. Model: {ctx.model}. Stripped text: {truncated}"
+        msg = (
+            f"JSON parsing failed: {e}. Model: {ctx.model}. Stripped text: {truncated}"
+        )
         return GenerateResult(
             success=False, raw_text=ctx.raw_text, json_text=json_text, error=msg
         )
