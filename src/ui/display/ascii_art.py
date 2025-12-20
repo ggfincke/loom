@@ -8,7 +8,8 @@ from ..core.rich_components import Text
 from ...loom_io.console import console
 from ..theming.theme_engine import get_active_theme, natural_gradient
 
-# * Display the Loom banner w/ smooth gradient styling  
+
+# * Display the Loom banner w/ smooth gradient styling
 def show_loom_art(theme_colors: list[str] | None = None) -> None:
     console.print()
     candidates = [
@@ -22,7 +23,7 @@ def show_loom_art(theme_colors: list[str] | None = None) -> None:
         theme = theme_colors
     else:
         theme = get_active_theme()
-    
+
     stops = [c for i, c in enumerate(theme) if i in (0, 2, 4)]
     if len(stops) < 2:
         # fallback if theme is short

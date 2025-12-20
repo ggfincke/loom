@@ -1,0 +1,2 @@
+# Include template files for distribution
+recursive-include templates *.tex *.toml *.md

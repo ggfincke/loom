@@ -1,4 +1,4 @@
-# src/ui/help/help_data.py  
+# src/ui/help/help_data.py
 # Help data structures & option metadata for CLI help system
 
 from __future__ import annotations
@@ -9,7 +9,7 @@ from typing import Dict, List, Optional, Callable
 
 @dataclass
 class CommandHelp:
-    # help metadata for a command
+    # help metadata for command
     name: str
     description: str
     long_description: str | None = None
@@ -17,9 +17,9 @@ class CommandHelp:
     see_also: List[str] | None = None
 
 
-@dataclass 
+@dataclass
 class OptionHelp:
-    # help metadata for a command option
+    # help metadata for command option
     name: str
     type_name: str
     description: str
@@ -50,17 +50,17 @@ def command_help(
             see_also=see_also,
         )
         _command_metadata[name] = metadata
-        
+
         # attach metadata to function for introspection
-        setattr(func, '_help_metadata', metadata)
-        
+        setattr(func, "_help_metadata", metadata)
+
         return func
-    
+
     return decorator
 
 
 def get_command_metadata(command_name: str) -> CommandHelp | None:
-    # get help metadata for a command
+    # get help metadata for command
     return _command_metadata.get(command_name)
 
 
@@ -71,10 +71,10 @@ def get_all_command_metadata() -> Dict[str, CommandHelp]:
 
 def extract_help_from_function(func: Callable) -> CommandHelp | None:
     # extract help metadata directly from a function if it has the decorator
-    return getattr(func, '_help_metadata', None)
+    return getattr(func, "_help_metadata", None)
 
 
-# * legacy command help dict - kept for backwards compatibility
+# * legacy command help dict - kept for backward compatibility
 COMMAND_HELP = {}
 
 
@@ -95,7 +95,6 @@ OPTION_HELP = {
         required=True,
         config_key="job_path",
     ),
-
     # shared options
     "model": OptionHelp(
         name="--model",
@@ -120,6 +119,19 @@ OPTION_HELP = {
         aliases=["-e"],
         default="from config: edits_path",
         config_key="edits_path",
+    ),
+    "template": OptionHelp(
+        name="--template",
+        type_name="TEXT",
+        description="Template id to initialize from",
+        aliases=["-t"],
+        required=True,
+    ),
+    "output": OptionHelp(
+        name="--output",
+        type_name="PATH",
+        description="Destination directory for template copy",
+        aliases=["-o"],
     ),
     "out_json": OptionHelp(
         name="--out-json",
@@ -193,7 +205,7 @@ WORKFLOW_HELP = {
         ],
     },
     "step_by_step": {
-        "title": "Step-by-Step Workflow", 
+        "title": "Step-by-Step Workflow",
         "description": "Break down the process for more control",
         "steps": [
             "loom sectionize resume.docx --out-json sections.json",
@@ -208,7 +220,7 @@ WORKFLOW_HELP = {
         "steps": [
             "loom config themes  # Choose your preferred visual theme",
             "loom config set data_dir /path/to/job_applications",
-            "loom config set output_dir /path/to/tailored_resumes", 
+            "loom config set output_dir /path/to/tailored_resumes",
             "loom config set model gpt-5-mini",
             "loom config set resume_filename my_standard_resume.docx",
         ],
@@ -216,12 +228,12 @@ WORKFLOW_HELP = {
 }
 
 
-# retrieve help metadata for a command (legacy function - now uses decorator registry)
+# retrieve help metadata for command (legacy function - now uses decorator registry)
 def get_command_help(command_name: str) -> CommandHelp | None:
     return get_command_metadata(command_name)
 
 
-# get help metadata for an option
+# get help metadata for option
 def get_option_help(option_name: str) -> OptionHelp | None:
     return OPTION_HELP.get(option_name)
 

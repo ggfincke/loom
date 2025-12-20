@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "loom"
-version = "1.2.0"
+version = "1.3.0"
 description = "Tailor resumes using the OpenAI Responses API"
 requires-python = ">=3.12"
 dependencies = [
@@ -21,3 +21,38 @@ dependencies = [
 
 [project.scripts]
 loom = "src.main:app"
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "pytest-mock",
+    "pytest-socket",
+    "pytest-xdist",
+    "freezegun",
+    "faker",
+    "mutmut",
+    "black",
+]
+
+[tool.black]
+line-length = 88
+target-version = ["py312"]
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  \.eggs
+  | \.git
+  | \.venv
+  | build
+  | dist
+  | __pycache__
+)/
+'''
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]

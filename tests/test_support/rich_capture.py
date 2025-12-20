@@ -14,23 +14,27 @@ from src.ui.core.rich_components import Console
 @contextmanager
 def capture_rich_output() -> Generator[Console, None, None]:
     from rich.theme import Theme
-    
+
     # create recording console that captures all output w/ basic theme
-    theme = Theme({
-        "loom.accent": "blue",
-        "loom.accent2": "cyan", 
-        "progress.path": "magenta",
-        "warning": "yellow",
-        "error": "red",
-        "progress.elapsed": "dim cyan",
-        "progress.description": "white",
-    })
-    recording_console = Console(record=True, width=80, height=24, force_terminal=True, theme=theme)
-    
+    theme = Theme(
+        {
+            "loom.accent": "blue",
+            "loom.accent2": "cyan",
+            "progress.path": "magenta",
+            "warning": "yellow",
+            "error": "red",
+            "progress.elapsed": "dim cyan",
+            "progress.description": "white",
+        }
+    )
+    recording_console = Console(
+        record=True, width=80, height=24, force_terminal=True, theme=theme
+    )
+
     # patch both the global console and modules that have already imported it
     patches = [
         patch("src.loom_io.console.console", recording_console),
-        # these modules import console directly at module level, so need individual patches  
+        # these modules import console directly at module level, so need individual patches
         patch("src.ui.display.ascii_art.console", recording_console),
         patch("src.ui.display.reporting.console", recording_console),
         patch("src.ui.help.help_renderer.console", recording_console),
@@ -39,11 +43,11 @@ def capture_rich_output() -> Generator[Console, None, None]:
         patch("src.ui.theming.console_theme.console", recording_console),
         patch("src.ui.theming.theme_selector.console", recording_console),
     ]
-    
+
     # apply all patches
     for p in patches:
         p.start()
-    
+
     try:
         yield recording_console
     finally:
@@ -71,12 +75,16 @@ def assert_banner_displayed(console: Console) -> None:
     output = extract_plain_text(console)
     # check for LOOM ASCII art patterns - use distinctive parts that will definitely match
     # Use different Unicode block chars or fallback to text content
-    has_blocks = "██" in output or "█" in output or "╗" in output or "LOOM" in output.upper()
-    assert has_blocks, f"Expected banner blocks not found in output: {repr(output[:200])}"
+    has_blocks = (
+        "██" in output or "█" in output or "╗" in output or "LOOM" in output.upper()
+    )
+    assert (
+        has_blocks
+    ), f"Expected banner blocks not found in output: {repr(output[:200])}"
     assert "Smart, precise resume tailoring" in output
 
 
-# * Check if progress indicators appear in console output  
+# * Check if progress indicators appear in console output
 def assert_progress_indicators(console: Console, expected_steps: list[str]) -> None:
     output = extract_plain_text(console)
     for step in expected_steps:
@@ -139,7 +147,9 @@ class MockUI:
 
 # * Context manager to mock UI interactions w/ predefined responses
 @contextmanager
-def mock_ui_interactions(responses: list[str | None] | None = None) -> Generator[MockUI, None, None]:
+def mock_ui_interactions(
+    responses: list[str | None] | None = None,
+) -> Generator[MockUI, None, None]:
     mock_ui = MockUI(responses)
     with patch("src.ui.core.ui.UI", return_value=mock_ui):
         yield mock_ui

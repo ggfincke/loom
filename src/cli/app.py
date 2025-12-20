@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 # load environment variables once at startup
 load_dotenv()
 
-# patch Typer's Rich help styles before creating the app
+# patch Typer's Rich help styles before creating app
 from ..ui.theming import typer_styles  # noqa: F401
 
 from ..config.settings import settings_manager
@@ -17,23 +17,31 @@ from ..loom_io.console import console
 
 
 app = typer.Typer(
-    rich_markup_mode="rich", 
-    add_completion=False, 
+    rich_markup_mode="rich",
+    add_completion=False,
     no_args_is_help=False,
-    context_settings={"help_option_names": ["--help", "-h"]}
+    context_settings={"help_option_names": ["--help", "-h"]},
 )
+
 
 # * Load settings & show quick usage when no subcommand is used
 @app.callback(invoke_without_command=True)
 def main_callback(
     ctx: typer.Context,
-    help_raw: bool = typer.Option(False, "--help-raw", help="Show raw Typer help instead of branded help"),
-    help: bool = typer.Option(False, "--help", "-h", help="Show help message and exit."),
+    help_raw: bool = typer.Option(
+        False, "--help-raw", help="Show raw Typer help instead of branded help"
+    ),
+    help: bool = typer.Option(False, "--help", "-h", help="Show help message & exit."),
 ) -> None:
+    # reset model cache at start of each CLI invocation
+    from ..ai.models import reset_model_cache
+
+    reset_model_cache()
+
     # respect injected ctx.obj from tests/embedding; only load if absent
     if getattr(ctx, "obj", None) is None:
         ctx.obj = settings_manager.load()
-    
+
     if ctx.invoked_subcommand is None:
         if help_raw:
             # show raw typer help
@@ -41,10 +49,12 @@ def main_callback(
         elif help:
             # show full branded help (import here to avoid circular import)
             from .commands.help import show_main_help
+
             show_main_help(app)
         else:
             # show quick usage blurb
             from ..ui.quick.quick_usage import show_quick_usage
+
             show_quick_usage()
         ctx.exit()
 
@@ -58,4 +68,6 @@ from .commands import plan as _plan  # noqa: F401
 from .commands import config as _config  # noqa: F401
 from .commands import models as _models  # noqa: F401
 from .commands import help as _help  # noqa: F401
+from .commands import templates as _templates  # noqa: F401
+from .commands import init as _init  # noqa: F401
 from .commands.dev import display as _display  # noqa: F401

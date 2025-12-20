@@ -9,6 +9,7 @@ from ...loom_io.console import console
 # * initialize gradient theme after theme_engine module is available
 def initialize_theme() -> None:
     from .theme_engine import get_loom_theme
+
     console.push_theme(get_loom_theme())
 
 
@@ -16,6 +17,7 @@ def initialize_theme() -> None:
 def refresh_theme() -> None:
     try:
         from .theme_engine import get_loom_theme
+
         # pop existing theme & push new one
         if console._theme_stack:
             console.pop_theme()

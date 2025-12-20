@@ -10,6 +10,7 @@ openai_generate = None  # type: ignore[assignment]
 claude_generate = None  # type: ignore[assignment]
 ollama_generate = None  # type: ignore[assignment]
 
+
 # * Generate JSON response using appropriate AI client based on model
 def run_generate(prompt: str, model: str) -> GenerateResult:
     # use comprehensive validation for better error messages
@@ -28,16 +29,19 @@ def run_generate(prompt: str, model: str) -> GenerateResult:
     if provider == "openai":
         if not callable(openai_generate):  # allow tests to patch this name
             from .openai_client import run_generate as _openai_generate
+
             openai_generate = _openai_generate
         return openai_generate(prompt, validated_model)  # type: ignore[misc]
     elif provider == "claude":
         if not callable(claude_generate):  # allow tests to patch this name
             from .claude_client import run_generate as _claude_generate
+
             claude_generate = _claude_generate
         return claude_generate(prompt, validated_model)  # type: ignore[misc]
     elif provider == "ollama":
         if not callable(ollama_generate):  # allow tests to patch this name
             from .ollama_client import run_generate as _ollama_generate
+
             ollama_generate = _ollama_generate
         return ollama_generate(prompt, validated_model)  # type: ignore[misc]
     else:

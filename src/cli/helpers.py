@@ -23,16 +23,13 @@ def is_test_environment() -> bool:
     # check for pytest environment variable
     if "PYTEST_CURRENT_TEST" in os.environ:
         return True
-    
+
     # check for typer test runner indicators
     if os.environ.get("NO_COLOR") == "1" and os.environ.get("TERM") == "dumb":
         return True
-    
+
     # check for other test indicators
     if any(test_var in os.environ for test_var in ["_PYTEST_RAISE", "PYTEST_VERSION"]):
         return True
-    
+
     return False
-
-
-

@@ -4,12 +4,19 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Optional
 import typer
 
 from ...ai.prompts import build_sectionizer_prompt
 from ...ai.clients import run_generate
-from ...loom_io import read_resume, write_json_safe
-from ...core.pipeline import number_lines
+from ...loom_io import (
+    read_resume,
+    write_json_safe,
+    detect_template,
+    analyze_latex,
+    sections_to_payload,
+    number_lines,
+)
 from ...core.exceptions import handle_loom_error
 
 from ..app import app
@@ -27,8 +34,8 @@ from ...config.settings import get_settings
     name="sectionize",
     description="Parse resume document into structured sections using AI",
     long_description=(
-        "Analyzes your resume (.docx or .tex) & identifies distinct sections such as "
-        "SUMMARY, EXPERIENCE, and EDUCATION. Produces a machine-readable JSON map "
+        "analyze resume (.docx or .tex) & identify distinct sections such as "
+        "SUMMARY, EXPERIENCE & EDUCATION. Produce machine-readable JSON map "
         "used to target edits precisely in later steps.\n\n"
         "Defaults: paths come from config when omitted (see 'loom config')."
     ),
@@ -43,14 +50,15 @@ from ...config.settings import get_settings
 @handle_loom_error
 def sectionize(
     ctx: typer.Context,
-    resume_path: Path | None = ResumeArg(),
-    out_json: Path | None = OutJsonOpt(),
-    model: str | None = ModelOpt(),
-    help: bool = typer.Option(False, "--help", "-h", help="Show help message and exit."),
+    resume_path: Optional[Path] = ResumeArg(),
+    out_json: Optional[Path] = OutJsonOpt(),
+    model: Optional[str] = ModelOpt(),
+    help: bool = typer.Option(False, "--help", "-h", help="Show help message & exit."),
 ) -> None:
     # detect help flag & show custom help
     if help:
         from .help import show_command_help
+
         show_command_help("sectionize")
         ctx.exit()
     settings = get_settings(ctx)
@@ -66,22 +74,30 @@ def sectionize(
         resolved["model"],
     )
 
-    # validate required arguments
-    validate_required_args(
-        resume_path=(resume_path, "Resume path"),
-        out_json=(
+    # validate required arguments (model not required for LaTeX path)
+    required_args = {
+        "resume_path": (resume_path, "Resume path"),
+        "out_json": (
             out_json,
             "Output path (provide --out-json or set sections_path in config)",
         ),
-        model=(model, "Model (provide --model or set in config)"),
-    )
+    }
+    resume_suffix = resume_path.suffix.lower() if resume_path else ""
+    if resume_suffix != ".tex":
+        required_args["model"] = (model, "Model (provide --model or set in config)")
+
+    validate_required_args(**required_args)
 
     # type assertions after validation
     assert resume_path is not None
     assert out_json is not None
-    assert model is not None
 
-    with setup_ui_with_progress("Processing resume...", total=4) as (
+    is_latex = resume_path.suffix.lower() == ".tex"
+    if not is_latex:
+        assert model is not None
+    total_steps = 3 if is_latex else 4
+
+    with setup_ui_with_progress("Processing resume...", total=total_steps) as (
         ui,
         progress,
         task,
@@ -90,30 +106,40 @@ def sectionize(
         lines = read_resume(resume_path)
         progress.advance(task)
 
-        progress.update(task, description="Numbering lines...")
-        numbered = number_lines(lines)
-        progress.advance(task)
+        if is_latex:
+            progress.update(task, description="Analyzing LaTeX structure...")
+            resume_text = resume_path.read_text(encoding="utf-8")
+            descriptor = detect_template(resume_path, resume_text)
+            analysis = analyze_latex(lines, descriptor)
+            payload = sections_to_payload(analysis)
+            progress.advance(task)
 
-        progress.update(
-            task, description="Building prompt and calling OpenAI..."
-        )
-        prompt = build_sectionizer_prompt(numbered)
-        result = run_generate(prompt, model=model)
+            progress.update(task, description="Writing sections JSON...")
+            write_json_safe(payload, out_json)
+            progress.advance(task)
+        else:
+            progress.update(task, description="Numbering lines...")
+            numbered = number_lines(lines)
+            progress.advance(task)
 
-        # handle JSON parsing errors
-        if not result.success:
-            from ...core.exceptions import AIError
+            progress.update(task, description="Building prompt and calling OpenAI...")
+            prompt = build_sectionizer_prompt(numbered)
+            result = run_generate(prompt, model=model)
 
-            raise AIError(
-                f"AI failed to generate valid JSON: {result.error}\n\nRaw response:\n{result.raw_text}\n\nExtracted JSON:\n{result.json_text}"
-            )
+            # handle JSON parsing errors
+            if not result.success:
+                from ...core.exceptions import AIError
 
-        data = result.data
-        assert data is not None, "Expected non-None data from successful AI result"
-        progress.advance(task)
+                raise AIError(
+                    f"AI failed to generate valid JSON: {result.error}\n\nRaw response:\n{result.raw_text}\n\nExtracted JSON:\n{result.json_text}"
+                )
 
-        progress.update(task, description="Writing sections JSON...")
-        write_json_safe(data, out_json)
-        progress.advance(task)
+            data = result.data
+            assert data is not None, "Expected non-None data from successful AI result"
+            progress.advance(task)
+
+            progress.update(task, description="Writing sections JSON...")
+            write_json_safe(data, out_json)
+            progress.advance(task)
 
     report_result("sections", sections_path=out_json)

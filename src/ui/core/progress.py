@@ -15,7 +15,9 @@ from .ui import UI
 
 # * context manager to build UI progress & yield (ui, progress, task)
 @contextmanager
-def setup_ui_with_progress(task_description: str, total: int) -> Generator[tuple[UI, Progress, Any], None, None]:
+def setup_ui_with_progress(
+    task_description: str, total: int
+) -> Generator[tuple[UI, Progress, Any], None, None]:
     ui = UI()
     with ui.build_progress() as progress:
         ui.progress = progress
@@ -39,7 +41,9 @@ def load_resume_and_job(
 
 
 # load sections JSON string if available
-def load_sections(sections_path: Path | None, progress: Progress, task: Any) -> str | None:
+def load_sections(
+    sections_path: Path | None, progress: Progress, task: Any
+) -> str | None:
     progress.update(task, description="Loading sections data...")
     sections_json_str = None
     if sections_path and Path(sections_path).exists():

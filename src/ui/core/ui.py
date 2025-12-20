@@ -22,7 +22,7 @@ class PausableElapsedColumn(ProgressColumn):
     # render elapsed time in m:ss or h:mm:ss format
     def render(self, task: Any) -> Text:
         seconds = int(self._timer.elapsed())
-        
+
         # h:mm:ss if >= 1h, else m:ss
         if seconds >= 3600:
             s = str(timedelta(seconds=seconds))
@@ -70,11 +70,15 @@ class UI:
                 styled_prompt = f"[loom.accent]{prompt}[/]"
                 return self.console.input(styled_prompt)
         except (EOFError, KeyboardInterrupt):
-            self.console.print("\n[warning]Input interrupted, defaulting to (s)oft-fail[/]")
+            self.console.print(
+                "\n[warning]Input interrupted, defaulting to (s)oft-fail[/]"
+            )
             return default
         # pragma: no cover - defensive
         except Exception as e:
-            self.console.print(f"\n[error]Unexpected error: {e}, defaulting to (s)oft-fail[/]")
+            self.console.print(
+                f"\n[error]Unexpected error: {e}, defaulting to (s)oft-fail[/]"
+            )
             return default
 
     # print to console w/ rich formatting

@@ -11,8 +11,16 @@ from .documents import (
     read_docx_with_formatting,
     apply_edits_to_docx
 )
-from .generics import write_json_safe, read_json_safe, ensure_parent, exit_with_error
+from .generics import write_json_safe, read_json_safe, ensure_parent, exit_with_error, number_lines
 from .types import Lines
+from .latex_handler import (
+    detect_template,
+    analyze_latex,
+    sections_to_payload,
+    filter_latex_edits,
+    TemplateDescriptor,
+    load_descriptor,
+)
 
 __all__ = [
     "read_docx",
@@ -27,5 +35,12 @@ __all__ = [
     "read_json_safe", 
     "ensure_parent",
     "exit_with_error",
+    "number_lines",
     "Lines",
+    "detect_template",
+    "analyze_latex",
+    "sections_to_payload",
+    "filter_latex_edits",
+    "TemplateDescriptor",
+    "load_descriptor",
 ]

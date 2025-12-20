@@ -7,7 +7,6 @@ from .reporting import persist_edits_json, report_result, write_output_with_diff
 __all__ = [
     "show_loom_art",
     "persist_edits_json",
-    "report_result", 
+    "report_result",
     "write_output_with_diff",
 ]
-

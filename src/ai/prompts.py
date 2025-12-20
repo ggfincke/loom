@@ -81,8 +81,9 @@ OPERATION_ORDERING = (
 
 # Empty edit path clarification
 EMPTY_EDIT_PATH = (
-    "If no changes are needed, return { \"version\": 1, \"meta\": {...}, \"ops\": [] }."
+    'If no changes are needed, return { "version": 1, "meta": {...}, "ops": [] }.'
 )
+
 
 # * Build sectionizer prompt for LLM
 def build_sectionizer_prompt(resume_with_line_numbers: str) -> str:
@@ -113,25 +114,25 @@ def build_sectionizer_prompt(resume_with_line_numbers: str) -> str:
         "- Custom commands like \\sectionhead{}, \\name{}, \\contact{} are section indicators\n\n"
         "JSON schema (clean example without comments or placeholders):\n"
         "{\n"
-        "  \"sections\": [\n"
+        '  "sections": [\n'
         "    {\n"
-        "      \"name\": \"SUMMARY\",\n"
-        "      \"heading_text\": \"Professional Summary\",\n"
-        "      \"start_line\": 1,\n"
-        "      \"end_line\": 5,\n"
-        "      \"confidence\": 0.95,\n"
-        "      \"subsections\": [\n"
+        '      "name": "SUMMARY",\n'
+        '      "heading_text": "Professional Summary",\n'
+        '      "start_line": 1,\n'
+        '      "end_line": 5,\n'
+        '      "confidence": 0.95,\n'
+        '      "subsections": [\n'
         "        {\n"
-        "          \"name\": \"EXPERIENCE_ITEM\",\n"
-        "          \"start_line\": 2,\n"
-        "          \"end_line\": 4,\n"
-        "          \"meta\": {\"company\": \"Acme Corp\", \"title\": \"Engineer\", \"date_range\": \"2020-2023\"}\n"
+        '          "name": "EXPERIENCE_ITEM",\n'
+        '          "start_line": 2,\n'
+        '          "end_line": 4,\n'
+        '          "meta": {"company": "Acme Corp", "title": "Engineer", "date_range": "2020-2023"}\n'
         "        }\n"
         "      ]\n"
         "    }\n"
         "  ],\n"
-        "  \"normalized_order\": [\"SUMMARY\", \"SKILLS\", \"EXPERIENCE\"],\n"
-        "  \"notes\": \"Clear section structure detected\"\n"
+        '  "normalized_order": ["SUMMARY", "SKILLS", "EXPERIENCE"],\n'
+        '  "notes": "Clear section structure detected"\n'
         "}\n\n"
         "Allowed field values:\n"
         "- name: SUMMARY|SKILLS|EXPERIENCE|PROJECTS|EDUCATION|OTHER\n"
@@ -143,19 +144,24 @@ def build_sectionizer_prompt(resume_with_line_numbers: str) -> str:
         f"{resume_with_line_numbers}\n"
     )
 
+
 # * Build generate prompt for LLM
-def build_generate_prompt(job_info: str,
-                         resume_with_line_numbers: str,
-                         model: str,
-                         created_at: str,
-                         sections_json: str | None = None) -> str:
-    is_latex = resume_with_line_numbers.strip().startswith("\\documentclass") or "\\begin{document}" in resume_with_line_numbers
-    
+def build_generate_prompt(
+    job_info: str,
+    resume_with_line_numbers: str,
+    model: str,
+    created_at: str,
+    sections_json: str | None = None,
+) -> str:
+    is_latex = (
+        resume_with_line_numbers.strip().startswith("\\documentclass")
+        or "\\begin{document}" in resume_with_line_numbers
+    )
+
     base_prompt = (
         f"{ANTI_INJECTION_GUARD}\n\n"
         "You are a resume editor tasked with tailoring a resume (provided as numbered lines) "
         "to a specific job description. Return a STRICT JSON object with surgical edits by line number.\n\n"
-        
         "Editing policy (STRICT, with bounded embellishment):\n"
         "- Edit ONLY when it materially improves alignment with the job description; otherwise leave lines unchanged.\n"
         "- Keep truthful content only; do NOT invent experience, ownership, employers, dates, or metrics.\n"
@@ -169,22 +175,20 @@ def build_generate_prompt(job_info: str,
         f"- {EMPTY_EDIT_PATH}\n"
         f"- {CONSERVATIVE_RULE}\n\n"
     )
-    
+
     if is_latex:
         base_prompt += f"{LATEX_EDITING_POLICY}\n\n"
-    
+
     base_prompt += (
         "Job-signal alignment:\n"
         "- Extract the top 3–5 explicit skills/responsibilities from the job description first.\n"
         "- Tie each edit to at least one job phrase you're targeting.\n"
         "- Prefer the smallest possible diff (word/phrase) over full rewrites.\n\n"
-
         "Safety checks BEFORE emitting an edit:\n"
         "1) 'current_snippet' MUST match the exact current line(s) verbatim; if not, SKIP that edit.\n"
         "2) Do not modify employer names, titles, dates, or locations unless there is a clear typo.\n"
         "3) Do not introduce metrics or concrete quantities that are not already present.\n"
         "4) If ownership/scope is unclear, hedge ('contributed to', 'supported') rather than escalate.\n\n"
-
         "Line-numbering and operation rules:\n"
         f"1) {MULTI_LINE_VALIDATION}\n"
         "2) Use the exact 1-based line numbers provided.\n"
@@ -194,68 +198,66 @@ def build_generate_prompt(job_info: str,
         "6) To remove irrelevant content, use 'delete_range' and explain why it hurts alignment.\n"
         "7) Never output lines that don't exist; validate with 'current_snippet' to avoid drift.\n"
         "8) Keep proper tech casing (TypeScript, JavaScript, PostgreSQL) and only correct if wrong.\n\n"
-
         f"{JSON_ONLY_INSTRUCTION}\n\n"
-        
         "JSON schema (clean example):\n"
         "{\n"
-        "  \"version\": 1,\n"
-        f"  \"meta\": {{ \"strategy\": \"rule\", \"model\": \"{model}\", \"created_at\": \"{created_at}\" }},\n"
-        "  \"ops\": [\n"
-        "    { \"op\": \"replace_line\", \"line\": 5, \"text\": \"Enhanced bullet point\", \"current_snippet\": \"Original text\", \"why\": \"Targets Python requirement\" },\n"
-        "    { \"op\": \"replace_range\", \"start\": 10, \"end\": 12, \"text\": \"Line 1\\nLine 2\\nLine 3\", \"current_snippet\": \"Old text\", \"why\": \"Aligns with cloud skills\" }\n"
+        '  "version": 1,\n'
+        f'  "meta": {{ "strategy": "rule", "model": "{model}", "created_at": "{created_at}" }},\n'
+        '  "ops": [\n'
+        '    { "op": "replace_line", "line": 5, "text": "Enhanced bullet point", "current_snippet": "Original text", "why": "Targets Python requirement" },\n'
+        '    { "op": "replace_range", "start": 10, "end": 12, "text": "Line 1\\nLine 2\\nLine 3", "current_snippet": "Old text", "why": "Aligns with cloud skills" }\n'
         "  ]\n"
         "}\n\n"
-        
         "Operation field requirements:\n"
         "- op: replace_line|replace_range|insert_after|delete_range\n"
         "- line/start/end: positive integers matching resume line numbers\n"
         "- text: properly escaped string content\n"
         "- current_snippet: exact current text being modified (for validation)\n"
         "- why: optional concise explanation (under 100 chars, no line breaks)\n\n"
-        
         "**VALIDATION CHECKLIST** (validate before outputting):\n"
         "- replace_line operations contain NO \\n characters in text field\n"
         "- All line numbers exist in the provided resume\n"
         "- Operations sorted by increasing line number with no overlaps\n"
         "- No unescaped quotes, newlines, or control characters in JSON strings\n"
         "- All required fields present for each operation type\n\n"
-
         "Job Description:\n"
         f"{job_info}\n\n"
     )
-    
+
     if sections_json:
         base_prompt += f"Known Sections (JSON):\n{sections_json}\n\n"
-    
+
     base_prompt += (
-        "Resume (numbered lines start at 1):\n"
-        f"{resume_with_line_numbers}\n"
+        "Resume (numbered lines start at 1):\n" f"{resume_with_line_numbers}\n"
     )
-    
+
     return base_prompt
 
+
 # * Build edit prompt for fixing validation errors in edits.json
-def build_edit_prompt(job_info: str,
-                     resume_with_line_numbers: str, 
-                     edits_json: str,
-                     validation_errors: list[str],
-                     model: str,
-                     created_at: str,
-                     sections_json: str | None = None) -> str:
-    is_latex = resume_with_line_numbers.strip().startswith("\\documentclass") or "\\begin{document}" in resume_with_line_numbers
-    
+def build_edit_prompt(
+    job_info: str,
+    resume_with_line_numbers: str,
+    edits_json: str,
+    validation_errors: list[str],
+    model: str,
+    created_at: str,
+    sections_json: str | None = None,
+) -> str:
+    is_latex = (
+        resume_with_line_numbers.strip().startswith("\\documentclass")
+        or "\\begin{document}" in resume_with_line_numbers
+    )
+
     base_prompt = (
         f"{ANTI_INJECTION_GUARD}\n\n"
         "You are a resume editor tasked with FIXING VALIDATION ERRORS in a previously generated "
         "edits JSON file. The edits were created to tailor a resume to a job description, but "
         "contain validation errors that prevent them from being applied.\n\n"
-
         "Your task is to CORRECT the existing edits to fix validation errors while preserving "
         "the original intent and improving job alignment. Do NOT generate entirely new edits.\n\n"
         f"{EMPTY_EDIT_PATH}\n"
         f"{CONSERVATIVE_RULE}\n\n"
-
         "Common validation errors to fix:\n"
         f"- {MULTI_LINE_VALIDATION.replace('CRITICAL VALIDATION: ', '')}\n"
         "- 'line X not in resume bounds': Remove ops referencing non-existent lines\n"
@@ -263,7 +265,6 @@ def build_edit_prompt(job_info: str,
         "- 'replace_range line count mismatch': Adjust text to match the range size or vice versa\n"
         "- Missing required fields: Add any missing 'op', 'line', 'text', 'start', 'end' fields\n"
         "- Invalid ranges: Fix start > end or negative line numbers\n\n"
-
         "Correction rules:\n"
         "1. FIX errors without changing the editing intent - preserve the original meaning\n"
         "2. For replace_line with newlines: Convert to replace_range with proper line boundaries\n"
@@ -274,75 +275,74 @@ def build_edit_prompt(job_info: str,
         "7. Maintain the same job-alignment improvements as the original edits\n"
         "8. Keep all valid operations unchanged\n\n"
     )
-    
+
     if is_latex:
         base_prompt += f"LaTeX correction rules:\n{LATEX_EDITING_POLICY}\n"
-    
+
     base_prompt += (
         f"{JSON_ONLY_INSTRUCTION}\n\n"
-        
         "JSON schema (clean example):\n"
         "{\n"
-        "  \"version\": 1,\n"
-        f"  \"meta\": {{ \"strategy\": \"edit_fix\", \"model\": \"{model}\", \"created_at\": \"{created_at}\" }},\n"
-        "  \"ops\": [\n"
-        "    { \"op\": \"replace_range\", \"start\": 5, \"end\": 6, \"text\": \"Fixed content\\nSecond line\", \"current_snippet\": \"Original text\", \"why\": \"Fix validation error\" }\n"
+        '  "version": 1,\n'
+        f'  "meta": {{ "strategy": "edit_fix", "model": "{model}", "created_at": "{created_at}" }},\n'
+        '  "ops": [\n'
+        '    { "op": "replace_range", "start": 5, "end": 6, "text": "Fixed content\\nSecond line", "current_snippet": "Original text", "why": "Fix validation error" }\n'
         "  ]\n"
         "}\n\n"
-        
         "**VALIDATION CHECKLIST** (validate before outputting):\n"
         "- replace_line operations contain NO \\n characters in text field\n"
         "- All line numbers exist in the provided resume\n"
         "- Operations sorted by increasing line number with no overlaps\n"
         "- No unescaped quotes, newlines, or control characters in JSON strings\n"
         "- All required fields present, 'why' fields under 100 chars\n\n"
-
         "Validation Errors Found:\n"
-        + "\n".join(f"- {error}" for error in validation_errors) + "\n\n"
-
+        + "\n".join(f"- {error}" for error in validation_errors)
+        + "\n\n"
         "Job Description:\n"
         f"{job_info}\n\n"
     )
-    
+
     if sections_json:
         base_prompt += f"Known Sections (JSON):\n{sections_json}\n\n"
-    
+
     base_prompt += (
         "Resume (numbered lines start at 1):\n"
         f"{resume_with_line_numbers}\n\n"
         "INVALID Edits JSON (to be corrected):\n"
         f"{edits_json}\n"
     )
-    
+
     return base_prompt
 
+
 # * Build prompt operation prompt for user-driven content generation
-def build_prompt_operation_prompt(user_instruction: str,
-                                operation_type: str,
-                                operation_context: str,
-                                job_text: str,
-                                resume_with_line_numbers: str,
-                                model: str,
-                                created_at: str,
-                                sections_json: str | None = None) -> str:
-    is_latex = resume_with_line_numbers.strip().startswith("\\documentclass") or "\\begin{document}" in resume_with_line_numbers
-    
+def build_prompt_operation_prompt(
+    user_instruction: str,
+    operation_type: str,
+    operation_context: str,
+    job_text: str,
+    resume_with_line_numbers: str,
+    model: str,
+    created_at: str,
+    sections_json: str | None = None,
+) -> str:
+    is_latex = (
+        resume_with_line_numbers.strip().startswith("\\documentclass")
+        or "\\begin{document}" in resume_with_line_numbers
+    )
+
     base_prompt = (
         f"{ANTI_INJECTION_GUARD}\n\n"
         "You are helping tailor a resume to match a job description. A user has requested "
         "a specific modification to an edit operation through a custom instruction.\n\n"
-        
         "Your task is to regenerate a single edit operation based on the user's instruction. "
         "The operation should align with the job requirements while following the user's "
         "specific guidance.\n\n"
         f"{CONSERVATIVE_RULE}\n\n"
-        
         "Operation Details:\n"
         f"- Operation type: {operation_type}\n"
         f"- Context: {operation_context}\n\n"
-        
         f"User Instruction: {user_instruction}\n\n"
-        
         "Guidelines:\n"
         "- Generate content that directly fulfills the user's instruction\n"
         "- Maintain professional resume language and formatting\n"
@@ -352,22 +352,20 @@ def build_prompt_operation_prompt(user_instruction: str,
         f"- {MULTI_LINE_VALIDATION}\n"
         f"- {OPERATION_ORDERING}\n\n"
     )
-    
+
     if is_latex:
         base_prompt += f"LaTeX guidelines:\n{LATEX_EDITING_POLICY}\n"
-    
+
     base_prompt += (
         f"{JSON_ONLY_INSTRUCTION}\n\n"
-        
         "JSON schema (clean example with one operation):\n"
         "{\n"
-        "  \"version\": 1,\n"
-        f"  \"meta\": {{ \"strategy\": \"prompt_regeneration\", \"model\": \"{model}\", \"created_at\": \"{created_at}\" }},\n"
-        "  \"ops\": [\n"
-        "    { \"op\": \"replace_line\", \"line\": 15, \"text\": \"Custom user-requested content\", \"current_snippet\": \"Original text\", \"why\": \"User instruction fulfilled\" }\n"
+        '  "version": 1,\n'
+        f'  "meta": {{ "strategy": "prompt_regeneration", "model": "{model}", "created_at": "{created_at}" }},\n'
+        '  "ops": [\n'
+        '    { "op": "replace_line", "line": 15, "text": "Custom user-requested content", "current_snippet": "Original text", "why": "User instruction fulfilled" }\n'
         "  ]\n"
         "}\n\n"
-        
         "**VALIDATION CHECKLIST**:\n"
         "- Include exactly ONE operation in the ops array\n"
         "- replace_line operations contain NO \\n characters in text field\n"
@@ -375,21 +373,17 @@ def build_prompt_operation_prompt(user_instruction: str,
         "- 'current_snippet' contains exact original text being modified\n"
         "- 'why' field explains how this fulfills user instruction (under 100 chars)\n"
         "- Use exact line numbers from the numbered resume provided\n\n"
-        
         "Job Description:\n"
         f"{job_text}\n\n"
     )
-    
+
     if sections_json:
         base_prompt += f"Resume Sections Context:\n{sections_json}\n\n"
-    
+
     base_prompt += (
         "Full Resume (numbered lines for reference):\n"
         f"{resume_with_line_numbers}\n\n"
-        
         "Generate a single JSON edit operation based on the user instruction:"
     )
-    
+
     return base_prompt
-
-

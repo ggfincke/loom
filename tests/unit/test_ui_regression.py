@@ -26,14 +26,14 @@ def test_banner_consistency_across_themes():
         ["#2c3e50", "#3498db", "#e74c3c"],  # cool colors
         ["#f39c12", "#e67e22", "#d35400"],  # orange spectrum
     ]
-    
+
     banner_outputs = []
-    
+
     for theme in theme_variations:
         with capture_rich_output() as console:
             show_loom_art(theme_colors=theme)
             banner_outputs.append(extract_plain_text(console))
-    
+
     # verify all banner outputs contain same ASCII structure
     for output in banner_outputs:
         assert "██╗      ██████╗  ██████╗ ███╗   ███╗" in output
@@ -49,17 +49,18 @@ def test_progress_formatting_consistency():
         "Processing content with AI model...",  # longer description
         "Done.",  # short description
     ]
-    
+
     for desc in task_descriptions:
         with capture_rich_output() as console:
             with setup_ui_with_progress(desc, total=1) as (ui, progress, task):
                 progress.advance(task)
             progress_outputs.append(extract_plain_text(console))
-    
+
     # verify consistent progress formatting
     for output in progress_outputs:
         # should contain elapsed time pattern
         import re
+
         assert re.search(r"\d+:\d{2}", output), f"Missing elapsed time in: {output}"
 
 
@@ -70,14 +71,14 @@ def test_success_message_consistency():
         ("edits", {"edits_path": Path("/tmp/edits.json")}),
         ("apply", {"output_path": Path("/tmp/output.docx")}),
     ]
-    
+
     success_outputs = []
-    
+
     for result_type, kwargs in test_cases:
         with capture_rich_output() as console:
             report_result(result_type, settings=None, **kwargs)
             success_outputs.append(extract_plain_text(console))
-    
+
     # verify all success messages have consistent checkmark & arrow patterns
     for output in success_outputs:
         # should contain success indicators (checkmark represented in text)
@@ -93,14 +94,14 @@ def test_banner_gradient_rendering():
         ["#ff0000", "#00ff00", "#0000ff"],  # RGB primary
         ["#000000", "#ffffff"],  # monochrome
     ]
-    
+
     html_outputs = []
-    
+
     for theme in test_themes:
         with capture_rich_output() as console:
             show_loom_art(theme_colors=theme)
             html_outputs.append(extract_html(console))
-    
+
     # verify HTML output contains style information
     for html in html_outputs:
         assert len(html) > 0
@@ -114,24 +115,28 @@ def test_ui_component_integration():
     with capture_rich_output() as console:
         # display banner
         show_loom_art()
-        
+
         # show progress
-        with setup_ui_with_progress("Integration test", total=2) as (ui, progress, task):
+        with setup_ui_with_progress("Integration test", total=2) as (
+            ui,
+            progress,
+            task,
+        ):
             progress.update(task, description="Step 1...")
             progress.advance(task)
             progress.update(task, description="Step 2...")
             progress.advance(task)
-        
+
         # show success
         report_result("sections", sections_path=Path("/tmp/test.json"))
-        
+
         output = extract_plain_text(console)
-        
+
         # verify all components appear in logical order
         banner_pos = output.find("██╗")
         progress_pos = output.find("Integration test")
         success_pos = output.find("test.json")
-        
+
         assert banner_pos < progress_pos < success_pos
         assert banner_pos != -1 and progress_pos != -1 and success_pos != -1
 
@@ -139,18 +144,23 @@ def test_ui_component_integration():
 # * Test progress timer display consistency
 def test_progress_timer_consistency():
     timer_outputs = []
-    
+
     # test different progress durations
     for total in [1, 5, 10]:
         with capture_rich_output() as console:
-            with setup_ui_with_progress(f"Timer test {total}", total=total) as (ui, progress, task):
+            with setup_ui_with_progress(f"Timer test {total}", total=total) as (
+                ui,
+                progress,
+                task,
+            ):
                 for _ in range(total):
                     progress.advance(task)
             timer_outputs.append(extract_plain_text(console))
-    
+
     # verify elapsed time format consistency
     for output in timer_outputs:
         import re
+
         time_matches = re.findall(r"\d+:\d{2}", output)
         assert len(time_matches) > 0, f"No time display found in: {output}"
 
@@ -164,9 +174,9 @@ def test_error_display_consistency():
         console.print("   Error message 1")
         console.print("   Error message 2")
         console.print("🔶 Validation failed (soft fail)")
-        
+
         output = extract_plain_text(console)
-        
+
         # verify error formatting consistency
         assert "Validation errors found" in output
         assert "Error message 1" in output
@@ -177,7 +187,7 @@ def test_error_display_consistency():
 def test_theme_switching_stability():
     # simulate theme changes during UI operations
     outputs = []
-    
+
     for theme_name in ["default", "custom"]:
         with capture_rich_output() as console:
             # simulate theme change
@@ -186,13 +196,13 @@ def test_theme_switching_stability():
                 show_loom_art(theme_colors=custom_theme)
             else:
                 show_loom_art()
-            
+
             # show progress after theme change
             with setup_ui_with_progress("Theme test", total=1) as (ui, progress, task):
                 progress.advance(task)
-            
+
             outputs.append(extract_plain_text(console))
-    
+
     # verify both outputs are valid & contain expected elements
     for output in outputs:
         assert "LOOM" in output or "██" in output
@@ -203,14 +213,18 @@ def test_theme_switching_stability():
 def test_ui_memory_consistency():
     # ensure UI components don't leak memory across multiple uses
     console_refs = []
-    
+
     for i in range(5):
         with capture_rich_output() as console:
             show_loom_art()
-            with setup_ui_with_progress(f"Memory test {i}", total=1) as (ui, progress, task):
+            with setup_ui_with_progress(f"Memory test {i}", total=1) as (
+                ui,
+                progress,
+                task,
+            ):
                 progress.advance(task)
             console_refs.append(extract_plain_text(console))
-    
+
     # verify outputs remain consistent
     for output in console_refs:
         assert len(output) > 0
@@ -218,7 +232,7 @@ def test_ui_memory_consistency():
         assert "██" in output or "LOOM" in output
 
 
-# * Test special character handling in UI components  
+# * Test special character handling in UI components
 def test_special_character_handling():
     special_descriptions = [
         "Processing résumé...",  # accented characters
@@ -226,12 +240,12 @@ def test_special_character_handling():
         "Progress: 100% complete ✓",  # symbols
         "Path: /tmp/测试.json",  # non-latin characters
     ]
-    
+
     for desc in special_descriptions:
         with capture_rich_output() as console:
             with setup_ui_with_progress(desc, total=1) as (ui, progress, task):
                 progress.advance(task)
-            
+
             output = extract_plain_text(console)
             # verify special characters are handled gracefully
             assert len(output) > 0

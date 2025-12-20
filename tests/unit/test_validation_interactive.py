@@ -5,7 +5,11 @@ import pytest
 from unittest.mock import Mock, patch
 import sys
 
-from tests.test_support.rich_capture import MockUI, capture_rich_output, extract_plain_text
+from tests.test_support.rich_capture import (
+    MockUI,
+    capture_rich_output,
+    extract_plain_text,
+)
 
 from src.core.validation import (
     AskStrategy,
@@ -37,12 +41,12 @@ def test_ask_strategy_soft_fail_choice(mock_settings):
     warnings = ["Invalid edit format", "Missing required field"]
     mock_ui = MockUI(responses=["s"])
     strategy = AskStrategy()
-    
+
     # patch isatty to simulate interactive environment
-    with patch('sys.stdin.isatty', return_value=True):
+    with patch("sys.stdin.isatty", return_value=True):
         with pytest.raises(SystemExit):
             strategy.handle(warnings, mock_ui, mock_settings)
-    
+
     # verify correct prompt was shown
     prompts = mock_ui.get_prompts()
     assert len(prompts) == 1
@@ -56,10 +60,10 @@ def test_ask_strategy_retry_choice():
     warnings = ["Validation error"]
     mock_ui = MockUI(responses=["r"])
     strategy = AskStrategy()
-    
-    with patch('sys.stdin.isatty', return_value=True):
+
+    with patch("sys.stdin.isatty", return_value=True):
         result = strategy.handle(warnings, mock_ui)
-    
+
     assert isinstance(result, ValidationOutcome)
     assert result.success is False
     assert result.should_continue is True
@@ -71,10 +75,10 @@ def test_ask_strategy_manual_choice():
     warnings = ["Manual intervention needed"]
     mock_ui = MockUI(responses=["m"])
     strategy = AskStrategy()
-    
-    with patch('sys.stdin.isatty', return_value=True):
+
+    with patch("sys.stdin.isatty", return_value=True):
         result = strategy.handle(warnings, mock_ui)
-    
+
     assert isinstance(result, ValidationOutcome)
     assert result.success is False
     assert result.should_continue is False
@@ -85,10 +89,10 @@ def test_ask_strategy_invalid_then_valid_choice():
     warnings = ["Test warning"]
     mock_ui = MockUI(responses=["invalid", "r"])
     strategy = AskStrategy()
-    
-    with patch('sys.stdin.isatty', return_value=True):
+
+    with patch("sys.stdin.isatty", return_value=True):
         result = strategy.handle(warnings, mock_ui)
-    
+
     # should have prompted twice
     prompts = mock_ui.get_prompts()
     assert len(prompts) == 2
@@ -100,11 +104,11 @@ def test_ask_strategy_non_interactive():
     warnings = ["Error in non-interactive mode"]
     mock_ui = MockUI()
     strategy = AskStrategy()
-    
-    with patch('sys.stdin.isatty', return_value=False):
+
+    with patch("sys.stdin.isatty", return_value=False):
         with pytest.raises(ValidationError) as exc_info:
             strategy.handle(warnings, mock_ui)
-        
+
         assert "ask not possible - non-interactive" in str(exc_info.value)
         assert not exc_info.value.recoverable
 
@@ -114,15 +118,15 @@ def test_model_retry_strategy_valid_selection():
     warnings = ["Model performance issues"]
     mock_ui = MockUI(responses=["2"])  # Select gpt-5-mini
     strategy = ModelRetryStrategy()
-    
-    with patch('sys.stdin.isatty', return_value=True):
+
+    with patch("sys.stdin.isatty", return_value=True):
         result = strategy.handle(warnings, mock_ui)
-    
+
     # verify model selection prompt
     prompts = mock_ui.get_prompts()
     assert len(prompts) == 1
     assert "Enter model number" in prompts[0]
-    
+
     # should return retry w/ new model
     assert result.should_continue is True
     assert result.value == "gpt-5-mini"
@@ -133,10 +137,10 @@ def test_model_retry_strategy_model_name():
     warnings = ["Model issues"]
     mock_ui = MockUI(responses=["gpt-4o"])
     strategy = ModelRetryStrategy()
-    
-    with patch('sys.stdin.isatty', return_value=True):
+
+    with patch("sys.stdin.isatty", return_value=True):
         result = strategy.handle(warnings, mock_ui)
-    
+
     assert result.value == "gpt-4o"
     assert result.should_continue is True
 
@@ -146,10 +150,10 @@ def test_model_retry_strategy_invalid_then_valid():
     warnings = ["Model error"]
     mock_ui = MockUI(responses=["99", "1"])  # Invalid then GPT-5
     strategy = ModelRetryStrategy()
-    
-    with patch('sys.stdin.isatty', return_value=True):
+
+    with patch("sys.stdin.isatty", return_value=True):
         result = strategy.handle(warnings, mock_ui)
-    
+
     # should prompt twice
     prompts = mock_ui.get_prompts()
     assert len(prompts) == 2
@@ -161,11 +165,11 @@ def test_model_retry_strategy_non_interactive():
     warnings = ["Model change needed"]
     mock_ui = MockUI()
     strategy = ModelRetryStrategy()
-    
-    with patch('sys.stdin.isatty', return_value=False):
+
+    with patch("sys.stdin.isatty", return_value=False):
         with pytest.raises(ValidationError) as exc_info:
             strategy.handle(warnings, mock_ui)
-        
+
         assert "Model change not available" in str(exc_info.value)
 
 
@@ -174,11 +178,11 @@ def test_manual_strategy_non_interactive():
     warnings = ["Manual fix required"]
     mock_ui = MockUI()
     strategy = ManualStrategy()
-    
-    with patch('sys.stdin.isatty', return_value=False):
+
+    with patch("sys.stdin.isatty", return_value=False):
         with pytest.raises(ValidationError) as exc_info:
             strategy.handle(warnings, mock_ui)
-        
+
         assert "Manual mode not available" in str(exc_info.value)
 
 
@@ -187,14 +191,14 @@ def test_fail_soft_strategy_displays_info(mock_settings):
     warnings = ["Soft fail test", "File validation error"]
     mock_ui = MockUI()
     strategy = FailSoftStrategy()
-    
+
     with pytest.raises(SystemExit):
         strategy.handle(warnings, mock_ui, mock_settings)
-    
+
     # verify print calls include warnings & file paths
     print_calls = mock_ui.print_calls
     assert len(print_calls) > 0
-    
+
     # flatten all print call args to check content
     all_printed = " ".join(str(call[0]) for call in print_calls)
     assert "Validation failed (soft fail)" in all_printed
@@ -207,9 +211,9 @@ def test_retry_strategy():
     warnings = ["Retry needed"]
     mock_ui = MockUI()
     strategy = RetryStrategy()
-    
+
     result = strategy.handle(warnings, mock_ui)
-    
+
     assert result.success is False
     assert result.should_continue is True
     assert result.value == warnings
@@ -218,7 +222,7 @@ def test_retry_strategy():
 # * Test interactive flow w/ Rich console recording
 def test_interactive_validation_output_capture():
     warnings = ["Test validation error"]
-    
+
     with capture_rich_output() as console:
         # patch the console in UI to capture output
         mock_ui = Mock()
@@ -226,15 +230,15 @@ def test_interactive_validation_output_capture():
         mock_ui.ask.return_value = "s"
         mock_ui.input_mode.return_value.__enter__ = Mock()
         mock_ui.input_mode.return_value.__exit__ = Mock()
-        
+
         strategy = AskStrategy()
-        
+
         # patch isatty for interactive environment
-        with patch('sys.stdin.isatty', return_value=True):
+        with patch("sys.stdin.isatty", return_value=True):
             # this will exit via FailSoftStrategy
             with pytest.raises(SystemExit):
                 strategy.handle(warnings, mock_ui)
-        
+
         output = extract_plain_text(console)
         assert "Validation errors found" in output
         assert "Test validation error" in output

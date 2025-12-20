@@ -1,0 +1,63 @@
+[template]
+id = "swe-latex"
+type = "resume"
+name = "Software Engineering LaTeX Resume"
+version = "1.0.0"
+
+[sections.heading]
+pattern = "\\input{src/heading}"
+pattern_type = "literal"
+split_items = false
+optional = false
+
+[sections.education]
+pattern = "\\\\sectionhead{Education}|\\\\input{src/education}"
+pattern_type = "regex"
+split_items = true
+optional = false
+
+[sections.experience]
+pattern = "\\\\sectionhead{Experience}|\\\\input{src/experience}"
+pattern_type = "regex"
+split_items = true
+optional = false
+
+[sections.projects]
+pattern = "\\\\sectionhead{Projects}|\\\\input{src/projects}"
+pattern_type = "regex"
+split_items = true
+optional = false
+
+[sections.skills]
+pattern = "\\\\sectionhead{Skills}|\\\\input{src/skills}"
+pattern_type = "regex"
+split_items = false
+optional = false
+
+[sections.publications]
+pattern = "\\\\sectionhead{Publications}|\\\\input{src/publications}"
+pattern_type = "regex"
+split_items = true
+optional = true
+
+[sections.certifications]
+pattern = "\\\\sectionhead{Certifications}|\\\\input{src/certifications}"
+pattern_type = "regex"
+split_items = true
+optional = true
+
+[frozen]
+paths = [
+  "src/custom-commands.tex",
+  "src/heading.tex"
+]
+patterns = [
+  "\\documentclass",
+  "\\usepackage",
+  "\\newcommand",
+  "\\renewcommand"
+]
+
+[custom]
+partials_dir = "src"
+main_file = "resume.tex"

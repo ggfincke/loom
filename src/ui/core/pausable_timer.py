@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import time
 
+
 # pausable timer implementation for UI progress tracking
 class PausableTimer:
     def __init__(self) -> None:
@@ -32,7 +33,7 @@ class PausableTimer:
     def elapsed(self) -> float:
         self.start_if_needed()
         now = self._paused_at if self._paused_at is not None else time.monotonic()
-        
+
         # _started_at is guaranteed to be set by start_if_needed()
         assert self._started_at is not None
         return max(0.0, now - self._started_at - self._paused_total)

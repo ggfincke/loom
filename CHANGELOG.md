@@ -4,6 +4,162 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.3.0] - 2025-12-20
+
+### Added
+- **Universal LaTeX handler**: Complete template metadata system with section detection and safe edit filtering
+- **Template commands**: `loom templates` for discovery, `loom init` for scaffolding from bundled templates
+- **swe-latex template**: Bundled LaTeX resume template with TOML metadata and inline markers
+- **Provider caching**: API key and availability caching for OpenAI, Claude, and Ollama
+- **GitHub Actions**: CI/CD workflows for testing, releases, and prerelease tagging
+
+### Changed
+- **AI architecture**: Centralized JSON parsing, response validation, and error handling in `ai/utils.py`
+- **Unified tailoring runner**: New `runner.py` consolidates command orchestration logic
+- **Diff display**: Refactored with state machine pattern for improved maintainability
+- **LaTeX patterns**: Consolidated into dedicated `latex_patterns.py` module
+- **Edit helpers**: Extracted shared operation logic to `edit_helpers.py`
+- **Code formatting**: Applied Black formatter across entire codebase
+
+### Infrastructure
+- **Test coverage**: 809 tests at 88% coverage with pytest-socket network isolation
+- **Build system**: Package data support for template distribution
+
+---
+
+## [1.2.11] - 2025-12-20
+
+### Changed
+- **Diff display refactoring**: Restructured `diff_display.py` with state machine pattern (1193 lines reorganized) for improved maintainability
+- **Theme engine enhancements**: Improved `theme_engine.py` implementation
+- **Module export cleanup**: Removed unused exports from UI module `__init__.py` files
+
+---
+
+## [1.2.10] - 2025-12-20
+
+### Changed
+- **AI response processing**: Centralized response processing and validation logic in `ai/utils.py` (+108 lines)
+- **Document utilities**: Reorganized `documents.py` structure (111 lines modified) and enhanced `generics.py` (+8 lines)
+- **Plan command**: Simplified `plan.py` command with unified architecture (-64 lines net)
+
+---
+
+## [1.2.9] - 2025-12-20
+
+### Added
+- **Comprehensive LaTeX handler**: New `latex_handler.py` module (655 lines) for robust LaTeX document processing
+
+### Changed
+- **LaTeX pattern consolidation**: New `latex_patterns.py` module (59 lines) for centralized pattern handling
+- **LaTeX I/O infrastructure**: Enhanced `loom_io/__init__.py` with improved exports (+46 lines)
+- **AI error handling**: Improved error handling in `ai/utils.py` (+31 lines modified)
+- **Test suite updates**: Updated `test_logic.py` and `test_pipeline.py` for new LaTeX functionality
+
+---
+
+## [1.2.8] - 2025-11-23
+
+### Changed
+- **Templates directory structure**: Reorganized swe-latex template into `templates/swe-latex/` subdirectory for multi-template support
+- **Templates README**: Updated to generic layout documentation with CLI usage examples (`loom templates`, `loom init`)
+- **LaTeX build artifacts**: Updated `.gitignore` patterns to support nested templates (`templates/**/*.aux` etc.)
+- **Documentation references**: Updated `docs/latex-templates-design.md` to reference both templates layout and template-specific documentation
+- **PEP 440 version format**: Updated nightly release format from `-nightly.20251120` to `.dev20251120` for consistency with Python standards
+- **Code formatting**: Applied Black formatter to entire codebase for consistent PEP 8 compliance
+
+### Infrastructure
+- **Black code formatter**: Integrated into development tooling with configuration in pyproject.toml
+- **Optional dependencies**: Moved dev dependencies to `[project.optional-dependencies]` section in pyproject.toml
+
+### Fixed
+- **Test failures**: Updated model validation tests to handle "not found" error messages
+- **Template path**: Fixed LaTeX handler test to use new template path `templates/swe-latex/resume.tex`
+
+---
+
+## [1.2.6-nightly.20251120] - 2025-11-20
+
+### Added
+- **LaTeX handler tests**: Unit tests for `latex_handler` module (section detection, edit filtering, template detection, payload generation)
+- **Template command tests**: Unit tests for `templates` and `init` commands (listing, scaffolding, error handling)
+- **Integration tests**: LaTeX sectionize workflow validation and template command integration tests
+
+### Changed
+- **Test infrastructure**: Made `pytest-socket` optional in `conftest.py` to prevent failures when not installed
+- **Code style**: Comment consistency improvements ("using" → "w/")
+
+### Removed
+- **Deprecated tests**: Removed 975-line `test_prompt_command.py` (no longer relevant)
+
+---
+
+## [1.2.5-nightly.20251120] - 2025-11-20
+
+### Added
+- **Template distribution infrastructure**: `MANIFEST.in` includes `*.tex`, `*.toml`, `*.md` files from templates directory
+- **swe-latex template metadata**: Comprehensive `loom-template.toml` with section patterns, frozen paths, and custom metadata
+- **Inline template marker**: Added `% loom-template: swe-latex` to `resume.tex` for robust template detection
+- **Package data support**: Enabled `include-package-data = true` in `pyproject.toml` for template bundling
+
+### Changed
+- **Templates README**: Updated with CLI usage instructions (`loom templates`, `loom init`) and removed "Future Integration" section
+
+---
+
+## [1.2.4-nightly.20251120] - 2025-11-20
+
+### Added
+- **LaTeX-aware sectionize**: `.tex` files now bypass AI and use native handler for instant section extraction
+- **LaTeX auto-sectionization**: `tailor` and `apply` commands auto-generate sections for LaTeX when not provided
+- **Template detection helpers**: New `build_latex_context()` function centralizes template detection logic
+- **LaTeX edit filtering**: `apply_edits_core()` now filters edits to preserve LaTeX structure and display safety notes
+
+### Changed
+- **Sectionize workflow**: Model parameter no longer required for LaTeX files
+- **Progress indicators**: Adjusted step counts for LaTeX vs DOCX processing (3 vs 4 steps)
+- **Template metadata display**: Commands show detected template ID and notes when LaTeX templates found
+- **Error message style**: Updated mutual exclusivity messages ("and" → "&")
+
+---
+
+## [1.2.3-nightly.20251120] - 2025-11-20
+
+### Added
+- **Template discovery command**: `loom templates` lists all bundled LaTeX templates with metadata
+- **Template initialization command**: `loom init --template <id>` scaffolds new resume workspaces from templates
+- **Template command help**: Enhanced help system with option metadata and usage examples for template commands
+
+### Changed
+- **CLI app registration**: Added `templates` and `init` commands to main app
+- **Help renderer**: Updated quick usage guide with template workflow examples
+- **Code style**: Minor comment consistency improvements ("the app" → "app", "and" → "&")
+
+---
+
+## [1.2.2-nightly.20251120] - 2025-11-20
+
+### Added
+- **Universal LaTeX handler**: New `latex_handler.py` module with template metadata support
+  - `TemplateDescriptor`, `LatexSection`, `LatexAnalysis` dataclasses for structured LaTeX processing
+  - Template detection via `loom-template.toml` files or inline `% loom-template: <id>` markers
+  - Generic LaTeX section detection supporting `\section`, `\subsection`, `\cvsection`, `\sectionhead`
+  - Semantic section matching for Education, Experience, Projects, Skills, Publications, Certifications
+  - Intelligent bullet detection (`\item`, `\entry`, `\cventry`, `\cvitem`)
+  - Safe edit filtering to preserve LaTeX structure (frozen paths, structural patterns, command preservation)
+- **LaTeX handler API**: Exported functions `detect_template()`, `analyze_latex()`, `sections_to_payload()`, `filter_latex_edits()`, `load_descriptor()`
+- **Design documentation**: Comprehensive architecture guide in `docs/latex-templates-design.md`
+
+---
+
+## [1.2.1-nightly.20250901] - 2025-09-01
+
+### Added
+- **Git hooks for automated versioning**: Install script and pre-commit/pre-push hooks to automatically version nightly releases and ensure changelog consistency
+
+---
+
 ## [1.2.0] - 2025-09-01
 
 ### Added
