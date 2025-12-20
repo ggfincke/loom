@@ -633,7 +633,7 @@ class TestProcessPromptOperation:
         assert sample_job_text in prompt
         assert "replace_line" in prompt
 
-    # * Test AI failure handling
+    # * Test AI failure handling (API-level failures raise AIError)
     @patch("src.core.pipeline.run_generate")
     def test_process_prompt_operation_ai_failure(
         self,
@@ -645,7 +645,7 @@ class TestProcessPromptOperation:
     ):
         mock_run_generate.return_value = mock_ai_failure_response
 
-        with pytest.raises(JSONParsingError) as exc_info:
+        with pytest.raises(AIError) as exc_info:
             process_prompt_operation(
                 edit_op=sample_edit_operation,
                 resume_lines=sample_resume_lines,
@@ -655,7 +655,7 @@ class TestProcessPromptOperation:
             )
 
         error_msg = str(exc_info.value)
-        assert "AI generated invalid JSON during PROMPT operation" in error_msg
+        assert "AI failed to process PROMPT operation" in error_msg
         assert "AI model unavailable" in error_msg
 
     # * Test invalid JSON response handling

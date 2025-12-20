@@ -1545,11 +1545,10 @@ class TestComplexOrchestrationScenarios:
         job_file = tmp_path / "data" / "job.txt"
         job_file.write_text("Job description")
 
-        # test error propagation - simplified
+        # test error propagation - API failures raise AIError
         from src.core.pipeline import generate_edits
-        from src.core.exceptions import JSONParsingError
 
-        with pytest.raises(JSONParsingError):
+        with pytest.raises(AIError):
             result = generate_edits(
                 resume_lines=mock_read_resume.return_value,
                 job_text="job description",

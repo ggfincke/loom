@@ -57,7 +57,7 @@ def strip_markdown_code_blocks(text: str) -> str:
         return text.strip()
 
 
-# * Convert GenerateResult to dict, raising JSONParsingError on failure
+# * Convert GenerateResult to dict, raising appropriate error on failure
 def convert_result_to_dict(
     result: GenerateResult,
     model: str,
@@ -66,19 +66,30 @@ def convert_result_to_dict(
     include_snippets: bool = True,
 ) -> dict:
     # ! import here to avoid circular dependency w/ core module
-    from ..core.exceptions import JSONParsingError
+    from ..core.exceptions import JSONParsingError, AIError
     from ..core.debug import debug_error
 
     if not result.success:
         debug_error(Exception(result.error), f"AI {context} failed for model {model}")
-        lines = result.json_text.split("\n") if result.json_text else []
-        snippet = (
-            "\n".join(lines[:5]) + "\n..." if len(lines) > 5 else result.json_text
-        )
-        error_msg = f"AI generated invalid JSON during {context} using model '{model}':\n{snippet}\nError: {result.error}"
-        if result.raw_text and result.raw_text != result.json_text:
-            error_msg += f"\nFull raw response: {result.raw_text[:300]}{'...' if len(result.raw_text) > 300 else ''}"
-        raise JSONParsingError(error_msg)
+
+        # distinguish API errors (no response) from parsing errors (got response)
+        has_raw = isinstance(result.raw_text, str) and len(result.raw_text) > 0
+        has_json = isinstance(result.json_text, str) and len(result.json_text) > 0
+        has_response = has_raw or has_json
+
+        if has_response:
+            # got a response but couldn't parse it - JSONParsingError
+            lines = result.json_text.split("\n") if result.json_text else []
+            snippet = (
+                "\n".join(lines[:5]) + "\n..." if len(lines) > 5 else result.json_text
+            )
+            error_msg = f"AI generated invalid JSON during {context} using model '{model}':\n{snippet}\nError: {result.error}"
+            if result.raw_text and result.raw_text != result.json_text:
+                error_msg += f"\nFull raw response: {result.raw_text[:300]}{'...' if len(result.raw_text) > 300 else ''}"
+            raise JSONParsingError(error_msg)
+        else:
+            # API call failed with no response - AIError
+            raise AIError(f"AI failed to process {context}: {result.error}")
 
     return result.data
 
