@@ -26,7 +26,9 @@ def _make_openai_call(prompt: str, model: str) -> APICallContext:
     except Exception as e:
         raise AIError(f"OpenAI API error: {str(e)}")
 
-    return APICallContext(raw_text=resp.output_text, provider_name="openai", model=model)
+    return APICallContext(
+        raw_text=resp.output_text, provider_name="openai", model=model
+    )
 
 
 # * Generate JSON response using OpenAI API w/ model validation
