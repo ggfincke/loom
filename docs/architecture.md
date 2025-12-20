@@ -10,60 +10,80 @@ Loom is a Python CLI application built with Typer that uses AI providers (OpenAI
 
 ```
 src/
-├── main.py                # Entry point (delegates to cli.app)
+├── main.py                    # Entry point (delegates to cli.app)
 ├── ai/
-│   ├── clients/openai_client.py  # OpenAI API integration
-│   ├── clients/claude_client.py  # Anthropic Claude integration
-│   ├── clients/ollama_client.py  # Local Ollama integration
-│   └── clients/factory.py        # Provider selection
-│   ├── prompts.py         # Prompt engineering for AI interactions
-│   └── types.py           # AI result types
+│   ├── clients/
+│   │   ├── openai_client.py   # OpenAI API integration
+│   │   ├── claude_client.py   # Anthropic Claude integration
+│   │   ├── ollama_client.py   # Local Ollama integration
+│   │   └── factory.py         # Provider selection
+│   ├── models.py              # Model configuration & validation
+│   ├── prompts.py             # Prompt templates for AI interactions
+│   ├── types.py               # AI result types (GenerateResult)
+│   └── utils.py               # Shared utilities (JSON parsing, response processing)
 ├── cli/
-│   ├── app.py             # Typer app + command registration
-│   ├── helpers.py         # CLI-layer orchestration + I/O glue
-│   ├── logic.py           # CLI business logic coordination
-│   ├── params.py          # Argument and option definitions
-│   └── commands/          # Individual command modules
-│       ├── sectionize.py  # Resume section parsing command
-│       ├── generate.py    # Edit generation command
-│       ├── apply.py       # Edit application command
-│       ├── tailor.py      # End-to-end tailoring command
-│       ├── plan.py        # Planning workflow command
-│       ├── config.py      # Configuration management command
-│       └── help.py        # Enhanced help system
+│   ├── app.py                 # Typer app + command registration
+│   ├── runner.py              # Unified tailoring runner (generate/apply/tailor/plan)
+│   ├── logic.py               # CLI business logic coordination
+│   ├── helpers.py             # CLI helpers & validation
+│   ├── params.py              # Argument and option definitions
+│   └── commands/
+│       ├── sectionize.py      # Resume section parsing
+│       ├── generate.py        # Edit generation
+│       ├── apply.py           # Edit application
+│       ├── tailor.py          # End-to-end tailoring
+│       ├── plan.py            # Planning workflow
+│       ├── config.py          # Configuration management
+│       ├── models.py          # List available models
+│       ├── help.py            # Enhanced help system
+│       ├── init.py            # Workspace initialization
+│       ├── templates.py       # Template discovery & listing
+│       └── dev/
+│           └── display.py     # Development utilities
 ├── config/
-│   └── settings.py        # Settings manager (~/.loom/config.json)
+│   └── settings.py            # Settings manager (~/.loom/config.json)
 ├── core/
-│   ├── pipeline.py        # Core processing pipeline and edit operations
-│   ├── validation.py      # Validation gates and helpers
-│   ├── exceptions.py      # Custom exception classes
-│   └── constants.py       # Enums and constants
+│   ├── pipeline.py            # Core processing pipeline and edit operations
+│   ├── validation.py          # Strategy-based validation error handling
+│   ├── edit_helpers.py        # Edit validation & utility functions
+│   ├── exceptions.py          # Custom exception classes
+│   ├── constants.py           # Enums and constants
+│   └── debug.py               # Debug logging utilities
 ├── loom_io/
-│   ├── documents.py       # DOCX reading/writing, line numbering
-│   ├── console.py         # Console output helpers
-│   ├── generics.py        # Generic file helpers (json/text)
-│   └── types.py           # I/O type definitions
+│   ├── documents.py           # DOCX/LaTeX/text reading with formatting
+│   ├── latex_handler.py       # Comprehensive LaTeX handler with template support
+│   ├── latex_patterns.py      # Shared LaTeX pattern constants
+│   ├── console.py             # Rich console wrapper
+│   ├── generics.py            # Generic file helpers (JSON/text I/O)
+│   └── types.py               # I/O type definitions (Lines dict)
 └── ui/
-    ├── ascii_art.py       # Banner display functionality
-    ├── banner.txt         # ASCII art banner
-    ├── colors.py          # Color scheme definitions
-    ├── typer_styles.py    # Custom Typer styling & theme integration
-    ├── console_theme.py   # Rich theme wiring
-    ├── progress.py        # Progress indicators
-    ├── reporting.py       # Output & diff reporting
-    ├── pausable_timer.py  # Timer utilities
-    ├── theme_selector.py  # Interactive theme selection
-    ├── ui.py              # Progress/input utilities
-    ├── help/              # Enhanced help system
-    │   ├── help_renderer.py # Custom help rendering
-    │   └── help_data.py     # Help content & metadata
-    └── quick/             # Quick usage utilities
-        └── quick_usage.py # Quick command shortcuts
+    ├── core/
+    │   ├── ui.py              # UI abstraction layer
+    │   ├── progress.py        # Progress display & loading
+    │   ├── pausable_timer.py  # Timer that pauses during interaction
+    │   └── rich_components.py # Centralized Rich imports
+    ├── theming/
+    │   ├── theme_engine.py    # Theme engine implementation
+    │   ├── theme_definitions.py # Theme color definitions
+    │   ├── theme_selector.py  # Interactive theme selection
+    │   ├── console_theme.py   # Console-specific theming
+    │   └── typer_styles.py    # Typer help styling patches
+    ├── display/
+    │   ├── ascii_art.py       # ASCII art rendering
+    │   ├── banner.txt         # Banner text file
+    │   └── reporting.py       # Result reporting & formatting
+    ├── diff_resolution/
+    │   └── diff_display.py    # Diff display with state machine pattern
+    ├── help/
+    │   ├── help_renderer.py   # Branded help screen rendering
+    │   └── help_data.py       # Help metadata & command registration
+    └── quick/
+        └── quick_usage.py     # Quick usage guide display
 ```
 
 ## Core Architecture
 
-### 1. CLI Layer (`src/cli/app.py` and `src/cli/commands/*`)
+### 1. CLI Layer (`src/cli/app.py`, `src/cli/runner.py`, and `src/cli/commands/*`)
 Typer-based CLI w/ Rich for progress & custom theming. Commands:
 
 - `sectionize`: Parses resume into structured sections
@@ -72,6 +92,16 @@ Typer-based CLI w/ Rich for progress & custom theming. Commands:
 - `tailor`: End-to-end: generate+apply to produce tailored resume
 - `plan`: Planning-based edit generation
 - `config`: Configuration management with theme selection
+- `models`: List available models by provider
+- `init`: Initialize workspace from template
+- `templates`: Discover and list available templates
+
+**Unified Runner** (`cli/runner.py`):
+Central orchestrator for all tailoring modes via `TailoringMode` enum:
+- `GENERATE`: Produce edits.json only
+- `APPLY`: Apply existing edits to resume
+- `TAILOR`: Generate + apply in one pass
+- `PLAN`: Multi-step planning workflow
 
 Enhanced help system:
 - Custom branded help screens with gradient styling
@@ -82,8 +112,8 @@ Enhanced help system:
 Command execution pattern:
 1. Load settings and validate inputs
 2. Create Rich progress tracker with theme-aware styling
-3. Execute pipeline operations with progress updates
-4. Handle validation warnings
+3. Execute pipeline operations via unified runner
+4. Handle validation warnings with strategy pattern
 5. Write outputs and display success messages
 
 ### 2. Pipeline Layer (`pipeline.py`)
@@ -106,35 +136,55 @@ Core processing engine:
   - `delete_range`: Remove line ranges
 - Returns modified lines dict
 
-**Validation System**:
+**Validation System** (`core/validation.py`, `core/edit_helpers.py`):
 - Pre-generation validation of AI responses
 - Pre-application validation of edit operations
 - Line bounds checking, conflict detection
 - Risk-based validation levels (low/med/high/strict)
+- Strategy pattern for error handling (Ask/Retry/Manual/Fail strategies)
 - Warning generation and policy enforcement
 
-### 3. Document Layer (`src/loom_io/documents.py`)
-Document I/O operations:
+### 3. Document Layer (`src/loom_io/`)
+Document I/O operations across multiple modules:
 
+**documents.py** — Core document operations:
 - **DOCX Reading**: Extracts text from Word documents into line-numbered dict
 - **DOCX Writing**: Reconstructs Word documents from line dict
 - **Line Numbering**: Converts line dict to numbered text format for AI
 - **Text/JSON I/O**: Utility functions for file operations
 
+**latex_handler.py** — Comprehensive LaTeX support:
+- Template metadata loading and validation
+- Safe edit filtering to protect structural commands
+- LaTeX-aware document reconstruction
+
+**latex_patterns.py** — Shared LaTeX pattern constants:
+- Structural commands (document, section, begin/end)
+- Item and formatting patterns
+- Regex patterns for content identification
+
 Key data structure: `Lines = Dict[int, str]` — maps line numbers to text content.
 
-### 4. AI Integration (`src/ai/clients/*`, `src/ai/prompts.py`, `src/ai/models.py`)
+### 4. AI Integration (`src/ai/`)
 
-Providers:
+**clients/** — Provider implementations:
 - OpenAI: Responses-style JSON outputs
 - Anthropic (Claude): JSON-compatible responses
 - Ollama: Local models; availability detection; prompts enforce JSON
+- Factory: Provider selection via `clients/factory.py`
 
-Provider selection via `clients/factory.py`. Model aliasing, validation, & availability in `ai/models.py`.
+**models.py** — Model configuration:
+- Model aliasing, validation, & availability checking
+- Provider-specific model listings
 
-Prompt Engineering:
+**prompts.py** — Prompt engineering:
 - Sectionizer: identifies sections, subsections, confidence scores
 - Generate: strict policies on truthfulness, job alignment, bounded edits
+
+**utils.py** — Shared utilities:
+- JSON parsing and extraction from AI responses
+- Markdown stripping and response processing
+- Common error handling for malformed outputs
 
 ### 5. Configuration (`src/config/settings.py`)
 Persistent user preferences:
@@ -147,12 +197,13 @@ Persistent user preferences:
 ### 6. CLI Enhancements & UI (`src/cli/`, `src/ui/`)
 CLI Types (`src/cli/params.py`): argument validation, path resolution, normalized flags (e.g., `--risk`, `--on-error`).
 
-UI System (`src/ui/`):
-- Theme Management: interactive selector + persistent theme
-- Custom Help: branded help screens w/ gradients
-- Progress Indicators: theme-aware Rich progress
-- Reporting: unified result messages & diffs
-- Quick Access: quick usage shortcuts
+UI System (`src/ui/`) organized into subdirectories:
+- **core/**: UI abstraction layer, progress display, pausable timer, Rich components
+- **theming/**: Theme engine, definitions, selector, console theme, Typer styling
+- **display/**: ASCII art, banner, result reporting & formatting
+- **diff_resolution/**: Diff display with state machine pattern for visualization
+- **help/**: Branded help screen rendering & metadata
+- **quick/**: Quick usage guide display
 
 ## Data Flow
 
@@ -233,11 +284,12 @@ CLI args override settings, which override hardcoded defaults.
 1. New edit operations in `core/pipeline.py`
 2. Prompt templates in `ai/prompts.py`
 3. Readers/writers in `loom_io/documents.py`
-4. Validation rules in `core/validation.py`
-5. CLI commands in `cli/commands/`
-6. UI themes in `ui/colors.py`
-7. Help content in `ui/help/help_data.py`
-8. Interactive UI components in `ui/`
+4. LaTeX handling in `loom_io/latex_handler.py`
+5. Validation rules in `core/validation.py`
+6. CLI commands in `cli/commands/`
+7. UI themes in `ui/theming/theme_definitions.py`
+8. Help content in `ui/help/help_data.py`
+9. Interactive UI components in `ui/core/`
 
 ## Error Handling & Policies
 

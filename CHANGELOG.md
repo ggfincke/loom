@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.11] - 2025-12-20
+
+### Changed
+- **Diff display refactoring**: Restructured `diff_display.py` with state machine pattern (1193 lines reorganized) for improved maintainability
+- **Theme engine enhancements**: Improved `theme_engine.py` implementation
+- **Module export cleanup**: Removed unused exports from UI module `__init__.py` files
+
+---
+
+## [1.2.10] - 2025-12-20
+
+### Changed
+- **AI response processing**: Centralized response processing and validation logic in `ai/utils.py` (+108 lines)
+- **Document utilities**: Reorganized `documents.py` structure (111 lines modified) and enhanced `generics.py` (+8 lines)
+- **Plan command**: Simplified `plan.py` command with unified architecture (-64 lines net)
+
+---
+
+## [1.2.9] - 2025-12-20
+
+### Added
+- **Comprehensive LaTeX handler**: New `latex_handler.py` module (655 lines) for robust LaTeX document processing
+
+### Changed
+- **LaTeX pattern consolidation**: New `latex_patterns.py` module (59 lines) for centralized pattern handling
+- **LaTeX I/O infrastructure**: Enhanced `loom_io/__init__.py` with improved exports (+46 lines)
+- **AI error handling**: Improved error handling in `ai/utils.py` (+31 lines modified)
+- **Test suite updates**: Updated `test_logic.py` and `test_pipeline.py` for new LaTeX functionality
+
+---
+
 ## [1.2.8] - 2025-11-23
 
 ### Changed

@@ -188,7 +188,7 @@ def styled_checkmark() -> Text:
 
 
 def styled_arrow() -> Text:
-    return Text("→", style=LoomColors.ARROW)
+    return Text("->", style=LoomColors.ARROW)
 
 
 def styled_bullet() -> Text:

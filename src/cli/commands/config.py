@@ -167,7 +167,7 @@ def set_cmd(key: str, value: str) -> None:
     console.print(
         styled_checkmark(),
         success_gradient(f"Set {key}"),
-        "→",
+        "->",
         f"[loom.accent2]{json.dumps(coerced)}[/]",
     )
 
