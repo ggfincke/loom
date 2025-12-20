@@ -4,7 +4,6 @@
 from .theme_definitions import THEMES
 from .theme_engine import (
     get_active_theme,
-    update_gradient_colors,
     LoomColors,
     natural_gradient,
     success_gradient,
@@ -22,7 +21,6 @@ from .theme_selector import interactive_theme_selector
 __all__ = [
     "THEMES",
     "get_active_theme",
-    "update_gradient_colors",
     "LoomColors",
     "natural_gradient",
     "success_gradient",

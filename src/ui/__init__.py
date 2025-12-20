@@ -16,7 +16,6 @@ from .core import (
 from .theming import (
     THEMES,
     get_active_theme,
-    update_gradient_colors,
     LoomColors,
     natural_gradient,
     success_gradient,
@@ -68,7 +67,6 @@ __all__ = [
     # Theming
     "THEMES",
     "get_active_theme",
-    "update_gradient_colors",
     "LoomColors",
     "natural_gradient",
     "success_gradient",

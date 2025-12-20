@@ -34,18 +34,6 @@ def get_active_theme() -> list[str]:
         return THEMES["deep_blue"]
 
 
-# active theme (set dynamically)
-GRADIENT_COLORS = get_active_theme()
-
-
-# update global gradient colors & LoomColors w/ current theme
-def update_gradient_colors() -> None:
-    global GRADIENT_COLORS
-    GRADIENT_COLORS = get_active_theme()
-    # also update LoomColors to stay in sync
-    LoomColors._refresh_colors()
-
-
 # * RGB color interpolation helper functions for natural gradients
 def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
     hex_color = hex_color.lstrip("#")
@@ -71,16 +59,7 @@ def _lerp_color(a_hex: str, b_hex: str, t: float) -> str:
 
 # semantic color mappings for consistent theming
 class LoomColors:
-    @classmethod
-    def _refresh_colors(cls):
-        # refresh colors from current theme
-        colors = get_active_theme()
-        cls.ACCENT_PRIMARY = colors[0]
-        cls.ACCENT_SECONDARY = colors[2]
-        cls.ACCENT_DEEP = colors[4]
-        cls.ARROW = colors[2]  # keep arrow color in sync
-
-    # initial color setup (will be updated via _refresh_colors)
+    # theme-aware accent colors (loaded once at import)
     _colors = get_active_theme()
     ACCENT_PRIMARY = _colors[0]
     ACCENT_SECONDARY = _colors[2]
