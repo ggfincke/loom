@@ -112,7 +112,9 @@ class TestProcessJsonResponse:
         result = process_json_response(mock_api_call, "test prompt", "gpt-4o")
 
         assert result.success is True
-        assert result.data == {"edits": [{"type": "replace", "line": 1, "text": "hello"}]}
+        assert result.data == {
+            "edits": [{"type": "replace", "line": 1, "text": "hello"}]
+        }
 
 
 # * Test strip_markdown_code_blocks helper
