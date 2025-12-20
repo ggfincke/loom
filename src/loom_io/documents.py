@@ -10,7 +10,15 @@ from typing import Dict, Tuple, Any, List, Set
 from .types import Lines
 from ..core.exceptions import LaTeXError
 from .generics import ensure_parent
-from ..core.validation import validate_basic_latex_syntax
+from .latex_patterns import (
+    STRUCTURAL_PREFIXES,
+    SECTION_PREFIXES,
+    ITEM_COMMANDS,
+    SPECIAL_PREFIXES,
+)
+
+# ! Related: LaTeX patterns defined in latex_patterns.py
+# ! Moved to lazy import below to avoid circular dependency w/ core/validation
 
 
 # * Read DOCX file & return text content w/ document object
@@ -36,31 +44,11 @@ def read_docx(path: Path) -> Lines:
     return lines
 
 
-# * Read LaTeX (.tex) file as numbered lines (basic support)
-def read_latex(path: Path) -> Lines:
-    try:
-        text = Path(path).read_text(encoding="utf-8")
-    except UnicodeDecodeError as e:
-        raise LaTeXError(f"Cannot decode LaTeX file {path}: {e}")
-    except Exception as e:
-        raise LaTeXError(f"Cannot read LaTeX file {path}: {e}")
+# * Read LaTeX (.tex) file as numbered lines
+def read_latex(path: Path, preserve_structure: bool = False) -> Lines:
+    # ! Lazy import to avoid circular dependency
+    from .latex_handler import validate_basic_latex_syntax
 
-    # validate basic LaTeX syntax
-    if not validate_basic_latex_syntax(text):
-        raise LaTeXError(f"Invalid LaTeX syntax detected in {path}")
-
-    lines: Lines = {}
-    line_number = 1
-    for raw in text.splitlines():
-        t = raw.strip()
-        if t:
-            lines[line_number] = t
-            line_number += 1
-    return lines
-
-
-# * Read LaTeX (.tex) file w/ structure preservation
-def read_latex_with_structure(path: Path) -> Lines:
     try:
         text = Path(path).read_text(encoding="utf-8")
     except UnicodeDecodeError as e:
@@ -75,46 +63,63 @@ def read_latex_with_structure(path: Path) -> Lines:
     lines: Lines = {}
     line_number = 1
 
-    for raw in text.splitlines():
-        # preserve important structural elements even if "empty"
-        t = raw.strip()
+    if preserve_structure:
+        # Structured mode: preserve comments, commands, strategic empty lines
+        for raw in text.splitlines():
+            t = raw.strip()
 
-        # preserve important LaTeX constructs
-        if (
-            t.startswith("%")  # comments
-            or t.startswith("\\documentclass")
-            or t.startswith("\\usepackage")
-            or t.startswith("\\begin{")
-            or t.startswith("\\end{")
-            or t.startswith("\\section")
-            or t.startswith("\\subsection")
-            or t.startswith("\\item")
-            or (t and not t.isspace())
-        ):
-            lines[line_number] = t
-            line_number += 1
-        # preserve strategic empty lines
-        elif raw == "" and line_number > 1:
-            # add empty line for structural spacing
-            prev_line = lines.get(line_number - 1, "")
-            if (
-                prev_line.startswith("\\end{")
-                or prev_line.startswith("\\section")
-                or prev_line.startswith("\\subsection")
-            ):
-                lines[line_number] = ""
+            # Preserve important LaTeX constructs
+            if _should_preserve_latex_line(t):
+                lines[line_number] = t
+                line_number += 1
+            # Preserve strategic empty lines after structural commands
+            elif raw == "" and line_number > 1:
+                prev_line = lines.get(line_number - 1, "")
+                if _should_preserve_empty_line_after(prev_line):
+                    lines[line_number] = ""
+                    line_number += 1
+    else:
+        # Basic mode: strip whitespace, keep only non-empty content
+        for raw in text.splitlines():
+            t = raw.strip()
+            if t:
+                lines[line_number] = t
                 line_number += 1
 
     return lines
+
+
+# * Helper functions for LaTeX structure preservation
+
+def _should_preserve_latex_line(line: str) -> bool:
+    """Check if line contains LaTeX construct worth preserving in structured mode."""
+    stripped = line.strip()
+
+    # Check structural, section, item, or comment prefixes
+    all_prefixes = STRUCTURAL_PREFIXES + SECTION_PREFIXES + ITEM_COMMANDS + SPECIAL_PREFIXES
+
+    return (
+        stripped.startswith(all_prefixes)
+        or (line and not line.isspace())
+    )
+
+
+def _should_preserve_empty_line_after(prev_line: str) -> bool:
+    """Check if empty line should be preserved after previous line."""
+    from .latex_patterns import is_section_command
+
+    prev_stripped = prev_line.strip()
+    return (
+        prev_stripped.startswith("\\end{")
+        or is_section_command(prev_line)
+    )
 
 
 # * Read resume by file extension (.docx or .tex)
 def read_resume(path: Path, preserve_structure: bool = False) -> Lines:
     suffix = path.suffix.lower()
     if suffix == ".tex":
-        if preserve_structure:
-            return read_latex_with_structure(path)
-        return read_latex(path)
+        return read_latex(path, preserve_structure=preserve_structure)
     # use DOCX handling as default
     return read_docx(path)
 
