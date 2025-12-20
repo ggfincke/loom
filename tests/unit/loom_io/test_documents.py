@@ -10,7 +10,6 @@ from src.loom_io.documents import (
     read_docx_with_formatting,
     write_docx,
     read_latex,
-    read_latex_with_structure,
     write_text_lines,
     read_resume,
     apply_edits_to_docx,
@@ -282,7 +281,7 @@ class TestLatexOperations:
 
     # * Test structured LaTeX reading preserves comments & commands
     def test_read_latex_with_structure_preserves_comments(self, sample_latex_path):
-        lines = read_latex_with_structure(sample_latex_path)
+        lines = read_latex(sample_latex_path, preserve_structure=True)
 
         # find comment lines
         comment_lines = [
@@ -305,7 +304,7 @@ class TestLatexOperations:
     # * Test difference between basic & structured LaTeX reading
     def test_read_latex_difference_between_modes(self, simple_latex_path):
         basic_lines = read_latex(simple_latex_path)
-        structured_lines = read_latex_with_structure(simple_latex_path)
+        structured_lines = read_latex(simple_latex_path, preserve_structure=True)
 
         # structured mode should preserve more content (comments, empty lines)
         assert len(structured_lines) >= len(basic_lines)
@@ -321,14 +320,14 @@ class TestLatexOperations:
     # * Test LaTeX read→write cycle preserves structure
     def test_latex_roundtrip_preserves_structure(self, simple_latex_path, tmp_path):
         # read w/ structure preservation
-        original_lines = read_latex_with_structure(simple_latex_path)
+        original_lines = read_latex(simple_latex_path, preserve_structure=True)
 
         # write to new file
         output_path = tmp_path / "roundtrip.tex"
         write_text_lines(original_lines, output_path)
 
         # read back
-        roundtrip_lines = read_latex_with_structure(output_path)
+        roundtrip_lines = read_latex(output_path, preserve_structure=True)
 
         # verify core content preserved
         original_text = " ".join(original_lines.values())

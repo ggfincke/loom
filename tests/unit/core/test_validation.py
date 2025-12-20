@@ -17,6 +17,8 @@ from src.core.validation import (
     ModelRetryStrategy,
     validate,
     handle_validation_error,
+)
+from src.loom_io.latex_handler import (
     validate_latex_compilation,
     validate_basic_latex_syntax,
 )
@@ -619,14 +621,14 @@ class TestLatexValidation:
         assert result["success"] is True
         assert len(result["warnings"]) >= 2  # should capture both warnings
 
-    @patch("src.core.validation.subprocess.run")
+    @patch("src.loom_io.latex_handler.subprocess.run")
     # * Test check_latex_availability when all compilers available
     def test_check_latex_availability_all_available(self, mock_subprocess):
         mock_process = MagicMock()
         mock_process.returncode = 0
         mock_subprocess.return_value = mock_process
 
-        from src.core.validation import check_latex_availability
+        from src.loom_io.latex_handler import check_latex_availability
 
         result = check_latex_availability()
 
@@ -634,7 +636,7 @@ class TestLatexValidation:
         assert result["xelatex"] is True
         assert result["lualatex"] is True
 
-    @patch("src.core.validation.subprocess.run")
+    @patch("src.loom_io.latex_handler.subprocess.run")
     # * Test check_latex_availability when some compilers missing
     def test_check_latex_availability_some_missing(self, mock_subprocess):
         def side_effect(cmd, **kwargs):
@@ -645,7 +647,7 @@ class TestLatexValidation:
 
         mock_subprocess.side_effect = side_effect
 
-        from src.core.validation import check_latex_availability
+        from src.loom_io.latex_handler import check_latex_availability
 
         result = check_latex_availability()
 
@@ -655,7 +657,7 @@ class TestLatexValidation:
 
     # * Test validate_latex_document w/ valid syntax only
     def test_validate_latex_document_syntax_valid(self):
-        from src.core.validation import validate_latex_document
+        from src.loom_io.latex_handler import validate_latex_document
 
         valid_latex = r"""
         \documentclass{article}
@@ -672,7 +674,7 @@ class TestLatexValidation:
 
     # * Test validate_latex_document w/ invalid syntax
     def test_validate_latex_document_syntax_invalid(self):
-        from src.core.validation import validate_latex_document
+        from src.loom_io.latex_handler import validate_latex_document
 
         invalid_latex = r"\textbf{unbalanced"
 
@@ -683,10 +685,10 @@ class TestLatexValidation:
         assert len(result["errors"]) > 0
         assert "syntax validation failed" in result["errors"][0].lower()
 
-    @patch("src.core.validation.validate_latex_compilation")
+    @patch("src.loom_io.latex_handler.validate_latex_compilation")
     # * Test validate_latex_document w/ compilation check
     def test_validate_latex_document_with_compilation(self, mock_validate_compilation):
-        from src.core.validation import validate_latex_document
+        from src.loom_io.latex_handler import validate_latex_document
 
         mock_validate_compilation.return_value = {
             "success": True,
@@ -708,10 +710,10 @@ class TestLatexValidation:
         assert len(result["warnings"]) == 1
         mock_validate_compilation.assert_called_once()
 
-    @patch("src.core.validation.validate_latex_compilation")
+    @patch("src.loom_io.latex_handler.validate_latex_compilation")
     # * Test validate_latex_document when compilation validation raises exception
     def test_validate_latex_document_compilation_error(self, mock_validate_compilation):
-        from src.core.validation import validate_latex_document
+        from src.loom_io.latex_handler import validate_latex_document
 
         mock_validate_compilation.side_effect = Exception("Compilation test failed")
 

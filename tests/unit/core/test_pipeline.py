@@ -9,11 +9,11 @@ from src.core.pipeline import (
     generate_edits,
     generate_corrected_edits,
     diff_lines,
-    number_lines,
-    _get_op_line,
     process_prompt_operation,
     process_modify_operation,
 )
+from src.loom_io import number_lines
+from src.core.edit_helpers import get_operation_line
 from src.core.exceptions import EditError, AIError, JSONParsingError
 from src.loom_io.types import Lines
 
@@ -517,7 +517,7 @@ class TestUtilityFunctions:
     )
     # * Test operation line number extraction
     def test_get_op_line(self, op, expected_line):
-        result = _get_op_line(op)
+        result = get_operation_line(op)
         assert result == expected_line
 
 
@@ -645,7 +645,7 @@ class TestProcessPromptOperation:
     ):
         mock_run_generate.return_value = mock_ai_failure_response
 
-        with pytest.raises(AIError) as exc_info:
+        with pytest.raises(JSONParsingError) as exc_info:
             process_prompt_operation(
                 edit_op=sample_edit_operation,
                 resume_lines=sample_resume_lines,
@@ -654,8 +654,9 @@ class TestProcessPromptOperation:
                 model="gpt-4",
             )
 
-        assert "AI failed to process PROMPT operation" in str(exc_info.value)
-        assert "AI model unavailable" in str(exc_info.value)
+        error_msg = str(exc_info.value)
+        assert "AI generated invalid JSON during PROMPT operation" in error_msg
+        assert "AI model unavailable" in error_msg
 
     # * Test invalid JSON response handling
     @patch("src.core.pipeline.run_generate")
@@ -741,7 +742,9 @@ class TestProcessPromptOperation:
                 model="gpt-4",
             )
 
-        assert "AI response missing 'ops' array" in str(exc_info.value)
+        error_msg = str(exc_info.value)
+        assert "missing required fields" in error_msg
+        assert "ops" in error_msg
 
     # * Test multiple operations validation (should be exactly one)
     @patch("src.core.pipeline.run_generate")

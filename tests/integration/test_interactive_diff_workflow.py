@@ -145,10 +145,13 @@ class TestInteractiveDiffWorkflow:
     # * Test console integration & proper import handling
     # * Test console integration & proper import handling
     def test_console_integration(self, mock_console):
-        from src.ui.diff_resolution.diff_display import render_screen
+        from src.ui.diff_resolution.diff_display import InteractiveDiffResolver
+        from src.core.constants import EditOperation
 
-        # should use console from loom_io
-        render_screen()
+        # create resolver and call render_screen method
+        op = EditOperation(operation="replace_line", line_number=1, content="test")
+        resolver = InteractiveDiffResolver([op], filename="test.txt")
+        resolver.render_screen()
 
         # verify console is accessible (imported correctly)
         assert mock_console is not None

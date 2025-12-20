@@ -7,6 +7,7 @@ from typing import Dict, Tuple, Any, Optional
 from unittest.mock import Mock
 
 from src.ai.types import GenerateResult
+from src.ai.utils import strip_markdown_code_blocks
 
 
 # * Mock AI client returning predictable responses by provider & prompt kind
@@ -183,30 +184,15 @@ class DeterministicMockAI:
                 error=f"AI failed to generate valid JSON: JSON parsing failed: {str(e)}",
             )
 
-    # * Strip markdown code blocks (matching client behavior)
+    # * Strip markdown/thinking tokens using centralized util (from ai/utils.py)
     def _strip_markdown_code_blocks(self, text: str) -> str:
-        import re
-
-        code_block_pattern = r"^```(?:json)?\s*\n(.*?)\n```\s*$"
-        match = re.match(code_block_pattern, text.strip(), re.DOTALL)
-
-        if match:
-            return match.group(1)
-        else:
-            return text.strip()
+        # ! use centralized strip_markdown_code_blocks from ai/utils.py
+        return strip_markdown_code_blocks(text)
 
     # * Strip thinking tokens & code blocks (matching Ollama client behavior)
     def _strip_thinking_and_code_blocks(self, text: str) -> str:
-        import re
-
-        # first strip thinking tokens if present
-        thinking_pattern = r"<think>.*?</think>\s*(.*)"
-        thinking_match = re.match(thinking_pattern, text.strip(), re.DOTALL)
-        if thinking_match:
-            text = thinking_match.group(1).strip()
-
-        # then strip markdown code blocks
-        return self._strip_markdown_code_blocks(text)
+        # ! centralized strip_markdown_code_blocks already handles both
+        return strip_markdown_code_blocks(text)
 
     # * Generate response based on model & scenario
     def generate(
