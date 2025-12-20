@@ -15,8 +15,8 @@ from ...loom_io import (
     detect_template,
     analyze_latex,
     sections_to_payload,
+    number_lines,
 )
-from ...core.pipeline import number_lines
 from ...core.exceptions import handle_loom_error
 
 from ..app import app
