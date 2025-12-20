@@ -41,6 +41,7 @@ class _ProviderCache:
 def reset_model_cache() -> None:
     _ProviderCache.reset()
 
+
 # supported OpenAI models
 OPENAI_MODELS: List[str] = [
     "gpt-5",
