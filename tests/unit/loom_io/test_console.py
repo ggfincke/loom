@@ -16,29 +16,33 @@ from src.loom_io.console import (
 
 class TestConsoleModule:
 
-    # * Test global console instance exists
+    # * Test global console proxy exists and forwards Console methods
     def test_console_instance_exists(self):
         assert console is not None
-        assert isinstance(console, Console)
+        # console is now a proxy; verify it has Console-like behavior
+        assert hasattr(console, "print")
+        assert hasattr(console, "capture")
+        assert callable(console.print)
 
-    # * Test get_console returns global instance
-    def test_get_console_returns_global_instance(self):
+    # * Test get_console returns underlying Console instance
+    def test_get_console_returns_console_instance(self):
         result = get_console()
-        assert result is console
         assert isinstance(result, Console)
+        # get_console returns the underlying Console, not the proxy
+        assert result is console._get_console()
 
-    # * Test reset_console creates new instance
+    # * Test reset_console creates new underlying instance
     def test_reset_console_creates_new_instance(self):
-        original_console = console
+        original_underlying = console._get_console()
 
         new_console = reset_console()
 
         # should return new Console instance
         assert isinstance(new_console, Console)
-        # the global console reference should be updated
-        from src.loom_io.console import console as updated_console
-
-        assert updated_console is new_console
+        # the underlying console should be different
+        assert new_console is not original_underlying
+        # the proxy's underlying console should be updated
+        assert console._get_console() is new_console
 
     # * Test configure_console with default parameters
     def test_configure_console_no_parameters(self):

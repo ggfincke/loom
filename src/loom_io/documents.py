@@ -10,12 +10,7 @@ from typing import Dict, Tuple, Any, List, Set
 from .types import Lines
 from ..core.exceptions import LaTeXError
 from .generics import ensure_parent
-from .latex_patterns import (
-    STRUCTURAL_PREFIXES,
-    SECTION_PREFIXES,
-    ITEM_COMMANDS,
-    SPECIAL_PREFIXES,
-)
+from .latex_patterns import is_structural_line
 
 # ! Related: LaTeX patterns defined in latex_patterns.py
 # ! Moved to lazy import below to avoid circular dependency w/ core/validation
@@ -91,28 +86,21 @@ def read_latex(path: Path, preserve_structure: bool = False) -> Lines:
 
 # * Helper functions for LaTeX structure preservation
 
+
+# check if line contains LaTeX construct worth preserving in structured mode
 def _should_preserve_latex_line(line: str) -> bool:
-    """Check if line contains LaTeX construct worth preserving in structured mode."""
-    stripped = line.strip()
-
-    # Check structural, section, item, or comment prefixes
-    all_prefixes = STRUCTURAL_PREFIXES + SECTION_PREFIXES + ITEM_COMMANDS + SPECIAL_PREFIXES
-
-    return (
-        stripped.startswith(all_prefixes)
-        or (line and not line.isspace())
+    # preserve protected LaTeX constructs or any non-empty content
+    return is_structural_line(line, include_all_protected=True) or (
+        line and not line.isspace()
     )
 
 
+# check if empty line should be preserved after previous line
 def _should_preserve_empty_line_after(prev_line: str) -> bool:
-    """Check if empty line should be preserved after previous line."""
     from .latex_patterns import is_section_command
 
     prev_stripped = prev_line.strip()
-    return (
-        prev_stripped.startswith("\\end{")
-        or is_section_command(prev_line)
-    )
+    return prev_stripped.startswith("\\end{") or is_section_command(prev_line)
 
 
 # * Read resume by file extension (.docx or .tex)
