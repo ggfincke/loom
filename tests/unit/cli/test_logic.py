@@ -1428,20 +1428,18 @@ class TestComplexOrchestrationScenarios:
             output_dir=str(tmp_path / "output"),
             base_dir=str(tmp_path / ".loom"),
             model="gpt-4o",
-            risk="high",
+            risk="ask",  # valid risk policy value (ask, skip, abort, auto)
         )
 
     # * Test orchestration with validation policy enforcement
-    @patch("src.ai.clients.factory.openai_generate")
     @patch("src.core.validation.validate_edits")
     @patch("src.loom_io.read_resume")
-    @patch("src.ai.clients.factory.run_generate")
+    @patch("src.core.pipeline.run_generate")
     def test_orchestration_validation_policy_enforcement(
         self,
         mock_run_generate,
         mock_read_resume,
         mock_validate,
-        mock_openai_generate,
         complex_settings,
         tmp_path,
     ):
@@ -1468,7 +1466,6 @@ class TestComplexOrchestrationScenarios:
             raw_text="",
         )
         mock_run_generate.return_value = mock_result
-        mock_openai_generate.return_value = mock_result
 
         # create required directories
         Path(complex_settings.data_dir).mkdir(parents=True, exist_ok=True)
@@ -1510,14 +1507,12 @@ class TestComplexOrchestrationScenarios:
         )  # Either outcome is acceptable for this test
 
     # * Test error recovery during AI client failures
-    @patch("src.ai.clients.factory.openai_generate")
     @patch("src.loom_io.read_resume")
-    @patch("src.ai.clients.factory.run_generate")
+    @patch("src.core.pipeline.run_generate")
     def test_orchestration_ai_client_failures(
         self,
         mock_run_generate,
         mock_read_resume,
-        mock_openai_generate,
         complex_settings,
         tmp_path,
     ):
@@ -1535,7 +1530,6 @@ class TestComplexOrchestrationScenarios:
             data=None,
         )
         mock_run_generate.return_value = failure_result
-        mock_openai_generate.return_value = failure_result
 
         # create files
         resume_file = tmp_path / "data" / "resume.txt"
@@ -1598,14 +1592,12 @@ class TestComplexOrchestrationScenarios:
         assert len(result_dict["ops"]) == 1
 
     # * Test orchestration with missing optional parameters
-    @patch("src.ai.clients.factory.openai_generate")
     @patch("src.loom_io.read_resume")
-    @patch("src.ai.clients.factory.run_generate")
+    @patch("src.core.pipeline.run_generate")
     def test_orchestration_missing_optional_params(
         self,
         mock_run_generate,
         mock_read_resume,
-        mock_openai_generate,
         complex_settings,
         tmp_path,
     ):
@@ -1622,7 +1614,6 @@ class TestComplexOrchestrationScenarios:
             raw_text="",
         )
         mock_run_generate.return_value = success_result
-        mock_openai_generate.return_value = success_result
 
         # test generation without optional sections parameter
         from src.core.pipeline import generate_edits

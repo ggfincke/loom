@@ -4,9 +4,31 @@
 from __future__ import annotations
 
 import os
-from typing import Iterable
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 import typer
+
+if TYPE_CHECKING:
+    from ..core.constants import RiskLevel, ValidationPolicy
+    from .runner import TailoringMode
+
+# ---------------------------------------------------------------------------
+# SETTINGS ACCESS PATTERNS
+# ---------------------------------------------------------------------------
+# Standard pattern for commands needing argument resolution:
+#   settings = get_settings(ctx)
+#   resolver = ArgResolver(settings)
+#   resolved = resolver.resolve_common(resume=..., job=..., model=...)
+#
+# For commands only reading settings:
+#   settings = get_settings(ctx)
+#   value = settings.field_name
+#
+# For config management commands only (mutations):
+#   settings_manager.get_field("key")
+#   settings_manager.set_field("key", value)
+# ---------------------------------------------------------------------------
 
 
 # * handle help flag detection & show custom help if set
@@ -62,3 +84,53 @@ def is_test_environment() -> bool:
         return True
 
     return False
+
+
+# * Unified command execution for generate/apply/tailor/plan
+def run_tailoring_command(
+    ctx: typer.Context,
+    mode: "TailoringMode",
+    *,
+    resume: Path | None = None,
+    job: Path | None = None,
+    model: str | None = None,
+    sections_path: Path | None = None,
+    edits_json: Path | None = None,
+    output_resume: Path | None = None,
+    risk: "RiskLevel | None" = None,
+    on_error: "ValidationPolicy | None" = None,
+    preserve_formatting: bool = True,
+    preserve_mode: str = "in_place",
+    interactive: bool = True,
+) -> None:
+    """
+    Unified command execution for generate/apply/tailor/plan.
+
+    Resolves arguments via settings & ArgResolver, builds TailoringContext,
+    and executes via TailoringRunner.
+    """
+    from .logic import ArgResolver
+    from .runner import TailoringRunner, build_tailoring_context
+    from ..config.settings import get_settings
+
+    settings = get_settings(ctx)
+    resolver = ArgResolver(settings)
+
+    tailoring_ctx = build_tailoring_context(
+        settings,
+        resolver,
+        resume=resume,
+        job=job,
+        model=model,
+        sections_path=sections_path,
+        edits_json=edits_json,
+        output_resume=output_resume,
+        risk=risk,
+        on_error=on_error,
+        preserve_formatting=preserve_formatting,
+        preserve_mode=preserve_mode,
+        interactive=interactive,
+    )
+
+    runner = TailoringRunner(mode, tailoring_ctx)
+    runner.run()

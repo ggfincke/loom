@@ -1,5 +1,9 @@
 # src/cli/app.py
 # Root Typer application & command registration
+#
+# ! High import count is intentional: app.py is the CLI entry point that must
+# ! register all commands at module load time. This is standard Typer architecture.
+# ! Command imports at bottom of file are deferred to avoid circular dependencies.
 
 from __future__ import annotations
 
@@ -39,7 +43,7 @@ def main_callback(
     auto_initialize_theme()
 
     # reset model cache at start of each CLI invocation
-    from ..ai.models import reset_model_cache
+    from ..ai.provider_validator import reset_model_cache
 
     reset_model_cache()
 
