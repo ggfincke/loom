@@ -15,10 +15,12 @@ from ...ui.theming.theme_definitions import THEMES
 from ...ui.theming.theme_engine import (
     styled_checkmark,
     success_gradient,
-    LoomColors,
     accent_gradient,
-    styled_bullet,
-    styled_arrow,
+)
+from ...ui.theming.styled_helpers import (
+    styled_setting_line,
+    format_setting_value,
+    styled_success_line,
 )
 from ..app import app
 from ..helpers import handle_help_flag
@@ -87,23 +89,8 @@ def _print_current_settings() -> None:
 
     # display each setting w/ styled formatting
     for key, value in data.items():
-        # format value based on type
-        if isinstance(value, str):
-            formatted_value = f'[loom.accent2]"{value}"[/]'
-        elif isinstance(value, bool):
-            formatted_value = f"[loom.accent2]{str(value).lower()}[/]"
-        elif isinstance(value, (int, float)):
-            formatted_value = f"[loom.accent2]{value}[/]"
-        else:
-            formatted_value = f"[loom.accent2]{json.dumps(value)}[/]"
-
-        # display setting w/ bullet & arrow styling
-        console.print(
-            styled_bullet(),
-            f"[bold white]{key}[/]",
-            "[loom.accent2]->",
-            formatted_value,
-        )
+        formatted_value = format_setting_value(value)
+        console.print(*styled_setting_line(key, formatted_value))
 
     # add help usage note
     console.print()
@@ -160,12 +147,7 @@ def set_cmd(key: str, value: str) -> None:
 
     except Exception as e:
         raise typer.BadParameter(str(e))
-    console.print(
-        styled_checkmark(),
-        success_gradient(f"Set {key}"),
-        "->",
-        f"[loom.accent2]{json.dumps(coerced)}[/]",
-    )
+    console.print(*styled_success_line(f"Set {key}", f"[loom.accent2]{json.dumps(coerced)}[/]"))
 
 
 # * Reset all settings to defaults
@@ -200,9 +182,8 @@ def themes() -> None:
 
         refresh_theme()
 
-        console.print(
-            f"\n{styled_checkmark()} {success_gradient(f'Theme set to')} [loom.accent2]{selected_theme}[/]"
-        )
+        console.print()
+        console.print(*styled_success_line("Theme set to", f"[loom.accent2]{selected_theme}[/]"))
 
         # show banner w/ new theme
         console.print("\n[loom.accent]New theme preview:[/]")

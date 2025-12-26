@@ -11,9 +11,8 @@ from ...core.constants import RiskLevel, ValidationPolicy
 from ...core.exceptions import handle_loom_error
 
 from ..app import app
-from ..helpers import handle_help_flag, is_test_environment
-from ..logic import ArgResolver
-from ..runner import TailoringMode, TailoringRunner, build_tailoring_context
+from ..helpers import handle_help_flag, is_test_environment, run_tailoring_command
+from ..runner import TailoringMode
 from ..params import (
     ResumeArg,
     EditsJsonOpt,
@@ -27,9 +26,26 @@ from ..params import (
     SectionsPathOpt,
 )
 from ...config.settings import get_settings
+from ...ui.help.help_data import command_help
 
 
 # * Apply edits from JSON to resume document & generate tailored output
+@command_help(
+    name="apply",
+    description="Apply edits from JSON to resume document",
+    long_description=(
+        "Apply pre-generated edits from edits.json to your resume, "
+        "creating a tailored output document. Supports interactive "
+        "diff review, formatting preservation, and validation policies."
+    ),
+    examples=[
+        "loom apply resume.docx --edits-json edits.json",
+        "loom apply resume.docx --output-resume tailored.docx",
+        "loom apply resume.docx --no-preserve-formatting",
+        "loom apply resume.docx --risk conservative",
+    ],
+    see_also=["generate", "tailor"],
+)
 @app.command(help="Apply edits from JSON to resume document & generate tailored output")
 @handle_loom_error
 def apply(
@@ -48,15 +64,13 @@ def apply(
 ) -> None:
     handle_help_flag(ctx, help, "apply")
 
+    # determine interactive mode: use interactive setting unless in test env
     settings = get_settings(ctx)
-    resolver = ArgResolver(settings)
-
-    # determine interactive mode: use interactive setting unless in test environment
     interactive_mode = settings.interactive and not is_test_environment()
 
-    tailoring_ctx = build_tailoring_context(
-        settings,
-        resolver,
+    run_tailoring_command(
+        ctx,
+        TailoringMode.APPLY,
         resume=resume,
         job=job,
         model=model,
@@ -69,6 +83,3 @@ def apply(
         preserve_mode=preserve_mode,
         interactive=interactive_mode,
     )
-
-    runner = TailoringRunner(TailoringMode.APPLY, tailoring_ctx)
-    runner.run()

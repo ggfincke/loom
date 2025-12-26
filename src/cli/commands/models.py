@@ -4,13 +4,14 @@
 from __future__ import annotations
 
 import typer
-from ...ai.models import get_models_by_provider
+from ...ai.provider_validator import get_models_by_provider
 from ...ai.clients.ollama_client import (
     check_ollama_with_error,
     get_available_models_with_error,
 )
 from ...loom_io.console import console
 from ...ui.theming.theme_engine import styled_checkmark, accent_gradient, styled_bullet
+from ...ui.theming.styled_helpers import styled_provider_line
 from ..app import app
 from ..helpers import handle_help_flag
 from ...ui.help.help_data import command_help
@@ -83,7 +84,7 @@ def _show_models_list() -> None:
             status_icon = "[red]X[/]"
             status_text = "[dim]No models available[/]"
 
-        console.print(f"[bold white]{provider_display}[/] {status_icon} {status_text}")
+        console.print(*styled_provider_line(provider_display, status_icon, status_text))
 
         # show models list
         if models:

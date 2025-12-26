@@ -11,9 +11,8 @@ from ...core.constants import RiskLevel, ValidationPolicy
 from ...core.exceptions import handle_loom_error
 
 from ..app import app
-from ..helpers import handle_help_flag, is_test_environment
-from ..logic import ArgResolver
-from ..runner import TailoringMode, TailoringRunner, build_tailoring_context
+from ..helpers import handle_help_flag, is_test_environment, run_tailoring_command
+from ..runner import TailoringMode
 from ..params import (
     JobArg,
     ResumeArg,
@@ -93,15 +92,13 @@ def tailor(
     else:
         mode = TailoringMode.TAILOR
 
+    # determine interactive mode: use interactive setting unless --auto or in test env
     settings = get_settings(ctx)
-    resolver = ArgResolver(settings)
-
-    # determine interactive mode: use interactive setting unless --auto flag specified or in test env
     interactive_mode = settings.interactive and not auto and not is_test_environment()
 
-    tailoring_ctx = build_tailoring_context(
-        settings,
-        resolver,
+    run_tailoring_command(
+        ctx,
+        mode,
         resume=resume,
         job=job,
         model=model,
@@ -114,6 +111,3 @@ def tailor(
         preserve_mode=preserve_mode,
         interactive=interactive_mode,
     )
-
-    runner = TailoringRunner(mode, tailoring_ctx)
-    runner.run()

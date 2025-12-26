@@ -11,9 +11,8 @@ from ...core.constants import RiskLevel, ValidationPolicy
 from ...core.exceptions import handle_loom_error
 
 from ..app import app
-from ..helpers import handle_help_flag
-from ..logic import ArgResolver
-from ..runner import TailoringMode, TailoringRunner, build_tailoring_context
+from ..helpers import handle_help_flag, run_tailoring_command
+from ..runner import TailoringMode
 from ..params import (
     ResumeArg,
     JobArg,
@@ -25,7 +24,6 @@ from ..params import (
     SectionsPathOpt,
 )
 from ...ui.help.help_data import command_help
-from ...config.settings import get_settings
 
 
 # * Generate edits w/ step-by-step planning & validation workflow
@@ -66,12 +64,9 @@ def plan(
     # unused but planned
     _ = plan
 
-    settings = get_settings(ctx)
-    resolver = ArgResolver(settings)
-
-    tailoring_ctx = build_tailoring_context(
-        settings,
-        resolver,
+    run_tailoring_command(
+        ctx,
+        TailoringMode.PLAN,
         resume=resume,
         job=job,
         model=model,
@@ -80,6 +75,3 @@ def plan(
         risk=risk,
         on_error=on_error,
     )
-
-    runner = TailoringRunner(TailoringMode.PLAN, tailoring_ctx)
-    runner.run()

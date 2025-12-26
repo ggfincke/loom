@@ -122,18 +122,18 @@ class TestModelsCommand:
 
         assert result.exit_code == 0
 
-        print_calls = [
-            call[0][0] for call in mock_console.print.call_args_list if call[0]
-        ]
+        # collect all args from all print calls
+        print_calls = []
+        for call in mock_console.print.call_args_list:
+            if call[0]:
+                print_calls.extend([str(arg) for arg in call[0]])
 
         # should contain Claude header
-        claude_header_found = any("CLAUDE" in str(call) for call in print_calls)
+        claude_header_found = any("CLAUDE" in call for call in print_calls)
         assert claude_header_found
 
         # should contain requirement information
-        requirement_found = any(
-            "ANTHROPIC_API_KEY" in str(call) for call in print_calls
-        )
+        requirement_found = any("ANTHROPIC_API_KEY" in call for call in print_calls)
         assert requirement_found
 
     # * Test _show_models_list with no Ollama models
