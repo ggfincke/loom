@@ -10,6 +10,10 @@ from src.ai.utils import (
     convert_result_to_dict,
     validate_edits_structure,
     process_ai_response,
+    normalize_op_keys,
+    normalize_edits_response,
+    normalize_section_keys,
+    normalize_sections_response,
 )
 from src.ai.types import GenerateResult
 from src.core.exceptions import AIError, JSONParsingError
@@ -220,9 +224,7 @@ class TestValidateEditsStructure:
     # * Test missing version raises AIError
     def test_missing_version(self):
         with pytest.raises(AIError) as exc_info:
-            validate_edits_structure(
-                {"meta": {}, "ops": []}, "gpt-4o", "generation"
-            )
+            validate_edits_structure({"meta": {}, "ops": []}, "gpt-4o", "generation")
 
         assert "Invalid or missing version" in str(exc_info.value)
 
@@ -237,9 +239,7 @@ class TestValidateEditsStructure:
     # * Test missing ops field raises AIError
     def test_missing_ops(self):
         with pytest.raises(AIError) as exc_info:
-            validate_edits_structure(
-                {"version": 1, "meta": {}}, "gpt-4o", "generation"
-            )
+            validate_edits_structure({"version": 1, "meta": {}}, "gpt-4o", "generation")
 
         assert "missing required fields" in str(exc_info.value)
         assert "ops" in str(exc_info.value)
@@ -292,9 +292,7 @@ class TestValidateEditsStructure:
     def test_require_ops_false(self):
         data = {"version": 1, "meta": {}}
 
-        result = validate_edits_structure(
-            data, "gpt-4o", "custom", require_ops=False
-        )
+        result = validate_edits_structure(data, "gpt-4o", "custom", require_ops=False)
 
         assert result == data
 
@@ -410,3 +408,245 @@ class TestStripMarkdownCodeBlocks:
     def test_strips_thinking_tokens(self):
         text = '<think>reasoning here</think>\n{"key": "value"}'
         assert strip_markdown_code_blocks(text) == '{"key": "value"}'
+
+
+# * Test normalize_op_keys helper
+
+
+class TestNormalizeOpKeys:
+    # * Test short keys expand correctly
+    def test_expands_short_keys(self):
+        op = {
+            "op": "replace_line",
+            "l": 5,
+            "t": "new text",
+            "cur": "old",
+            "w": "reason",
+        }
+
+        result = normalize_op_keys(op)
+
+        assert result == {
+            "op": "replace_line",
+            "line": 5,
+            "text": "new text",
+            "current_snippet": "old",
+            "why": "reason",
+        }
+
+    # * Test full keys pass through unchanged
+    def test_full_keys_passthrough(self):
+        op = {
+            "op": "replace_line",
+            "line": 5,
+            "text": "new text",
+            "current_snippet": "old",
+            "why": "reason",
+        }
+
+        result = normalize_op_keys(op)
+
+        assert result == op
+
+    # * Test mixed keys work correctly
+    def test_mixed_keys(self):
+        op = {"op": "replace_range", "s": 10, "end": 12, "t": "text"}
+
+        result = normalize_op_keys(op)
+
+        assert result == {"op": "replace_range", "start": 10, "end": 12, "text": "text"}
+
+    # * Test unknown keys pass through
+    def test_unknown_keys_passthrough(self):
+        op = {"op": "replace_line", "l": 5, "custom": "value"}
+
+        result = normalize_op_keys(op)
+
+        assert result["custom"] == "value"
+
+
+# * Test normalize_edits_response helper
+
+
+class TestNormalizeEditsResponse:
+    # * Test normalizes ops array
+    def test_normalizes_ops(self):
+        edits = {
+            "version": 1,
+            "meta": {},
+            "ops": [
+                {"op": "replace_line", "l": 5, "t": "text", "cur": "old"},
+                {"op": "replace_range", "s": 10, "e": 12, "t": "more"},
+            ],
+        }
+
+        result = normalize_edits_response(edits)
+
+        assert result["ops"][0]["line"] == 5
+        assert result["ops"][0]["text"] == "text"
+        assert result["ops"][1]["start"] == 10
+        assert result["ops"][1]["end"] == 12
+
+    # * Test handles missing ops field
+    def test_handles_missing_ops(self):
+        edits = {"version": 1, "meta": {}}
+
+        result = normalize_edits_response(edits)
+
+        assert result == {"version": 1, "meta": {}}
+
+    # * Test handles non-list ops
+    def test_handles_non_list_ops(self):
+        edits = {"version": 1, "meta": {}, "ops": "invalid"}
+
+        result = normalize_edits_response(edits)
+
+        assert result["ops"] == "invalid"  # passes through
+
+
+# * Test normalize_section_keys helper
+
+
+class TestNormalizeSectionKeys:
+    # * Test short keys expand correctly
+    def test_expands_short_keys(self):
+        section = {
+            "k": "experience",
+            "h": "Work Experience",
+            "s": 10,
+            "e": 50,
+            "c": 0.95,
+        }
+
+        result = normalize_section_keys(section)
+
+        assert result == {
+            "kind": "experience",
+            "heading_text": "Work Experience",
+            "start_line": 10,
+            "end_line": 50,
+            "confidence": 0.95,
+        }
+
+    # * Test full keys pass through unchanged
+    def test_full_keys_passthrough(self):
+        section = {
+            "kind": "experience",
+            "heading_text": "Work Experience",
+            "start_line": 10,
+            "end_line": 50,
+            "confidence": 0.95,
+        }
+
+        result = normalize_section_keys(section)
+
+        assert result == section
+
+    # * Test subsections array format normalized
+    def test_subsections_array_format(self):
+        section = {
+            "k": "experience",
+            "h": "Work",
+            "s": 10,
+            "e": 50,
+            "c": 0.9,
+            "sub": [
+                ["EXPERIENCE_ITEM", 15, 20],
+                ["EXPERIENCE_ITEM", 25, 30, {"company": "Acme"}],
+            ],
+        }
+
+        result = normalize_section_keys(section)
+
+        assert "subsections" in result
+        assert len(result["subsections"]) == 2
+        assert result["subsections"][0] == {
+            "name": "EXPERIENCE_ITEM",
+            "start_line": 15,
+            "end_line": 20,
+        }
+        assert result["subsections"][1] == {
+            "name": "EXPERIENCE_ITEM",
+            "start_line": 25,
+            "end_line": 30,
+            "meta": {"company": "Acme"},
+        }
+
+    # * Test subsections dict format normalized
+    def test_subsections_dict_format(self):
+        section = {
+            "k": "projects",
+            "h": "Projects",
+            "s": 60,
+            "e": 80,
+            "c": 0.85,
+            "sub": [{"k": "PROJECT_ITEM", "s": 65, "e": 70}],
+        }
+
+        result = normalize_section_keys(section)
+
+        assert result["subsections"][0] == {
+            "kind": "PROJECT_ITEM",
+            "start_line": 65,
+            "end_line": 70,
+        }
+
+
+# * Test normalize_sections_response helper
+
+
+class TestNormalizeSectionsResponse:
+    # * Test normalizes all sections
+    def test_normalizes_all_sections(self):
+        data = {
+            "sections": [
+                {"k": "summary", "h": "Summary", "s": 1, "e": 5, "c": 0.9},
+                {"k": "experience", "h": "Experience", "s": 10, "e": 50, "c": 0.95},
+            ],
+            "notes": "test notes",
+        }
+
+        result = normalize_sections_response(data)
+
+        assert result["sections"][0]["kind"] == "summary"
+        assert result["sections"][0]["heading_text"] == "Summary"
+        assert result["sections"][1]["kind"] == "experience"
+        assert result["notes"] == "test notes"
+
+    # * Test handles missing sections
+    def test_handles_missing_sections(self):
+        data = {"notes": "no sections"}
+
+        result = normalize_sections_response(data)
+
+        assert result == {"notes": "no sections"}
+
+    # * Test handles non-list sections
+    def test_handles_non_list_sections(self):
+        data = {"sections": "invalid"}
+
+        result = normalize_sections_response(data)
+
+        assert result["sections"] == "invalid"
+
+    # * Test backward compat with full keys
+    def test_backward_compat_full_keys(self):
+        data = {
+            "sections": [
+                {
+                    "name": "SUMMARY",
+                    "kind": "summary",
+                    "heading_text": "Summary",
+                    "start_line": 1,
+                    "end_line": 5,
+                    "confidence": 0.9,
+                }
+            ]
+        }
+
+        result = normalize_sections_response(data)
+
+        # full keys should pass through unchanged
+        assert result["sections"][0]["kind"] == "summary"
+        assert result["sections"][0]["start_line"] == 1
+        assert result["sections"][0]["name"] == "SUMMARY"

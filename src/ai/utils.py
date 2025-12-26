@@ -4,9 +4,78 @@
 import json
 import re
 from dataclasses import dataclass
-from typing import Callable
+from typing import Any, Callable
 
 from .types import GenerateResult
+
+
+# * Short key aliases for token-efficient AI responses
+OP_KEY_ALIASES: dict[str, str] = {
+    "l": "line",
+    "t": "text",
+    "s": "start",
+    "e": "end",
+    "cur": "current_snippet",
+    "w": "why",
+}
+
+# * Section key aliases for sectionizer responses
+SECTION_KEY_ALIASES: dict[str, str] = {
+    "k": "kind",
+    "h": "heading_text",
+    "s": "start_line",
+    "e": "end_line",
+    "c": "confidence",
+    "sub": "subsections",
+}
+
+
+def normalize_op_keys(op: dict[str, Any]) -> dict[str, Any]:
+    """Expand short keys to full names for downstream compatibility."""
+    return {OP_KEY_ALIASES.get(k, k): v for k, v in op.items()}
+
+
+def normalize_edits_response(edits: dict[str, Any]) -> dict[str, Any]:
+    """Normalize all ops in an edits response (expand short keys)."""
+    if "ops" in edits and isinstance(edits["ops"], list):
+        edits["ops"] = [normalize_op_keys(op) for op in edits["ops"]]
+    return edits
+
+
+def _normalize_subsection(sub: Any) -> dict[str, Any]:
+    """Normalize a subsection entry (array format or dict)."""
+    if isinstance(sub, list) and len(sub) >= 3:
+        # array format: [name, start_line, end_line, optional_meta]
+        result: dict[str, Any] = {
+            "name": sub[0],
+            "start_line": sub[1],
+            "end_line": sub[2],
+        }
+        if len(sub) > 3 and isinstance(sub[3], dict):
+            result["meta"] = sub[3]
+        return result
+    elif isinstance(sub, dict):
+        # dict format - expand short keys if present
+        return {SECTION_KEY_ALIASES.get(k, k): v for k, v in sub.items()}
+    return sub  # pass through unchanged if unknown format
+
+
+def normalize_section_keys(section: dict[str, Any]) -> dict[str, Any]:
+    """Expand short section keys to full names."""
+    normalized = {SECTION_KEY_ALIASES.get(k, k): v for k, v in section.items()}
+    # also normalize subsections if present
+    if "subsections" in normalized and isinstance(normalized["subsections"], list):
+        normalized["subsections"] = [
+            _normalize_subsection(sub) for sub in normalized["subsections"]
+        ]
+    return normalized
+
+
+def normalize_sections_response(data: dict[str, Any]) -> dict[str, Any]:
+    """Normalize all sections in a sectionizer response (expand short keys)."""
+    if "sections" in data and isinstance(data["sections"], list):
+        data["sections"] = [normalize_section_keys(s) for s in data["sections"]]
+    return data
 
 
 # * Context object for API call results (used by process_json_response)
@@ -165,7 +234,7 @@ def process_ai_response(
     log_structure: bool = False,
 ) -> dict:
     data = convert_result_to_dict(result, model, context)
-    return validate_edits_structure(
+    validated = validate_edits_structure(
         data,
         model,
         context,
@@ -174,3 +243,5 @@ def process_ai_response(
         log_version_debug=log_version_debug,
         log_structure=log_structure,
     )
+    # normalize short keys (l->line, t->text, etc.) for downstream compatibility
+    return normalize_edits_response(validated)

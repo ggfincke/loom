@@ -67,6 +67,13 @@ Document Structure:
 - If a line is plain text (not in a list), keep it as plain text even when enhancing it
 """
 
+
+# * Detect if resume content is LaTeX format
+def _is_latex_content(content: str) -> bool:
+    stripped = content.strip()
+    return stripped.startswith("\\documentclass") or "\\begin{document}" in content
+
+
 # Multi-line validation rule
 MULTI_LINE_VALIDATION = (
     "CRITICAL VALIDATION: replace_line.text MUST NOT contain \\n characters. "
@@ -112,34 +119,26 @@ def build_sectionizer_prompt(resume_with_line_numbers: str) -> str:
         "- Section content appears between \\begin{document} and \\end{document}\n"
         "- Look for meaningful content sections, not structural/formatting commands\n"
         "- Custom commands like \\sectionhead{}, \\name{}, \\contact{} are section indicators\n\n"
-        "JSON schema (clean example without comments or placeholders):\n"
+        "JSON schema (keys: k=kind, h=heading, s=start, e=end, c=confidence, sub=subsections):\n"
         "{\n"
         '  "sections": [\n'
         "    {\n"
-        '      "name": "SUMMARY",\n'
-        '      "heading_text": "Professional Summary",\n'
-        '      "start_line": 1,\n'
-        '      "end_line": 5,\n'
-        '      "confidence": 0.95,\n'
-        '      "subsections": [\n'
-        "        {\n"
-        '          "name": "EXPERIENCE_ITEM",\n'
-        '          "start_line": 2,\n'
-        '          "end_line": 4,\n'
-        '          "meta": {"company": "Acme Corp", "title": "Engineer", "date_range": "2020-2023"}\n'
-        "        }\n"
-        "      ]\n"
+        '      "k": "SUMMARY",\n'
+        '      "h": "Professional Summary",\n'
+        '      "s": 1,\n'
+        '      "e": 5,\n'
+        '      "c": 0.95,\n'
+        '      "sub": [["EXPERIENCE_ITEM", 2, 4, {"company": "Acme Corp", "title": "Engineer"}]]\n'
         "    }\n"
         "  ],\n"
-        '  "normalized_order": ["SUMMARY", "SKILLS", "EXPERIENCE"],\n'
-        '  "notes": "Clear section structure detected"\n'
+        '  "notes": "Clear section structure"\n'
         "}\n\n"
         "Allowed field values:\n"
-        "- name: SUMMARY|SKILLS|EXPERIENCE|PROJECTS|EDUCATION|OTHER\n"
-        "- subsection name: EXPERIENCE_ITEM|PROJECT_ITEM|EDUCATION_ITEM\n"
+        "- k (kind): SUMMARY|SKILLS|EXPERIENCE|PROJECTS|EDUCATION|OTHER\n"
+        "- sub format: [name, start_line, end_line, optional_meta]\n"
+        "- sub names: EXPERIENCE_ITEM|PROJECT_ITEM|EDUCATION_ITEM\n"
         "- All line numbers: positive integers\n"
-        "- confidence: float between 0.0 and 1.0\n"
-        "- meta fields: optional strings for company, title, date_range, location\n\n"
+        "- c (confidence): float 0.0-1.0\n\n"
         "Resume (numbered lines start at 1):\n"
         f"{resume_with_line_numbers}\n"
     )
@@ -153,10 +152,7 @@ def build_generate_prompt(
     created_at: str,
     sections_json: str | None = None,
 ) -> str:
-    is_latex = (
-        resume_with_line_numbers.strip().startswith("\\documentclass")
-        or "\\begin{document}" in resume_with_line_numbers
-    )
+    is_latex = _is_latex_content(resume_with_line_numbers)
 
     base_prompt = (
         f"{ANTI_INJECTION_GUARD}\n\n"
@@ -199,27 +195,26 @@ def build_generate_prompt(
         "7) Never output lines that don't exist; validate with 'current_snippet' to avoid drift.\n"
         "8) Keep proper tech casing (TypeScript, JavaScript, PostgreSQL) and only correct if wrong.\n\n"
         f"{JSON_ONLY_INSTRUCTION}\n\n"
-        "JSON schema (clean example):\n"
+        "JSON schema (keys: l=line, t=text, s=start, e=end, cur=current_snippet, w=why):\n"
         "{\n"
         '  "version": 1,\n'
         f'  "meta": {{ "strategy": "rule", "model": "{model}", "created_at": "{created_at}" }},\n'
         '  "ops": [\n'
-        '    { "op": "replace_line", "line": 5, "text": "Enhanced bullet point", "current_snippet": "Original text", "why": "Targets Python requirement" },\n'
-        '    { "op": "replace_range", "start": 10, "end": 12, "text": "Line 1\\nLine 2\\nLine 3", "current_snippet": "Old text", "why": "Aligns with cloud skills" }\n'
+        '    {{ "op": "replace_line", "l": 5, "t": "Enhanced bullet", "cur": "Original", "w": "Python req" }},\n'
+        '    {{ "op": "replace_range", "s": 10, "e": 12, "t": "Line 1\\nLine 2", "cur": "Old", "w": "Cloud skills" }}\n'
         "  ]\n"
         "}\n\n"
         "Operation field requirements:\n"
         "- op: replace_line|replace_range|insert_after|delete_range\n"
-        "- line/start/end: positive integers matching resume line numbers\n"
-        "- text: properly escaped string content\n"
-        "- current_snippet: exact current text being modified (for validation)\n"
-        "- why: optional concise explanation (under 100 chars, no line breaks)\n\n"
-        "**VALIDATION CHECKLIST** (validate before outputting):\n"
-        "- replace_line operations contain NO \\n characters in text field\n"
-        "- All line numbers exist in the provided resume\n"
-        "- Operations sorted by increasing line number with no overlaps\n"
-        "- No unescaped quotes, newlines, or control characters in JSON strings\n"
-        "- All required fields present for each operation type\n\n"
+        "- l/s/e: positive integers (l=line, s=start, e=end)\n"
+        "- t: text content (properly escaped)\n"
+        "- cur: exact current text being modified (for validation)\n"
+        "- w: optional concise explanation (<100 chars)\n\n"
+        "**VALIDATION CHECKLIST**:\n"
+        "- replace_line: t field has NO \\n (use replace_range for multi-line)\n"
+        "- All l/s/e values exist in resume\n"
+        "- Ops sorted by line number, no overlaps\n"
+        "- cur matches exact current text\n\n"
         "Job Description:\n"
         f"{job_info}\n\n"
     )
@@ -244,10 +239,7 @@ def build_edit_prompt(
     created_at: str,
     sections_json: str | None = None,
 ) -> str:
-    is_latex = (
-        resume_with_line_numbers.strip().startswith("\\documentclass")
-        or "\\begin{document}" in resume_with_line_numbers
-    )
+    is_latex = _is_latex_content(resume_with_line_numbers)
 
     base_prompt = (
         f"{ANTI_INJECTION_GUARD}\n\n"
@@ -281,20 +273,18 @@ def build_edit_prompt(
 
     base_prompt += (
         f"{JSON_ONLY_INSTRUCTION}\n\n"
-        "JSON schema (clean example):\n"
+        "JSON schema (keys: l=line, t=text, s=start, e=end, cur=current_snippet, w=why):\n"
         "{\n"
         '  "version": 1,\n'
         f'  "meta": {{ "strategy": "edit_fix", "model": "{model}", "created_at": "{created_at}" }},\n'
         '  "ops": [\n'
-        '    { "op": "replace_range", "start": 5, "end": 6, "text": "Fixed content\\nSecond line", "current_snippet": "Original text", "why": "Fix validation error" }\n'
+        '    {{ "op": "replace_range", "s": 5, "e": 6, "t": "Fixed content\\nSecond line", "cur": "Original", "w": "Fix validation" }}\n'
         "  ]\n"
         "}\n\n"
-        "**VALIDATION CHECKLIST** (validate before outputting):\n"
-        "- replace_line operations contain NO \\n characters in text field\n"
-        "- All line numbers exist in the provided resume\n"
-        "- Operations sorted by increasing line number with no overlaps\n"
-        "- No unescaped quotes, newlines, or control characters in JSON strings\n"
-        "- All required fields present, 'why' fields under 100 chars\n\n"
+        "**VALIDATION CHECKLIST**:\n"
+        "- replace_line: t field has NO \\n (use replace_range for multi-line)\n"
+        "- All l/s/e values exist in resume\n"
+        "- Ops sorted by line number, no overlaps\n\n"
         "Validation Errors Found:\n"
         + "\n".join(f"- {error}" for error in validation_errors)
         + "\n\n"
@@ -326,10 +316,7 @@ def build_prompt_operation_prompt(
     created_at: str,
     sections_json: str | None = None,
 ) -> str:
-    is_latex = (
-        resume_with_line_numbers.strip().startswith("\\documentclass")
-        or "\\begin{document}" in resume_with_line_numbers
-    )
+    is_latex = _is_latex_content(resume_with_line_numbers)
 
     base_prompt = (
         f"{ANTI_INJECTION_GUARD}\n\n"
@@ -358,21 +345,15 @@ def build_prompt_operation_prompt(
 
     base_prompt += (
         f"{JSON_ONLY_INSTRUCTION}\n\n"
-        "JSON schema (clean example with one operation):\n"
+        "JSON schema (keys: l=line, t=text, s=start, e=end, cur=current_snippet, w=why):\n"
         "{\n"
         '  "version": 1,\n'
         f'  "meta": {{ "strategy": "prompt_regeneration", "model": "{model}", "created_at": "{created_at}" }},\n'
         '  "ops": [\n'
-        '    { "op": "replace_line", "line": 15, "text": "Custom user-requested content", "current_snippet": "Original text", "why": "User instruction fulfilled" }\n'
+        '    {{ "op": "replace_line", "l": 15, "t": "User-requested content", "cur": "Original", "w": "User instruction" }}\n'
         "  ]\n"
         "}\n\n"
-        "**VALIDATION CHECKLIST**:\n"
-        "- Include exactly ONE operation in the ops array\n"
-        "- replace_line operations contain NO \\n characters in text field\n"
-        "- No unescaped quotes, newlines, or control characters in JSON strings\n"
-        "- 'current_snippet' contains exact original text being modified\n"
-        "- 'why' field explains how this fulfills user instruction (under 100 chars)\n"
-        "- Use exact line numbers from the numbered resume provided\n\n"
+        "**VALIDATION**: Exactly ONE op, replace_line t has no \\n, cur matches original, valid l.\n\n"
         "Job Description:\n"
         f"{job_text}\n\n"
     )
