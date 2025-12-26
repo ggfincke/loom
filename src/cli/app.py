@@ -33,6 +33,11 @@ def main_callback(
     ),
     help: bool = typer.Option(False, "--help", "-h", help="Show help message & exit."),
 ) -> None:
+    # initialize theme at start of each CLI invocation
+    from ..ui.theming.console_theme import auto_initialize_theme
+
+    auto_initialize_theme()
+
     # reset model cache at start of each CLI invocation
     from ..ai.models import reset_model_cache
 
