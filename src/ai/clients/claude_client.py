@@ -6,7 +6,7 @@ from anthropic import Anthropic
 from ...config.settings import settings_manager
 from ..types import GenerateResult
 from ..models import ensure_valid_model
-from ...core.exceptions import AIError
+from ...core.exceptions import AIError, ConfigurationError
 from ..utils import APICallContext, process_json_response
 
 
@@ -44,11 +44,9 @@ def run_generate(
     prompt: str, model: str = "claude-sonnet-4-20250514"
 ) -> GenerateResult:
     if not os.getenv("ANTHROPIC_API_KEY"):
-        raise RuntimeError("Missing ANTHROPIC_API_KEY in environment or .env")
+        raise ConfigurationError("Missing ANTHROPIC_API_KEY in environment or .env")
 
     # validate model before API call
     validated_model = ensure_valid_model(model)
-    if validated_model is None:
-        raise RuntimeError("Model validation failed")
-
+    assert validated_model is not None, "Model validation returned None unexpectedly"
     return process_json_response(_make_claude_call, prompt, validated_model)

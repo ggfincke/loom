@@ -38,7 +38,5 @@ def run_generate(prompt: str, model: str = "gpt-5-mini") -> GenerateResult:
 
     # validate model before making API call
     validated_model = ensure_valid_model(model)
-    if validated_model is None:
-        raise RuntimeError("Model validation failed")
-
+    assert validated_model is not None, "Model validation returned None unexpectedly"
     return process_json_response(_make_openai_call, prompt, validated_model)

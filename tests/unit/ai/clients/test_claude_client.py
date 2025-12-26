@@ -21,7 +21,7 @@ if "anthropic" not in sys.modules:
     sys.modules["anthropic"] = dummy
 
 from src.ai.clients import claude_client as cc
-from src.core.exceptions import AIError
+from src.core.exceptions import AIError, ConfigurationError
 
 
 # describe fake messages surface for Anthropic SDK
@@ -79,3 +79,12 @@ def test_claude_api_error_raises_aierror(monkeypatch, mock_env_vars):
 
     with pytest.raises(AIError):
         cc.run_generate("Parse resume", model="claude-sonnet-4-20250514")
+
+
+# * verify missing API key raises ConfigurationError
+def test_claude_missing_api_key_raises_configuration_error(monkeypatch):
+    # clear the ANTHROPIC_API_KEY env var
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+    with pytest.raises(ConfigurationError, match="Missing ANTHROPIC_API_KEY"):
+        cc.run_generate("Test prompt", model="claude-sonnet-4-20250514")

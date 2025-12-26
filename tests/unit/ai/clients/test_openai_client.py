@@ -81,13 +81,15 @@ class TestOpenAIClient:
         with pytest.raises(ConfigurationError, match="Missing OPENAI_API_KEY"):
             run_generate("Test prompt")
 
-    # * Test invalid model handling
+    # * Test assertion on unexpected None from model validation
+    # Note: This tests a defensive assertion - ensure_valid_model() never returns None
+    # with a valid input, but we assert against it as a safety net
     @patch("src.ai.clients.openai_client.ensure_valid_model")
     @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
-    def test_run_generate_invalid_model(self, mock_ensure_valid):
-        mock_ensure_valid.return_value = None  # invalid model
+    def test_run_generate_asserts_on_none_model(self, mock_ensure_valid):
+        mock_ensure_valid.return_value = None  # simulate unexpected None
 
-        with pytest.raises(RuntimeError, match="Model validation failed"):
+        with pytest.raises(AssertionError, match="Model validation returned None"):
             run_generate("Test prompt", "invalid-model")
 
     # * Test OpenAI API error handling
