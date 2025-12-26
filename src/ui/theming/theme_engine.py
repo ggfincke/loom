@@ -34,6 +34,34 @@ def get_active_theme() -> list[str]:
         return THEMES["deep_blue"]
 
 
+# * get current theme name for cache invalidation
+def _get_current_theme_name() -> str:
+    sm = _get_settings_manager()
+    if sm:
+        settings = sm.load()
+        return getattr(settings, "theme", "deep_blue")
+    return "deep_blue"
+
+
+# descriptor that lazily fetches color from active theme; caches color value & invalidates when theme changes; used by LoomColors to defer color evaluation until first access
+class _LazyColorDescriptor:
+    def __init__(self, index: int) -> None:
+        self._index = index
+        self._cached_theme: str | None = None
+        self._cached_value: str | None = None
+
+    def __get__(self, obj: object, objtype: type | None = None) -> str:
+        current = _get_current_theme_name()
+        if self._cached_theme != current:
+            self._cached_value = get_active_theme()[self._index]
+            self._cached_theme = current
+        return self._cached_value  # type: ignore[return-value]
+
+    def reset(self) -> None:
+        self._cached_theme = None
+        self._cached_value = None
+
+
 # * RGB color interpolation helper functions for natural gradients
 def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
     hex_color = hex_color.lstrip("#")
@@ -57,14 +85,15 @@ def _lerp_color(a_hex: str, b_hex: str, t: float) -> str:
     return _rgb_to_hex((cr, cg, cb))
 
 
-# semantic color mappings for consistent theming
+# * LoomColors provides color constants with lazy-loaded theme-aware colors.
+# * Dynamic colors (ACCENT_*, ARROW) are deferred until first access and cache-invalidate on theme change.
+# * Static colors (SUCCESS_*, WARNING, etc.) are plain class attributes.
 class LoomColors:
-    # theme-aware accent colors (loaded once at import)
-    _colors = get_active_theme()
-    ACCENT_PRIMARY = _colors[0]
-    ACCENT_SECONDARY = _colors[2]
-    ACCENT_DEEP = _colors[4]
-    ARROW = _colors[2]
+    # theme-aware accent colors (lazy-loaded, cache-invalidated on theme change)
+    ACCENT_PRIMARY = _LazyColorDescriptor(0)
+    ACCENT_SECONDARY = _LazyColorDescriptor(2)
+    ACCENT_DEEP = _LazyColorDescriptor(4)
+    ARROW = _LazyColorDescriptor(2)
 
     # success gradient (complementary green works w/ all themes)
     SUCCESS_BRIGHT = "#10b981"  # emerald green
@@ -80,7 +109,13 @@ class LoomColors:
 
     # special effects
     CHECKMARK = SUCCESS_BRIGHT
-    ARROW = ACCENT_SECONDARY
+
+
+def reset_color_cache() -> None:
+    for attr in ("ACCENT_PRIMARY", "ACCENT_SECONDARY", "ACCENT_DEEP", "ARROW"):
+        desc = LoomColors.__dict__.get(attr)
+        if isinstance(desc, _LazyColorDescriptor):
+            desc.reset()
 
 
 # * create natural gradient text w/ smooth RGB color interpolation
@@ -176,10 +211,6 @@ def get_loom_theme() -> Theme:
             "usage": colors[0],
         }
     )
-
-
-# default theme (updated dynamically)
-LOOM_THEME = get_loom_theme()
 
 
 # style helpers for common CLI patterns
