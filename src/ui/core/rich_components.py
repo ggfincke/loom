@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 # Core Rich components
 from rich.console import Console, RenderableType, Group
 from rich.text import Text
@@ -20,6 +22,65 @@ from rich.padding import Padding
 # Progress & interaction components
 from rich.progress import Progress, SpinnerColumn, TextColumn, ProgressColumn
 from rich.spinner import Spinner
+
+
+# * Themed Panel builder - consistent styling across UI
+def themed_panel(
+    content: Any,
+    title: str | None = None,
+    theme_colors: list[str] | None = None,
+    padding: tuple[int, int] = (0, 1),
+    **kwargs,
+) -> Panel:
+    """Create Panel with consistent theming.
+
+    Args:
+        content: Renderable content for the panel
+        title: Optional panel title (will be bolded automatically)
+        theme_colors: Color palette; defaults to active theme
+        padding: Panel padding; defaults to (0, 1)
+        **kwargs: Additional Panel arguments
+    """
+    # lazy import to avoid circular dependency
+    from ..theming.theme_engine import get_active_theme
+
+    colors = theme_colors or get_active_theme()
+    formatted_title = f"[bold]{title}[/]" if title else None
+    return Panel(
+        content,
+        title=formatted_title,
+        title_align=kwargs.pop("title_align", "left"),
+        border_style=kwargs.pop("border_style", colors[2]),
+        padding=padding,
+        **kwargs,
+    )
+
+
+# * Themed Table builder - consistent styling across UI
+def themed_table(
+    theme_colors: list[str] | None = None,
+    show_header: bool = False,
+    **kwargs,
+) -> Table:
+    """Create Table with consistent theming.
+
+    Args:
+        theme_colors: Color palette; defaults to active theme
+        show_header: Whether to show table header
+        **kwargs: Additional Table arguments
+    """
+    # lazy import to avoid circular dependency
+    from ..theming.theme_engine import get_active_theme
+
+    colors = theme_colors or get_active_theme()
+    return Table(
+        border_style=kwargs.pop("border_style", colors[2]),
+        show_header=show_header,
+        padding=kwargs.pop("padding", (0, 1, 0, 0)),
+        box=kwargs.pop("box", None),
+        **kwargs,
+    )
+
 
 __all__ = [
     # Core
@@ -42,4 +103,7 @@ __all__ = [
     "TextColumn",
     "ProgressColumn",
     "Spinner",
+    # Themed builders
+    "themed_panel",
+    "themed_table",
 ]

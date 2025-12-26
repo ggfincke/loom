@@ -20,6 +20,16 @@ from ...core.exceptions import LaTeXError
 from ..theming.theme_engine import styled_checkmark, styled_arrow, success_gradient
 
 
+def _print_success_line(label: str, path: str | Path | None = None) -> None:
+    """Print styled success line: checkmark + gradient label [+ arrow + path]."""
+    checkmark = styled_checkmark()
+    if path is not None:
+        arrow = styled_arrow()
+        console.print(checkmark, success_gradient(label), arrow, f"{path}")
+    else:
+        console.print(checkmark, success_gradient(label))
+
+
 def persist_edits_json(
     edits: dict,
     out_path: Path,
@@ -37,21 +47,14 @@ def persist_edits_json(
 def report_result(
     result_type: str, settings: LoomSettings | None = None, **paths
 ) -> None:
-    checkmark = styled_checkmark()
     arrow = styled_arrow()
 
     if result_type == "sections":
-        console.print(
-            checkmark,
-            success_gradient("Wrote sections to"),
-            f"{paths['sections_path']}",
-        )
+        _print_success_line("Wrote sections to", paths["sections_path"])
     elif result_type == "edits":
-        console.print(
-            checkmark, success_gradient("Wrote edits"), arrow, f"{paths['edits_path']}"
-        )
+        _print_success_line("Wrote edits", paths["edits_path"])
     elif result_type == "tailor":
-        console.print(checkmark, success_gradient("Complete tailoring finished"))
+        _print_success_line("Complete tailoring finished")
         console.print(f"   Edits {arrow} {paths['edits_path']}", style="loom.accent2")
         console.print(f"   Resume {arrow} {paths['output_path']}", style="loom.accent2")
         if settings:
@@ -66,25 +69,18 @@ def report_result(
                 if paths.get("preserve_formatting")
                 else " (plain text)"
             )
-            console.print(
-                checkmark,
-                success_gradient(f"Wrote DOCX{format_msg}"),
-                arrow,
-                f"{out_path}",
-            )
+            _print_success_line(f"Wrote DOCX{format_msg}", out_path)
         else:
-            console.print(
-                checkmark, success_gradient("Wrote text"), arrow, f"{out_path}"
-            )
+            _print_success_line("Wrote text", out_path)
         if settings:
+            checkmark = styled_checkmark()
             console.print(
                 checkmark, f"Diff {arrow} {settings.diff_path}", style="loom.accent2"
             )
     elif result_type == "plan":
-        console.print(
-            checkmark, success_gradient("Wrote edits"), arrow, f"{paths['edits_path']}"
-        )
+        _print_success_line("Wrote edits", paths["edits_path"])
         if settings:
+            checkmark = styled_checkmark()
             console.print(
                 checkmark, f"Plan {arrow} {settings.plan_path}", style="loom.accent2"
             )

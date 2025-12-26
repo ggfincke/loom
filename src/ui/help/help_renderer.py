@@ -20,6 +20,46 @@ class HelpRenderer:
     def __init__(self):
         self.theme_colors = get_active_theme()
 
+    def _create_styled_panel(
+        self, content, title: str, padding: tuple[int, int] = (0, 1)
+    ) -> Panel:
+        """Create consistently styled panel for help output."""
+        return Panel(
+            content,
+            title=f"[bold]{title}[/]",
+            title_align="left",
+            border_style=self.theme_colors[2],
+            padding=padding,
+        )
+
+    def _create_commands_table(self) -> Table:
+        """Create consistently styled commands table."""
+        table = Table(
+            border_style=self.theme_colors[2],
+            show_header=False,
+            padding=(0, 1, 0, 0),
+            box=None,
+        )
+        table.add_column("Command", style=f"bold {self.theme_colors[0]}", width=12)
+        table.add_column("Description", style="white")
+        return table
+
+    def _create_options_table(self, show_default: bool = True) -> Table:
+        """Create consistently styled options table."""
+        table = Table(
+            title="Options",
+            title_style=f"bold {self.theme_colors[0]}",
+            border_style=self.theme_colors[2],
+            show_header=True,
+            padding=(0, 1),
+        )
+        table.add_column("Option", style=f"bold {self.theme_colors[0]}", width=30)
+        table.add_column("Type", style=self.theme_colors[2], width=10)
+        table.add_column("Description", style="white")
+        if show_default:
+            table.add_column("Default", style="dim")
+        return table
+
     # * render main application help screen w/ banner & command overview
     def render_main_help(self, app: typer.Typer) -> None:
         console.print()
@@ -27,12 +67,9 @@ class HelpRenderer:
         console.print()
 
         # usage section
-        usage_panel = Panel(
+        usage_panel = self._create_styled_panel(
             "[bold white]loom[/] [dim]<command>[/] [dim]<options>[/]",
-            title="[bold]Usage[/]",
-            title_align="left",
-            border_style=self.theme_colors[2],
-            padding=(0, 1),
+            "Usage",
         )
         console.print(usage_panel)
         console.print()
@@ -78,13 +115,7 @@ class HelpRenderer:
 
         # usage
         usage_text = f"[bold white]loom {command_name}[/] [dim]<options>[/]"
-        usage_panel = Panel(
-            usage_text,
-            title="[bold]Usage[/]",
-            title_align="left",
-            border_style=self.theme_colors[2],
-            padding=(0, 1),
-        )
+        usage_panel = self._create_styled_panel(usage_text, "Usage")
         console.print(usage_panel)
         console.print()
 
@@ -117,49 +148,23 @@ class HelpRenderer:
         ]
 
         # core workflow section
-        core_table = Table(
-            border_style=self.theme_colors[2],
-            show_header=False,
-            padding=(0, 1, 0, 0),
-            box=None,
-        )
-        core_table.add_column("Command", style=f"bold {self.theme_colors[0]}", width=12)
-        core_table.add_column("Description", style="white")
-
+        core_table = self._create_commands_table()
         for cmd, desc in core_commands:
             core_table.add_row(cmd, desc)
 
-        core_panel = Panel(
-            core_table,
-            title=f"[bold {self.theme_colors[1]}]Core Workflow[/]",
-            title_align="left",
-            border_style=self.theme_colors[2],
-            padding=(0, 1),
+        core_panel = self._create_styled_panel(
+            core_table, f"[bold {self.theme_colors[1]}]Core Workflow[/]"
         )
         console.print(core_panel)
         console.print()
 
         # utilities section
-        utility_table = Table(
-            border_style=self.theme_colors[2],
-            show_header=False,
-            padding=(0, 1, 0, 0),
-            box=None,
-        )
-        utility_table.add_column(
-            "Command", style=f"bold {self.theme_colors[0]}", width=12
-        )
-        utility_table.add_column("Description", style="white")
-
+        utility_table = self._create_commands_table()
         for cmd, desc in utility_commands:
             utility_table.add_row(cmd, desc)
 
-        utility_panel = Panel(
-            utility_table,
-            title=f"[bold {self.theme_colors[1]}]Utilities[/]",
-            title_align="left",
-            border_style=self.theme_colors[2],
-            padding=(0, 1),
+        utility_panel = self._create_styled_panel(
+            utility_table, f"[bold {self.theme_colors[1]}]Utilities[/]"
         )
         console.print(utility_panel)
 
@@ -193,12 +198,8 @@ class HelpRenderer:
             Text("loom config themes  # Interactive theme selector", style="white"),
         )
 
-        examples_panel = Panel(
-            examples_content,
-            title="[bold]Examples[/]",
-            title_align="left",
-            border_style=self.theme_colors[2],
-            padding=(1, 2),
+        examples_panel = self._create_styled_panel(
+            examples_content, "Examples", padding=(1, 2)
         )
         console.print(examples_panel)
 
@@ -211,12 +212,8 @@ class HelpRenderer:
             Text("--show-completion       Show completion script", style="white"),
         )
 
-        options_panel = Panel(
-            options_content,
-            title="[bold]Global Options[/]",
-            title_align="left",
-            border_style=self.theme_colors[2],
-            padding=(0, 2),
+        options_panel = self._create_styled_panel(
+            options_content, "Global Options", padding=(0, 2)
         )
         console.print(options_panel)
 
@@ -278,17 +275,7 @@ class HelpRenderer:
 
     def _render_introspected_options(self, options: list[IntrospectedOption]) -> None:
         """Render options table from introspected data."""
-        table = Table(
-            title="Options",
-            title_style=f"bold {self.theme_colors[0]}",
-            border_style=self.theme_colors[2],
-            show_header=True,
-            padding=(0, 1),
-        )
-        table.add_column("Option", style=f"bold {self.theme_colors[0]}", width=30)
-        table.add_column("Type", style=self.theme_colors[2], width=10)
-        table.add_column("Description", style="white")
-        table.add_column("Default", style="dim")
+        table = self._create_options_table(show_default=True)
 
         for opt in options:
             # try to enhance with help_data if available
@@ -376,17 +363,7 @@ class HelpRenderer:
             "config": [],
         }
 
-        table = Table(
-            title="Options",
-            title_style=f"bold {self.theme_colors[0]}",
-            border_style=self.theme_colors[2],
-            show_header=True,
-            padding=(0, 1),
-        )
-        table.add_column("Option", style=f"bold {self.theme_colors[0]}", width=30)
-        table.add_column("Type", style=self.theme_colors[2], width=10)
-        table.add_column("Description", style="white")
-        table.add_column("Default", style="dim")
+        table = self._create_options_table(show_default=True)
 
         entries = options_map.get(command_name, [])
         if not entries:
@@ -420,12 +397,8 @@ class HelpRenderer:
             *[Text(example, style="white") for example in examples]
         )
 
-        examples_panel = Panel(
-            examples_content,
-            title="[bold]Examples[/]",
-            title_align="left",
-            border_style=self.theme_colors[2],
-            padding=(1, 2),
+        examples_panel = self._create_styled_panel(
+            examples_content, "Examples", padding=(1, 2)
         )
         console.print(examples_panel)
 
@@ -435,11 +408,7 @@ class HelpRenderer:
             [f"[{self.theme_colors[0]}]loom {cmd}[/]" for cmd in see_also]
         )
 
-        see_also_panel = Panel(
-            see_also_text,
-            title="[bold]See Also[/]",
-            title_align="left",
-            border_style=self.theme_colors[2],
-            padding=(0, 2),
+        see_also_panel = self._create_styled_panel(
+            see_also_text, "See Also", padding=(0, 2)
         )
         console.print(see_also_panel)
