@@ -11,6 +11,7 @@ from ...loom_io.console import console
 from ..theming.theme_engine import accent_gradient, get_active_theme
 from ..display.ascii_art import show_loom_art
 from .help_data import get_command_help, get_option_help, get_command_metadata
+from .option_introspection import introspect_command_options, IntrospectedOption
 
 
 # * Custom help renderer for branded CLI help screens w/ Rich styling & theme integration
@@ -87,8 +88,8 @@ class HelpRenderer:
         console.print(usage_panel)
         console.print()
 
-        # detailed options table using our template metadata
-        self._render_command_options_detailed(command_name)
+        # detailed options table - try introspection first, fall back to template metadata
+        self._render_command_options_detailed(command_name, command)
         console.print()
 
         # command-specific examples from templates
@@ -261,9 +262,64 @@ class HelpRenderer:
 
         console.print(table)
 
-    # render detailed options table for command from template metadata
-    def _render_command_options_detailed(self, command_name: str) -> None:
-        # map commands to option keys defined in help_templates.OPTION_HELP
+    # render detailed options table for command - uses introspection w/ fallback to metadata
+    def _render_command_options_detailed(
+        self, command_name: str, command: Any = None
+    ) -> None:
+        # try introspection first if command object is available
+        if command is not None:
+            introspected = introspect_command_options(command)
+            if introspected:
+                self._render_introspected_options(introspected)
+                return
+
+        # fall back to hardcoded options_map
+        self._render_options_from_metadata(command_name)
+
+    def _render_introspected_options(self, options: list[IntrospectedOption]) -> None:
+        """Render options table from introspected data."""
+        table = Table(
+            title="Options",
+            title_style=f"bold {self.theme_colors[0]}",
+            border_style=self.theme_colors[2],
+            show_header=True,
+            padding=(0, 1),
+        )
+        table.add_column("Option", style=f"bold {self.theme_colors[0]}", width=30)
+        table.add_column("Type", style=self.theme_colors[2], width=10)
+        table.add_column("Description", style="white")
+        table.add_column("Default", style="dim")
+
+        for opt in options:
+            # try to enhance with help_data if available
+            help_key = opt.name.lstrip("-").replace("-", "_")
+            enhanced = get_option_help(help_key)
+
+            # compose option name including aliases
+            name_display = opt.name
+            if opt.aliases:
+                name_display += f", {', '.join(opt.aliases)}"
+            if opt.required:
+                name_display += " *"
+
+            # use enhanced description if available, else introspected
+            description = enhanced.description if enhanced else opt.description
+            if opt.required:
+                description += " (required)"
+
+            # use enhanced default if available, else introspected
+            default = (enhanced.default if enhanced else opt.default) or ""
+
+            # use enhanced type if available
+            type_name = enhanced.type_name if enhanced else opt.type_name
+
+            table.add_row(name_display, type_name, description, default)
+
+        console.print(table)
+
+    def _render_options_from_metadata(self, command_name: str) -> None:
+        """Render options table from hardcoded metadata (fallback)."""
+        # map commands to option keys defined in help_data.OPTION_HELP
         options_map = {
             "sectionize": [
                 ("resume", True),
