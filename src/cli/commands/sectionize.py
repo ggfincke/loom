@@ -9,6 +9,7 @@ import typer
 
 from ...ai.prompts import build_sectionizer_prompt
 from ...ai.clients import run_generate
+from ...ai.utils import normalize_sections_response
 from ...loom_io import (
     read_resume,
     write_json_safe,
@@ -20,7 +21,7 @@ from ...loom_io import (
 from ...core.exceptions import handle_loom_error
 
 from ..app import app
-from ..helpers import validate_required_args
+from ..helpers import handle_help_flag, validate_required_args
 from ...ui.core.progress import setup_ui_with_progress
 from ...ui.display.reporting import report_result
 from ..logic import ArgResolver
@@ -55,12 +56,7 @@ def sectionize(
     model: Optional[str] = ModelOpt(),
     help: bool = typer.Option(False, "--help", "-h", help="Show help message & exit."),
 ) -> None:
-    # detect help flag & show custom help
-    if help:
-        from .help import show_command_help
-
-        show_command_help("sectionize")
-        ctx.exit()
+    handle_help_flag(ctx, help, "sectionize")
     settings = get_settings(ctx)
     resolver = ArgResolver(settings)
 
@@ -136,6 +132,8 @@ def sectionize(
 
             data = result.data
             assert data is not None, "Expected non-None data from successful AI result"
+            # normalize short keys (k->kind, h->heading_text, etc.) to full keys
+            data = normalize_sections_response(data)
             progress.advance(task)
 
             progress.update(task, description="Writing sections JSON...")
