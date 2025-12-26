@@ -12,31 +12,19 @@ import tempfile
 import tomllib
 
 from .types import Lines
-from .latex_patterns import STRUCTURAL_PREFIXES, is_structural_line
+from .latex_patterns import (
+    STRUCTURAL_PREFIXES,
+    is_structural_line,
+    SECTION_CMD_RE,
+    SEMANTIC_MATCHERS,
+    BULLET_PATTERNS,
+)
 
 # template descriptor constants
 _TEMPLATE_FILENAME = "loom-template.toml"
 _INLINE_TEMPLATE_RE = re.compile(r"%\s*loom-template:\s*(?P<id>[A-Za-z0-9_\-]+)")
 
-# generic section detection patterns
-_SECTION_CMD_RE = re.compile(
-    r"\\(?P<cmd>section\*?|subsection\*?|subsubsection\*?|cvsection|sectionhead)\s*{\s*(?P<title>[^}]*)\s*}"
-)
-_SEMANTIC_MATCHERS = {
-    "heading": re.compile(r"\\name{|\\contact", re.IGNORECASE),
-    "education": re.compile(r"\beducation\b|\bacademic", re.IGNORECASE),
-    "experience": re.compile(r"\bexperience\b|\bemployment\b|\bwork\b", re.IGNORECASE),
-    "projects": re.compile(r"\bprojects?\b", re.IGNORECASE),
-    "skills": re.compile(r"\bskills?\b|\btechnologies\b|\btools\b", re.IGNORECASE),
-    "publications": re.compile(r"\bpublications?\b|\bresearch\b", re.IGNORECASE),
-    "certifications": re.compile(r"\bcertifications?\b|\blicenses?\b", re.IGNORECASE),
-}
-_BULLET_PATTERNS = [
-    re.compile(r"\\item\b"),
-    re.compile(r"\\entry\b"),
-    re.compile(r"\\cventry\b"),
-    re.compile(r"\\cvitem\b"),
-]
+
 
 
 @dataclass
@@ -215,7 +203,7 @@ def split_preamble_body(lines: Lines) -> tuple[list[int], list[int]]:
 # * Normalize heading text into canonical kind
 def _infer_kind_from_heading(heading: str, fallback: str = "other") -> str:
     head_lower = heading.lower()
-    for kind, matcher in _SEMANTIC_MATCHERS.items():
+    for kind, matcher in SEMANTIC_MATCHERS.items():
         if matcher.search(head_lower):
             return kind
     return fallback
@@ -296,7 +284,7 @@ def _detect_bullets(lines: Lines, start: int, end: int) -> list[int]:
     bullets: list[int] = []
     for line_num in range(start, end + 1):
         text = lines.get(line_num, "")
-        for pattern in _BULLET_PATTERNS:
+        for pattern in BULLET_PATTERNS:
             if pattern.search(text):
                 bullets.append(line_num)
                 break
@@ -308,13 +296,13 @@ def _detect_generic_sections(lines: Lines, body_lines: list[int]) -> list[LatexS
     headings: list[tuple[int, str, str, str]] = []
     for line_num in body_lines:
         text = lines.get(line_num, "")
-        cmd_match = _SECTION_CMD_RE.search(text)
+        cmd_match = SECTION_CMD_RE.search(text)
         if cmd_match:
             heading_text = cmd_match.group("title").strip()
             kind = _infer_kind_from_heading(heading_text)
             headings.append((line_num, heading_text, kind, "generic"))
             continue
-        for kind, matcher in _SEMANTIC_MATCHERS.items():
+        for kind, matcher in SEMANTIC_MATCHERS.items():
             if matcher.search(text):
                 headings.append((line_num, kind.title(), kind, "semantic"))
                 break
@@ -409,11 +397,6 @@ def _extract_commands(text: str) -> set[str]:
     return set(re.findall(r"\\[A-Za-z]+", text or ""))
 
 
-# * Determine if line is structural/frozen
-def _is_structural_line(text: str, frozen_patterns: list[str]) -> bool:
-    return is_structural_line(text, frozen_patterns=frozen_patterns)
-
-
 # * Determine if line references frozen paths
 def _line_hits_frozen_path(text: str, frozen_paths: list[Path]) -> bool:
     stripped = text.strip()
@@ -451,7 +434,7 @@ def filter_latex_edits(
             anchor = op.get("line")
             if anchor in resume_lines:
                 anchor_text = resume_lines[anchor]
-                if _is_structural_line(anchor_text, frozen_patterns):
+                if is_structural_line(anchor_text, frozen_patterns=frozen_patterns):
                     notes.append(f"Skipped insert_after on structural line {anchor}")
                     continue
                 if _line_hits_frozen_path(anchor_text, frozen_paths):
@@ -471,7 +454,7 @@ def filter_latex_edits(
         for line_num in lines:
             text = resume_lines.get(line_num, "")
             original_commands |= _extract_commands(text)
-            if _is_structural_line(text, frozen_patterns):
+            if is_structural_line(text, frozen_patterns=frozen_patterns):
                 notes.append(f"Skipped {op_type} touching structural line {line_num}")
                 risky = True
                 break
@@ -643,6 +626,36 @@ def validate_latex_document(
     return result
 
 
+# * Build LaTeX context (descriptor, sections JSON, notes) for LaTeX resume files
+def build_latex_context(
+    resume_path: Path, lines: Lines, resume_text: str | None = None
+) -> tuple[TemplateDescriptor | None, str | None, list[str]]:
+    """Build context for LaTeX resume files.
+    
+    Detects template, analyzes sections, & collects notes for LaTeX resume.
+    
+    Returns:
+        Tuple of (descriptor, sections_json, notes) for .tex files,
+        or (None, None, []) for non-LaTeX files.
+    """
+    import json
+    
+    descriptor = None
+    sections_json = None
+    notes: list[str] = []
+
+    if resume_path.suffix.lower() == ".tex":
+        # use provided text or read from file
+        if resume_text is None:
+            resume_text = resume_path.read_text(encoding="utf-8")
+        descriptor = detect_template(resume_path, resume_text)
+        analysis = analyze_latex(lines, descriptor)
+        sections_json = json.dumps(sections_to_payload(analysis), indent=2)
+        notes = analysis.notes
+
+    return descriptor, sections_json, notes
+
+
 __all__ = [
     "TemplateDescriptor",
     "TemplateSectionRule",
@@ -658,4 +671,5 @@ __all__ = [
     "validate_latex_compilation",
     "check_latex_availability",
     "validate_latex_document",
+    "build_latex_context",
 ]

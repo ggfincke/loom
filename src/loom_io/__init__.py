@@ -26,6 +26,7 @@ from .latex_handler import (
     filter_latex_edits,
     TemplateDescriptor,
     load_descriptor,
+    build_latex_context,
 )
 
 __all__ = [
@@ -49,4 +50,5 @@ __all__ = [
     "filter_latex_edits",
     "TemplateDescriptor",
     "load_descriptor",
+    "build_latex_context",
 ]

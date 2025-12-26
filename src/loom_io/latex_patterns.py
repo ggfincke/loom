@@ -1,6 +1,8 @@
 # src/loom_io/latex_patterns.py
 # Shared LaTeX pattern constants for validation, filtering & document reading
 
+import re
+
 # * Structural commands that define document architecture
 STRUCTURAL_PREFIXES = (
     "\\documentclass",  # Document type declaration
@@ -32,6 +34,31 @@ DOCUMENT_MARKERS = {
 
 # * Special line prefixes (comments, etc.)
 SPECIAL_PREFIXES = ("%",)  # LaTeX comments
+
+# * Compiled regex for section command detection (section, subsection, etc.)
+SECTION_CMD_RE = re.compile(
+    r"\\(?P<cmd>section\*?|subsection\*?|subsubsection\*?|cvsection|sectionhead)"
+    r"\s*{\s*(?P<title>[^}]*)\s*}"
+)
+
+# * Semantic matchers for inferring resume section type from heading text
+SEMANTIC_MATCHERS = {
+    "heading": re.compile(r"\\name{|\\contact", re.IGNORECASE),
+    "education": re.compile(r"\beducation\b|\bacademic", re.IGNORECASE),
+    "experience": re.compile(r"\bexperience\b|\bemployment\b|\bwork\b", re.IGNORECASE),
+    "projects": re.compile(r"\bprojects?\b", re.IGNORECASE),
+    "skills": re.compile(r"\bskills?\b|\btechnologies\b|\btools\b", re.IGNORECASE),
+    "publications": re.compile(r"\bpublications?\b|\bresearch\b", re.IGNORECASE),
+    "certifications": re.compile(r"\bcertifications?\b|\blicenses?\b", re.IGNORECASE),
+}
+
+# * Bullet/item patterns for detecting list entries in LaTeX documents
+BULLET_PATTERNS = [
+    re.compile(r"\\item\b"),
+    re.compile(r"\\entry\b"),
+    re.compile(r"\\cventry\b"),
+    re.compile(r"\\cvitem\b"),
+]
 
 
 # * Check if line starts w/ structural LaTeX command
@@ -85,3 +112,38 @@ def is_structural_line(
         return True
 
     return False
+
+
+# * Check if line contains preservable LaTeX content (structural or non-empty)
+def is_preservable_content(line: str) -> bool:
+    if is_structural_line(line, include_all_protected=True):
+        return True
+    return bool(line) and not line.isspace()
+
+
+# * Check if previous line requires a trailing blank line for readability
+def requires_trailing_blank(prev_line: str) -> bool:
+    prev_stripped = prev_line.strip()
+    return prev_stripped.startswith("\\end{") or is_section_command(prev_line)
+
+
+__all__ = [
+    # String constants
+    "STRUCTURAL_PREFIXES",
+    "SECTION_PREFIXES",
+    "ITEM_COMMANDS",
+    "DOCUMENT_MARKERS",
+    "SPECIAL_PREFIXES",
+    # Regex patterns
+    "SECTION_CMD_RE",
+    "SEMANTIC_MATCHERS",
+    "BULLET_PATTERNS",
+    # Functions
+    "is_structural_prefix",
+    "is_section_command",
+    "is_protected_prefix",
+    "has_required_document_structure",
+    "is_structural_line",
+    "is_preservable_content",
+    "requires_trailing_blank",
+]
