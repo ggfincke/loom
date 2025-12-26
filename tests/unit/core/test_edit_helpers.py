@@ -1,20 +1,30 @@
 # tests/unit/core/test_edit_helpers.py
-# Unit tests for edit helper functions
+# Unit tests for edit helper functions (now inlined in validation.py & pipeline.py)
 
 import pytest
-from src.core.edit_helpers import (
+
+# validation helpers (from validation.py)
+from src.core.validation import (
     check_line_exists,
     check_range_exists,
     check_range_usage,
-    collect_lines_to_move,
     count_text_lines,
-    shift_lines,
     validate_line_number,
     validate_operation_interactions,
     validate_range_bounds,
     validate_required_fields,
     validate_text_field,
+)
+
+# apply helpers (from pipeline.py)
+from src.core.pipeline import (
     get_operation_line,
+    collect_lines_to_move,
+    shift_lines,
+)
+
+# operation constants (from constants.py)
+from src.core.constants import (
     OP_REPLACE_LINE,
     OP_REPLACE_RANGE,
     OP_INSERT_AFTER,
@@ -151,17 +161,13 @@ class TestRangeBoundsValidation:
 class TestRequiredFieldsValidation:
     def test_validate_required_fields_all_present(self):
         op = {"line": 1, "text": "test"}
-        is_valid, error = validate_required_fields(
-            op, ["line", "text"], "replace_line"
-        )
+        is_valid, error = validate_required_fields(op, ["line", "text"], "replace_line")
         assert is_valid is True
         assert error is None
 
     def test_validate_required_fields_one_missing(self):
         op = {"line": 1}
-        is_valid, error = validate_required_fields(
-            op, ["line", "text"], "replace_line"
-        )
+        is_valid, error = validate_required_fields(op, ["line", "text"], "replace_line")
         assert is_valid is False
         assert "missing required fields (text)" in error
 
@@ -251,7 +257,11 @@ class TestCheckRangeUsage:
         line_usage = {}
         warnings = check_range_usage(1, 3, line_usage, "replace_range", 0)
         assert warnings == []
-        assert line_usage == {1: "replace_range", 2: "replace_range", 3: "replace_range"}
+        assert line_usage == {
+            1: "replace_range",
+            2: "replace_range",
+            3: "replace_range",
+        }
 
     # * Detects & reports duplicate when range overlaps prior usage
     def test_detects_duplicate(self):
