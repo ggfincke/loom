@@ -394,7 +394,12 @@ class TestPrepareResumeContext:
     @patch("src.cli.runner.load_resume_and_job")
     @patch("src.cli.runner.load_sections")
     def test_prepare_context_with_job(
-        self, mock_load_sections, mock_load_resume_and_job, mock_settings, mock_ui, mock_progress
+        self,
+        mock_load_sections,
+        mock_load_resume_and_job,
+        mock_settings,
+        mock_ui,
+        mock_progress,
     ):
         progress, task = mock_progress
         mock_load_resume_and_job.return_value = ({1: "line 1"}, "job text")
@@ -415,7 +420,12 @@ class TestPrepareResumeContext:
     @patch("src.cli.runner.read_resume")
     @patch("src.cli.runner.load_sections")
     def test_prepare_context_without_job(
-        self, mock_load_sections, mock_read_resume, mock_settings, mock_ui, mock_progress
+        self,
+        mock_load_sections,
+        mock_read_resume,
+        mock_settings,
+        mock_ui,
+        mock_progress,
     ):
         progress, task = mock_progress
         mock_read_resume.return_value = {1: "line 1"}
@@ -437,7 +447,13 @@ class TestPrepareResumeContext:
     @patch("src.cli.runner.build_latex_context")
     @patch("src.cli.runner.load_sections")
     def test_prepare_context_latex_detection(
-        self, mock_load_sections, mock_build_latex, mock_read_resume, mock_settings, mock_ui, mock_progress
+        self,
+        mock_load_sections,
+        mock_build_latex,
+        mock_read_resume,
+        mock_settings,
+        mock_ui,
+        mock_progress,
     ):
         progress, task = mock_progress
         mock_read_resume.return_value = {1: "\\documentclass"}
@@ -464,7 +480,12 @@ class TestPrepareResumeContext:
     @patch("src.cli.runner.read_resume")
     @patch("src.cli.runner.load_sections")
     def test_prepare_context_explicit_sections(
-        self, mock_load_sections, mock_read_resume, mock_settings, mock_ui, mock_progress
+        self,
+        mock_load_sections,
+        mock_read_resume,
+        mock_settings,
+        mock_ui,
+        mock_progress,
     ):
         progress, task = mock_progress
         mock_read_resume.return_value = {1: "line 1"}

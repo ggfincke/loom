@@ -262,7 +262,9 @@ class TailoringRunner:
             TailoringMode.PLAN: "Planning edits...",
         }
 
-        with setup_ui_with_progress(task_descriptions[self.mode], total=total_steps) as (
+        with setup_ui_with_progress(
+            task_descriptions[self.mode], total=total_steps
+        ) as (
             ui,
             progress,
             task,
@@ -285,9 +287,7 @@ class TailoringRunner:
 
     # generate mode: create edits.json only
     def _run_generate(self, ui, progress, task) -> None:
-        resume_ctx = prepare_resume_context(
-            self.ctx, ui, progress, task, load_job=True
-        )
+        resume_ctx = prepare_resume_context(self.ctx, ui, progress, task, load_job=True)
         self._resume_ctx = resume_ctx
 
         # generate edits using core helper
@@ -403,9 +403,7 @@ class TailoringRunner:
 
     # tailor mode: generate edits then apply
     def _run_full_tailor(self, ui, progress, task) -> None:
-        resume_ctx = prepare_resume_context(
-            self.ctx, ui, progress, task, load_job=True
-        )
+        resume_ctx = prepare_resume_context(self.ctx, ui, progress, task, load_job=True)
         self._resume_ctx = resume_ctx
 
         # generate edits using core helper
@@ -495,4 +493,6 @@ class TailoringRunner:
                 output_path=self.ctx.output_resume,
             )
         elif self.mode == TailoringMode.PLAN:
-            report_result("plan", settings=self.ctx.settings, edits_path=self.ctx.edits_json)
+            report_result(
+                "plan", settings=self.ctx.settings, edits_path=self.ctx.edits_json
+            )

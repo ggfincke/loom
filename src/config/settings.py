@@ -1,11 +1,13 @@
 # src/config/settings.py
 # Configuration management for Loom CLI including default paths & OpenAI settings
 
-import json
 from pathlib import Path
 from typing import Dict, Any, Optional, cast
 import typer
 from dataclasses import dataclass, asdict
+
+from ..loom_io.generics import read_json_safe, write_json_safe
+from ..core.exceptions import JSONParsingError
 
 
 # * Default settings dataclass for Loom CLI w/ paths & OpenAI model configuration
@@ -89,10 +91,9 @@ class SettingsManager:
 
         if self.config_path.exists():
             try:
-                with open(self.config_path, "r") as f:
-                    data = json.load(f)
+                data = read_json_safe(self.config_path)
                 self._settings = LoomSettings(**data)
-            except (json.JSONDecodeError, TypeError, ValueError) as e:
+            except (JSONParsingError, TypeError, ValueError) as e:
                 typer.echo(f"Warning: Invalid config file {self.config_path}: {e}")
                 typer.echo("Using default settings")
                 self._settings = LoomSettings()
@@ -103,11 +104,7 @@ class SettingsManager:
 
     # save setting to file
     def save(self, settings: LoomSettings) -> None:
-        self.config_path.parent.mkdir(parents=True, exist_ok=True)
-
-        with open(self.config_path, "w") as f:
-            json.dump(asdict(settings), f, indent=2)
-
+        write_json_safe(asdict(settings), self.config_path)
         self._settings = settings
 
     # get a specific setting value
