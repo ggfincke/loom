@@ -71,5 +71,6 @@ def test_detect_template_uses_descriptor_and_inline_marker():
     payload = sections_to_payload(analyze_latex(lines, descriptor))
 
     assert payload["meta"]["template_id"] == "swe-latex"
-    assert payload["version"] == 1
+    # version/handler fields removed for token efficiency
+    assert "sections" in payload
     json.dumps(payload)  # validate JSON serializable

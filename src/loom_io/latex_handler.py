@@ -12,6 +12,7 @@ import tempfile
 import tomllib
 
 from .types import Lines
+from .latex_patterns import STRUCTURAL_PREFIXES, is_structural_line
 
 # template descriptor constants
 _TEMPLATE_FILENAME = "loom-template.toml"
@@ -36,16 +37,6 @@ _BULLET_PATTERNS = [
     re.compile(r"\\cventry\b"),
     re.compile(r"\\cvitem\b"),
 ]
-_STRUCTURAL_PREFIXES = (
-    "\\documentclass",
-    "\\usepackage",
-    "\\newcommand",
-    "\\renewcommand",
-    "\\begin{",
-    "\\end{",
-    "\\input{",
-    "\\include{",
-)
 
 
 @dataclass
@@ -86,7 +77,6 @@ class LatexSection:
     end_line: int
     confidence: float
     items: list[int] = field(default_factory=list)
-    body: str | None = None
     source: str = "generic"
 
 
@@ -119,7 +109,9 @@ def detect_inline_marker(text: str) -> str | None:
 
 
 # * Load template descriptor from path
-def load_descriptor(descriptor_path: Path, inline_marker: str | None = None) -> TemplateDescriptor:
+def load_descriptor(
+    descriptor_path: Path, inline_marker: str | None = None
+) -> TemplateDescriptor:
     raw = tomllib.loads(descriptor_path.read_text(encoding="utf-8"))
     template_meta = raw.get("template", {})
     template_id = template_meta.get("id")
@@ -127,7 +119,9 @@ def load_descriptor(descriptor_path: Path, inline_marker: str | None = None) -> 
     name = template_meta.get("name")
     version = template_meta.get("version")
     if template_id is None or template_type is None:
-        raise ValueError(f"Template descriptor {descriptor_path} missing required template.id or template.type")
+        raise ValueError(
+            f"Template descriptor {descriptor_path} missing required template.id or template.type"
+        )
 
     sections_raw = raw.get("sections", {})
     section_rules: dict[str, TemplateSectionRule] = {}
@@ -163,7 +157,9 @@ def load_descriptor(descriptor_path: Path, inline_marker: str | None = None) -> 
 
 
 # * Detect template descriptor or inline marker near resume
-def detect_template(resume_path: Path, content: str | None = None) -> TemplateDescriptor | None:
+def detect_template(
+    resume_path: Path, content: str | None = None
+) -> TemplateDescriptor | None:
     inline_marker = detect_inline_marker(content or "")
     descriptor_path = find_template_descriptor_path(resume_path)
 
@@ -226,7 +222,9 @@ def _infer_kind_from_heading(heading: str, fallback: str = "other") -> str:
 
 
 # * Build LatexSection boundaries from detected heading lines
-def _finalize_sections(headings: list[tuple[int, str, str, str]], lines: Lines, body_lines: list[int]) -> list[LatexSection]:
+def _finalize_sections(
+    headings: list[tuple[int, str, str, str]], lines: Lines, body_lines: list[int]
+) -> list[LatexSection]:
     sections: list[LatexSection] = []
     if not body_lines:
         return sections
@@ -244,7 +242,6 @@ def _finalize_sections(headings: list[tuple[int, str, str, str]], lines: Lines, 
 
     for start_line, end_line, heading_text, source in section_ranges:
         kind = _infer_kind_from_heading(heading_text, fallback=key)
-        body_chunk = "\n".join(lines[i] for i in range(start_line, end_line + 1) if i in lines)
         sections.append(
             LatexSection(
                 key=kind,
@@ -252,7 +249,6 @@ def _finalize_sections(headings: list[tuple[int, str, str, str]], lines: Lines, 
                 start_line=start_line,
                 end_line=end_line,
                 confidence=0.88 if source == "template" else 0.72,
-                body=body_chunk,
                 source=source,
             )
         )
@@ -260,7 +256,9 @@ def _finalize_sections(headings: list[tuple[int, str, str, str]], lines: Lines, 
 
 
 # * Detect sections using template descriptor rules
-def _detect_template_sections(lines: Lines, descriptor: TemplateDescriptor, body_lines: list[int]) -> tuple[list[LatexSection], list[str]]:
+def _detect_template_sections(
+    lines: Lines, descriptor: TemplateDescriptor, body_lines: list[int]
+) -> tuple[list[LatexSection], list[str]]:
     headings: list[tuple[int, str, str, str]] = []
     notes: list[str] = []
     for key, rule in descriptor.sections.items():
@@ -277,13 +275,17 @@ def _detect_template_sections(lines: Lines, descriptor: TemplateDescriptor, body
                 break
         else:
             if not rule.optional:
-                notes.append(f"Missing required section '{key}' for template {descriptor.id}")
+                notes.append(
+                    f"Missing required section '{key}' for template {descriptor.id}"
+                )
 
     sections = _finalize_sections(headings, lines, body_lines)
 
     # add bullet detection per section rules
     for section in sections:
-        rule = descriptor.sections.get(section.key) or descriptor.sections.get(section.key.lower())
+        rule = descriptor.sections.get(section.key) or descriptor.sections.get(
+            section.key.lower()
+        )
         if rule and rule.split_items:
             section.items = _detect_bullets(lines, section.start_line, section.end_line)
     return sections, notes
@@ -323,12 +325,16 @@ def _detect_generic_sections(lines: Lines, body_lines: list[int]) -> list[LatexS
 
 
 # * Analyze LaTeX resume & return structured sections & metadata
-def analyze_latex(lines: Lines, descriptor: TemplateDescriptor | None = None) -> LatexAnalysis:
+def analyze_latex(
+    lines: Lines, descriptor: TemplateDescriptor | None = None
+) -> LatexAnalysis:
     preamble_lines, body_lines = split_preamble_body(lines)
     notes: list[str] = []
 
     if descriptor:
-        sections, template_notes = _detect_template_sections(lines, descriptor, body_lines)
+        sections, template_notes = _detect_template_sections(
+            lines, descriptor, body_lines
+        )
         notes.extend(template_notes)
     else:
         sections = []
@@ -339,7 +345,6 @@ def analyze_latex(lines: Lines, descriptor: TemplateDescriptor | None = None) ->
             # fallback body section
             start_line = body_lines[0]
             end_line = body_lines[-1]
-            body_text = "\n".join(lines[i] for i in range(start_line, end_line + 1) if i in lines)
             sections = [
                 LatexSection(
                     key="body",
@@ -347,7 +352,6 @@ def analyze_latex(lines: Lines, descriptor: TemplateDescriptor | None = None) ->
                     start_line=start_line,
                     end_line=end_line,
                     confidence=0.4,
-                    body=body_text,
                     source="fallback",
                 )
             ]
@@ -363,21 +367,17 @@ def analyze_latex(lines: Lines, descriptor: TemplateDescriptor | None = None) ->
     )
 
 
-# * Build sections JSON payload to mirror sectionize output
+# * Build sections JSON payload w/ full keys for readability & compatibility
 def sections_to_payload(analysis: LatexAnalysis) -> dict:
     payload_sections: list[dict[str, Any]] = []
     for section in analysis.sections:
         section_entry: dict[str, Any] = {
-            "name": section.key.upper(),
             "kind": section.key,
             "heading_text": section.heading_text,
             "start_line": section.start_line,
             "end_line": section.end_line,
             "confidence": round(section.confidence, 2),
-            "source": section.source,
         }
-        if section.body is not None:
-            section_entry["body"] = section.body
         if section.items:
             item_label = "ITEM"
             if section.key == "experience":
@@ -392,20 +392,16 @@ def sections_to_payload(analysis: LatexAnalysis) -> dict:
             ]
         payload_sections.append(section_entry)
 
-    meta: dict[str, Any] = {}
+    result: dict[str, Any] = {"sections": payload_sections}
+    if analysis.notes:
+        result["notes"] = analysis.notes
     if analysis.descriptor:
-        meta["template_id"] = analysis.descriptor.id
+        meta: dict[str, Any] = {"template_id": analysis.descriptor.id}
         if analysis.descriptor.inline_marker:
             meta["inline_marker"] = analysis.descriptor.inline_marker
+        result["meta"] = meta
 
-    return {
-        "sections": payload_sections,
-        "normalized_order": analysis.normalized_order,
-        "notes": analysis.notes,
-        "meta": meta,
-        "version": 1,
-        "handler": "latex",
-    }
+    return result
 
 
 # * Extract LaTeX command tokens from text
@@ -415,14 +411,7 @@ def _extract_commands(text: str) -> set[str]:
 
 # * Determine if line is structural/frozen
 def _is_structural_line(text: str, frozen_patterns: list[str]) -> bool:
-    stripped = text.strip()
-    if not stripped:
-        return False
-    if stripped.startswith(_STRUCTURAL_PREFIXES):
-        return True
-    if any(pattern in stripped for pattern in frozen_patterns):
-        return True
-    return False
+    return is_structural_line(text, frozen_patterns=frozen_patterns)
 
 
 # * Determine if line references frozen paths
@@ -447,7 +436,11 @@ def filter_latex_edits(
     def target_lines(op: dict) -> list[int]:
         if op.get("op") == "replace_line" and "line" in op:
             return [op["line"]]
-        if op.get("op") in ("replace_range", "delete_range") and "start" in op and "end" in op:
+        if (
+            op.get("op") in ("replace_range", "delete_range")
+            and "start" in op
+            and "end" in op
+        ):
             return list(range(op["start"], op["end"] + 1))
         return []
 
@@ -462,7 +455,9 @@ def filter_latex_edits(
                     notes.append(f"Skipped insert_after on structural line {anchor}")
                     continue
                 if _line_hits_frozen_path(anchor_text, frozen_paths):
-                    notes.append(f"Skipped insert_after near frozen include on line {anchor}")
+                    notes.append(
+                        f"Skipped insert_after near frozen include on line {anchor}"
+                    )
                     continue
             filtered_ops.append(op)
             continue
@@ -481,7 +476,9 @@ def filter_latex_edits(
                 risky = True
                 break
             if _line_hits_frozen_path(text, frozen_paths):
-                notes.append(f"Skipped {op_type} touching frozen path on line {line_num}")
+                notes.append(
+                    f"Skipped {op_type} touching frozen path on line {line_num}"
+                )
                 risky = True
                 break
         if risky:
@@ -495,15 +492,22 @@ def filter_latex_edits(
             continue
 
         replacement_text = op.get("text", "") if isinstance(op, dict) else ""
-        new_commands = _extract_commands(replacement_text) if replacement_text else set()
+        new_commands = (
+            _extract_commands(replacement_text) if replacement_text else set()
+        )
 
         # ensure bullet commands stick around
-        if any(cmd == "\\item" for cmd in original_commands) and "\\item" not in new_commands:
+        if (
+            any(cmd == "\\item" for cmd in original_commands)
+            and "\\item" not in new_commands
+        ):
             notes.append("Dropped edit removing \\item command")
             continue
 
         # block edits that erase commands entirely
-        retained = all(cmd in new_commands or cmd == "\\item" for cmd in original_commands)
+        retained = all(
+            cmd in new_commands or cmd == "\\item" for cmd in original_commands
+        )
         if not retained and op_type in ("replace_line", "replace_range"):
             notes.append("Dropped edit removing LaTeX commands")
             continue
@@ -566,7 +570,9 @@ def validate_latex_compilation(
             if proc.returncode == 0 and pdf_path.exists():
                 result["success"] = True
             else:
-                result["errors"].append(proc.stderr or proc.stdout or "Compilation failed")
+                result["errors"].append(
+                    proc.stderr or proc.stdout or "Compilation failed"
+                )
 
             # extract warnings from stdout
             for line in proc.stdout.split("\n"):

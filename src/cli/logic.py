@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import TypedDict, Any
 
 from ..config.settings import LoomSettings
-from ..loom_io.generics import ensure_parent
+from ..loom_io.generics import ensure_parent, write_json_safe
 from ..loom_io.types import Lines
 from ..loom_io import (
     filter_latex_edits,
@@ -37,7 +37,7 @@ def _resolve(provided_value: Any, settings_default: Any) -> Any:
 
 # * Build LaTeX context (descriptor, sections JSON, notes) for LaTeX resume files
 def build_latex_context(
-    resume_path: Path, lines: Lines
+    resume_path: Path, lines: Lines, resume_text: str | None = None
 ) -> tuple[TemplateDescriptor | None, str | None, list[str]]:
     # detect template, analyze sections, & collect notes for LaTeX resume; returns tuple of (descriptor, sections_json, notes) or (None, None, []) for non-LaTeX files
     descriptor = None
@@ -45,7 +45,9 @@ def build_latex_context(
     notes: list[str] = []
 
     if resume_path.suffix.lower() == ".tex":
-        resume_text = resume_path.read_text(encoding="utf-8")
+        # use provided text or read from file
+        if resume_text is None:
+            resume_text = resume_path.read_text(encoding="utf-8")
         descriptor = detect_template(resume_path, resume_text)
         analysis = analyze_latex(lines, descriptor)
         sections_json = json.dumps(sections_to_payload(analysis), indent=2)
@@ -127,11 +129,10 @@ def generate_edits_core(
 
     # persist edits or create placeholder for manual editing
     target_path = persist_path if persist_path is not None else settings.edits_path
-    ensure_parent(target_path)
 
     if edits is not None:
         # persist successful edits
-        target_path.write_text(json.dumps(edits, indent=2), encoding="utf-8")
+        write_json_safe(edits, target_path)
     else:
         # create placeholder edits file for manual editing when JSON parsing fails
         placeholder_edits = {
@@ -139,9 +140,7 @@ def generate_edits_core(
             "meta": {"strategy": "manual", "model": model},
             "ops": [],
         }
-        target_path.write_text(
-            json.dumps(placeholder_edits, indent=2), encoding="utf-8"
-        )
+        write_json_safe(placeholder_edits, target_path)
 
     # validate using updatable closure
     current_edits = [edits]
@@ -358,46 +357,27 @@ def _operation_to_dict(op: EditOperation, include_status: bool = False) -> dict 
     return dict_op
 
 
-# * Convert approved EditOperation objects back to dict format for application
+# * Convert EditOperation objects back to dict format
 def convert_operations_to_dict_edits(
-    operations: list[EditOperation], original_edits: dict
+    operations: list[EditOperation],
+    original_edits: dict,
+    include_all: bool = False,
 ) -> dict:
-    approved_ops = []
+    result_ops = []
 
     for op in operations:
-        if op.status != DiffOp.APPROVE:
+        if not include_all and op.status != DiffOp.APPROVE:
             continue
 
-        dict_op = _operation_to_dict(op)
+        dict_op = _operation_to_dict(op, include_status=include_all)
         if dict_op is None:
             continue
-        approved_ops.append(dict_op)
+        result_ops.append(dict_op)
 
-    # return new edits dict w/ only approved operations
     return {
         "version": original_edits.get("version", 1),
         "meta": original_edits.get("meta", {}),
-        "ops": approved_ops,
-    }
-
-
-# * Convert ALL EditOperation objects back to dict format for persistence
-def convert_all_operations_to_dict_edits(
-    operations: list[EditOperation], original_edits: dict
-) -> dict:
-    all_ops = []
-
-    for op in operations:
-        dict_op = _operation_to_dict(op, include_status=True)
-        if dict_op is None:
-            continue
-        all_ops.append(dict_op)
-
-    # return new edits dict w/ all operations & their statuses
-    return {
-        "version": original_edits.get("version", 1),
-        "meta": original_edits.get("meta", {}),
-        "ops": all_ops,
+        "ops": result_ops,
     }
 
 
@@ -496,15 +476,12 @@ def apply_edits_core(
             ):
 
                 # create updated edits dict w/ all operations (including their statuses)
-                complete_edits = convert_all_operations_to_dict_edits(
-                    reviewed_operations, current[0]
+                complete_edits = convert_operations_to_dict_edits(
+                    reviewed_operations, current[0], include_all=True
                 )
 
                 # write updated edits back to file
-                ensure_parent(edits_json_path)
-                edits_json_path.write_text(
-                    json.dumps(complete_edits, indent=2), encoding="utf-8"
-                )
+                write_json_safe(complete_edits, edits_json_path)
                 ui.print(f"[green]Updated edits saved to {edits_json_path}[/]")
 
     # re-run LaTeX safety checks before applying edits
