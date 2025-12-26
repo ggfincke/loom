@@ -9,26 +9,172 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import List, Callable, Any, Optional, Dict
 from pathlib import Path
-from .constants import ValidationPolicy, RiskLevel
-from .exceptions import ValidationError, JSONParsingError
-from ..ai.models import SUPPORTED_MODELS, validate_model
-from ..config.settings import settings_manager, LoomSettings
-from ..loom_io.generics import ensure_parent
-from .edit_helpers import (
-    check_line_exists,
-    check_range_exists,
-    check_range_usage,
-    count_text_lines,
-    validate_line_number,
-    validate_operation_interactions,
-    validate_range_bounds,
-    validate_required_fields,
-    validate_text_field,
+from .constants import (
+    ValidationPolicy,
+    RiskLevel,
     OP_REPLACE_LINE,
     OP_REPLACE_RANGE,
     OP_INSERT_AFTER,
     OP_DELETE_RANGE,
 )
+from .exceptions import ValidationError, JSONParsingError
+from ..ai.models import SUPPORTED_MODELS, validate_model
+from ..config.settings import settings_manager, LoomSettings
+from ..loom_io.generics import ensure_parent
+from ..loom_io.types import Lines
+
+
+# =============================================================================
+# Edit validation helpers (inlined from edit_helpers.py)
+# =============================================================================
+
+
+# * Line existence validation
+def check_line_exists(line: int, lines: Lines) -> bool:
+    return line in lines
+
+
+# * Range existence validation
+def check_range_exists(
+    start: int, end: int, lines: Lines
+) -> tuple[bool, Optional[int]]:
+    for line in range(start, end + 1):
+        if line not in lines:
+            return False, line
+    return True, None
+
+
+# * Line count calculation from text
+def count_text_lines(text: str, allow_empty: bool = False) -> int:
+    if not text:
+        return 1 if allow_empty else 0
+    return len(text.split("\n"))
+
+
+# * Integer type & bounds validation
+def validate_line_number(
+    line: any, op_index: Optional[int] = None
+) -> tuple[bool, Optional[str]]:
+    if not isinstance(line, int):
+        prefix = f"Op {op_index}: " if op_index is not None else ""
+        return False, f"{prefix}'line' must be integer >= 1"
+
+    if line < 1:
+        prefix = f"Op {op_index}: " if op_index is not None else ""
+        return False, f"{prefix}'line' must be integer >= 1"
+
+    return True, None
+
+
+# * Range bounds validation
+def validate_range_bounds(
+    start: any, end: any, op_index: Optional[int] = None
+) -> tuple[bool, Optional[str]]:
+    prefix = f"Op {op_index}: " if op_index is not None else ""
+
+    if not isinstance(start, int) or not isinstance(end, int):
+        return False, f"{prefix}start and end must be integers"
+
+    if start < 1 or end < 1 or start > end:
+        return False, f"{prefix}invalid range {start}-{end}"
+
+    return True, None
+
+
+# * Required field validation
+def validate_required_fields(
+    op: dict, required_fields: List[str], op_type: str, op_index: Optional[int] = None
+) -> tuple[bool, Optional[str]]:
+    prefix = f"Op {op_index}: " if op_index is not None else ""
+    missing = [f for f in required_fields if f not in op]
+
+    if missing:
+        fields_str = ", ".join(missing)
+        return False, f"{prefix}{op_type} missing required fields ({fields_str})"
+
+    return True, None
+
+
+# * Text type validation
+def validate_text_field(
+    text: any, allow_newlines: bool = True, op_index: Optional[int] = None
+) -> tuple[bool, Optional[str]]:
+    prefix = f"Op {op_index}: " if op_index is not None else ""
+
+    if not isinstance(text, str):
+        return False, f"{prefix}'text' must be string"
+
+    if not allow_newlines and "\n" in text:
+        return False, f"{prefix}replace_line text contains newline; use replace_range"
+
+    return True, None
+
+
+# * Check range for duplicate line usage
+def check_range_usage(
+    start: int,
+    end: int,
+    line_usage: dict[int, str],
+    op_type: str,
+    op_index: int,
+) -> List[str]:
+    warnings: List[str] = []
+
+    # check for duplicates first
+    for line in range(start, end + 1):
+        if line in line_usage:
+            warnings.append(f"Op {op_index}: duplicate operation on line {line}")
+            break  # only report first duplicate
+
+    # mark all lines as used regardless
+    for line in range(start, end + 1):
+        line_usage[line] = op_type
+
+    return warnings
+
+
+# * Validate cross-operation interactions
+def validate_operation_interactions(ops: List[dict]) -> List[str]:
+    warnings: List[str] = []
+
+    # 1. Check for insert_after on lines being deleted
+    delete_ranges = [
+        (op["start"], op["end"])
+        for op in ops
+        if op.get("op") == OP_DELETE_RANGE and "start" in op and "end" in op
+    ]
+    for i, op in enumerate(ops):
+        if op.get("op") == OP_INSERT_AFTER and "line" in op:
+            ln = op["line"]
+            if any(s <= ln <= e for s, e in delete_ranges):
+                warnings.append(
+                    f"Op {i}: insert_after on line {ln} that is deleted by a delete_range"
+                )
+
+    # 2. Check for delete_range overlapping replace_range
+    replace_ranges = [
+        (op["start"], op["end"])
+        for op in ops
+        if op.get("op") == OP_REPLACE_RANGE and "start" in op and "end" in op
+    ]
+    for i, op in enumerate(ops):
+        if op.get("op") == OP_DELETE_RANGE and "start" in op and "end" in op:
+            s, e = op["start"], op["end"]
+            if any(not (e2 < s or s2 > e) for (s2, e2) in replace_ranges):
+                warnings.append(
+                    f"Op {i}: delete_range overlaps a replace_range; split or reorder ops"
+                )
+
+    # 3. Check for multiple insert_after on same line
+    seen_inserts: set[int] = set()
+    for i, op in enumerate(ops):
+        if op.get("op") == OP_INSERT_AFTER and "line" in op:
+            ln = op["line"]
+            if ln in seen_inserts:
+                warnings.append(f"Op {i}: multiple insert_after on line {ln}")
+            seen_inserts.add(ln)
+
+    return warnings
 
 
 # * Validation outcome for strategy results
@@ -376,7 +522,9 @@ def validate_edits(
                 continue
 
             # Text validation (no newlines for replace_line)
-            is_valid, error = validate_text_field(op["text"], allow_newlines=False, op_index=i)
+            is_valid, error = validate_text_field(
+                op["text"], allow_newlines=False, op_index=i
+            )
             if not is_valid:
                 warnings.append(error)
                 continue
@@ -408,7 +556,9 @@ def validate_edits(
                 continue
 
             # Text validation
-            is_valid, error = validate_text_field(op["text"], allow_newlines=True, op_index=i)
+            is_valid, error = validate_text_field(
+                op["text"], allow_newlines=True, op_index=i
+            )
             if not is_valid:
                 warnings.append(error)
                 continue
@@ -450,7 +600,9 @@ def validate_edits(
                 continue
 
             # Text validation
-            is_valid, error = validate_text_field(op["text"], allow_newlines=True, op_index=i)
+            is_valid, error = validate_text_field(
+                op["text"], allow_newlines=True, op_index=i
+            )
             if not is_valid:
                 warnings.append(error)
                 continue
@@ -493,5 +645,3 @@ def validate_edits(
     warnings.extend(validate_operation_interactions(ops))
 
     return warnings
-
-

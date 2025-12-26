@@ -11,9 +11,9 @@ from src.core.pipeline import (
     diff_lines,
     process_prompt_operation,
     process_modify_operation,
+    get_operation_line,
 )
 from src.loom_io import number_lines
-from src.core.edit_helpers import get_operation_line
 from src.core.exceptions import EditError, AIError, JSONParsingError
 from src.loom_io.types import Lines
 

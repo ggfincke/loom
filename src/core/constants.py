@@ -6,6 +6,13 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 
 
+# * Operation type constants for edit operations
+OP_REPLACE_LINE = "replace_line"
+OP_REPLACE_RANGE = "replace_range"
+OP_INSERT_AFTER = "insert_after"
+OP_DELETE_RANGE = "delete_range"
+
+
 # * Risk level constants for validation strictness
 class RiskLevel(Enum):
     LOW = "low"
