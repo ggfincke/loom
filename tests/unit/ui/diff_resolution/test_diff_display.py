@@ -52,11 +52,11 @@ class TestInteractiveDiffResolverInit:
         resolver = InteractiveDiffResolver(ops, filename="test.docx")
 
         assert resolver.operations == ops
-        assert resolver.filename == "test.docx"
-        assert resolver.current_index == 0
-        assert resolver.selected == 0
-        assert resolver.mode == DiffReviewMode.MENU
-        assert resolver.operations_modified is False
+        assert resolver.state.filename == "test.docx"
+        assert resolver.state.current_index == 0
+        assert resolver.state.selected == 0
+        assert resolver.state.mode == DiffReviewMode.MENU
+        assert resolver.state.operations_modified is False
 
     def test_init_with_ai_context(self):
         ops = [EditOperation(operation="replace_line", line_number=1, content="test")]
@@ -68,9 +68,9 @@ class TestInteractiveDiffResolverInit:
             model="gpt-4o",
         )
 
-        assert resolver.ai_context["resume_lines"] == {1: "line1"}
-        assert resolver.ai_context["job_text"] == "job desc"
-        assert resolver.ai_context["model"] == "gpt-4o"
+        assert resolver.ai_processor.context.resume_lines == {1: "line1"}
+        assert resolver.ai_processor.context.job_text == "job desc"
+        assert resolver.ai_processor.context.model == "gpt-4o"
 
     def test_current_operation_property(self):
         ops = [
@@ -79,18 +79,18 @@ class TestInteractiveDiffResolverInit:
         ]
         resolver = InteractiveDiffResolver(ops)
 
-        assert resolver.current_operation == ops[0]
-        resolver.current_index = 1
-        assert resolver.current_operation == ops[1]
-        resolver.current_index = 10  # out of bounds
-        assert resolver.current_operation is None
+        assert resolver.state.current_operation == ops[0]
+        resolver.state.current_index = 1
+        assert resolver.state.current_operation == ops[1]
+        resolver.state.current_index = 10  # out of bounds
+        assert resolver.state.current_operation is None
 
     def test_is_complete_property(self):
         ops = [EditOperation(operation="replace_line", line_number=1, content="test")]
         resolver = InteractiveDiffResolver(ops)
 
         assert resolver.is_complete is False
-        resolver.current_index = 1
+        resolver.state.current_index = 1
         assert resolver.is_complete is True
 
 
@@ -100,7 +100,7 @@ class TestInteractiveDiffResolverInit:
 class TestRenderOperationDisplay:
     def test_none_operation(self):
         resolver = InteractiveDiffResolver([])
-        result = resolver._render_operation_display()
+        result = resolver.renderer.render_operation_display(resolver.state.current_operation)
         assert len(result) == 1
         assert "No edit operation selected" in str(result[0])
 
@@ -115,7 +115,7 @@ class TestRenderOperationDisplay:
         )
         resolver = InteractiveDiffResolver([op])
 
-        result = resolver._render_operation_display()
+        result = resolver.renderer.render_operation_display(resolver.state.current_operation)
         content_lines = [str(line) for line in result]
 
         assert any("replace_line" in line for line in content_lines)
@@ -137,7 +137,7 @@ class TestRenderOperationDisplay:
         )
         resolver = InteractiveDiffResolver([op])
 
-        result = resolver._render_operation_display()
+        result = resolver.renderer.render_operation_display(resolver.state.current_operation)
         content_lines = [str(line) for line in result]
 
         assert any("replace_range" in line for line in content_lines)
@@ -152,7 +152,7 @@ class TestRenderOperationDisplay:
         )
         resolver = InteractiveDiffResolver([op])
 
-        result = resolver._render_operation_display()
+        result = resolver.renderer.render_operation_display(resolver.state.current_operation)
         content_lines = [str(line) for line in result]
 
         assert any("insert_after" in line for line in content_lines)
@@ -168,7 +168,7 @@ class TestRenderOperationDisplay:
         )
         resolver = InteractiveDiffResolver([op])
 
-        result = resolver._render_operation_display()
+        result = resolver.renderer.render_operation_display(resolver.state.current_operation)
         content_lines = [str(line) for line in result]
 
         assert any("delete_range" in line for line in content_lines)
@@ -180,7 +180,7 @@ class TestRenderOperationDisplay:
         )
         resolver = InteractiveDiffResolver([op])
 
-        result = resolver._render_operation_display()
+        result = resolver.renderer.render_operation_display(resolver.state.current_operation)
         content_lines = [str(line) for line in result]
 
         assert not any("Confidence: 0.00" in line for line in content_lines)
@@ -191,7 +191,7 @@ class TestRenderOperationDisplay:
         )
         resolver = InteractiveDiffResolver([op])
 
-        result = resolver._render_operation_display()
+        result = resolver.renderer.render_operation_display(resolver.state.current_operation)
         content_lines = [str(line) for line in result]
 
         assert any("[no content]" in line for line in content_lines)
@@ -206,12 +206,12 @@ class TestRenderTextInputDisplay:
             operation="replace_line", line_number=5, content="Original content"
         )
         resolver = InteractiveDiffResolver([op])
-        resolver.mode = DiffReviewMode.TEXT_INPUT
-        resolver.text_input_mode = "modify"
-        resolver.text_input_buffer = "test input"
-        resolver.text_input_cursor = 5
+        resolver.state.mode = DiffReviewMode.TEXT_INPUT
+        resolver.state.text_input_mode = "modify"
+        resolver.state.text_input_buffer = "test input"
+        resolver.state.text_input_cursor = 5
 
-        result = resolver._render_text_input_display()
+        result = resolver.renderer.render_text_input_display(resolver.state)
         content_lines = [str(line) for line in result]
 
         assert any("MODIFY OPERATION" in line for line in content_lines)
@@ -222,10 +222,10 @@ class TestRenderTextInputDisplay:
             operation="replace_line", line_number=5, content="Original content"
         )
         resolver = InteractiveDiffResolver([op])
-        resolver.mode = DiffReviewMode.TEXT_INPUT
-        resolver.text_input_mode = "prompt"
+        resolver.state.mode = DiffReviewMode.TEXT_INPUT
+        resolver.state.text_input_mode = "prompt"
 
-        result = resolver._render_text_input_display()
+        result = resolver.renderer.render_text_input_display(resolver.state)
         content_lines = [str(line) for line in result]
 
         assert any("PROMPT LLM" in line for line in content_lines)
@@ -243,7 +243,11 @@ class TestHeaderFooterLayouts:
         ]
         resolver = InteractiveDiffResolver(ops, filename="resume.docx")
 
-        result = resolver._render_header()
+        result = resolver.renderer.render_header(
+            resolver.state.filename,
+            resolver.state.current_index,
+            len(resolver.state.operations),
+        )
         assert result is not None
 
     def test_footer_with_processed_operations(self):
@@ -256,9 +260,11 @@ class TestHeaderFooterLayouts:
         op3.status = DiffOp.SKIP
 
         resolver = InteractiveDiffResolver([op1, op2, op3])
-        resolver.current_index = 3  # all operations reviewed
+        resolver.state.current_index = 3  # all operations reviewed
 
-        result = resolver._render_footer()
+        result = resolver.renderer.render_footer(
+            resolver.state.operations, resolver.state.current_index
+        )
         assert result is not None
 
 
@@ -269,61 +275,61 @@ class TestKeyHandling:
     def test_menu_navigation_up(self):
         op = EditOperation(operation="replace_line", line_number=1, content="test")
         resolver = InteractiveDiffResolver([op])
-        resolver.selected = 1
+        resolver.state.selected = 1
 
         from readchar import key
 
-        resolver._handle_menu_key(key.UP)
-        assert resolver.selected == 0
+        resolver.input_handler._handle_menu_key(key.UP)
+        assert resolver.state.selected == 0
 
     def test_menu_navigation_down(self):
         op = EditOperation(operation="replace_line", line_number=1, content="test")
         resolver = InteractiveDiffResolver([op])
-        resolver.selected = 0
+        resolver.state.selected = 0
 
         from readchar import key
 
-        resolver._handle_menu_key(key.DOWN)
-        assert resolver.selected == 1
+        resolver.input_handler._handle_menu_key(key.DOWN)
+        assert resolver.state.selected == 1
 
     def test_text_input_backspace(self):
         op = EditOperation(operation="replace_line", line_number=1, content="test")
         resolver = InteractiveDiffResolver([op])
-        resolver.mode = DiffReviewMode.TEXT_INPUT
-        resolver.text_input_buffer = "hello"
-        resolver.text_input_cursor = 5
+        resolver.state.mode = DiffReviewMode.TEXT_INPUT
+        resolver.state.text_input_buffer = "hello"
+        resolver.state.text_input_cursor = 5
 
         from readchar import key
 
-        resolver._handle_text_input_key(key.BACKSPACE)
-        assert resolver.text_input_buffer == "hell"
-        assert resolver.text_input_cursor == 4
+        resolver.input_handler._handle_text_input_key(key.BACKSPACE)
+        assert resolver.state.text_input_buffer == "hell"
+        assert resolver.state.text_input_cursor == 4
 
     def test_text_input_typing(self):
         op = EditOperation(operation="replace_line", line_number=1, content="test")
         resolver = InteractiveDiffResolver([op])
-        resolver.mode = DiffReviewMode.TEXT_INPUT
-        resolver.text_input_buffer = ""
-        resolver.text_input_cursor = 0
+        resolver.state.mode = DiffReviewMode.TEXT_INPUT
+        resolver.state.text_input_buffer = ""
+        resolver.state.text_input_cursor = 0
 
-        resolver._handle_text_input_key("a")
-        assert resolver.text_input_buffer == "a"
-        assert resolver.text_input_cursor == 1
+        resolver.input_handler._handle_text_input_key("a")
+        assert resolver.state.text_input_buffer == "a"
+        assert resolver.state.text_input_cursor == 1
 
     def test_text_input_escape_cancels(self):
         op = EditOperation(operation="replace_line", line_number=1, content="test")
         resolver = InteractiveDiffResolver([op])
-        resolver.mode = DiffReviewMode.TEXT_INPUT
-        resolver.text_input_mode = "modify"
-        resolver.text_input_buffer = "some input"
+        resolver.state.mode = DiffReviewMode.TEXT_INPUT
+        resolver.state.text_input_mode = "modify"
+        resolver.state.text_input_buffer = "some input"
 
         from readchar import key
 
-        resolver._handle_text_input_key(key.ESC)
+        resolver.input_handler._handle_text_input_key(key.ESC)
 
-        assert resolver.mode == DiffReviewMode.MENU
-        assert resolver.text_input_buffer == ""
-        assert resolver.text_input_mode is None
+        assert resolver.state.mode == DiffReviewMode.MENU
+        assert resolver.state.text_input_buffer == ""
+        assert resolver.state.text_input_mode is None
 
 
 # * Test operation actions
@@ -333,89 +339,89 @@ class TestOperationActions:
     def test_approve_sets_status(self):
         op = EditOperation(operation="replace_line", line_number=1, content="test")
         resolver = InteractiveDiffResolver([op])
-        resolver.selected = 0  # Approve
+        resolver.state.selected = 0  # Approve
 
-        resolver._process_menu_selection()
+        resolver.input_handler._process_menu_selection()
 
         assert op.status == DiffOp.APPROVE
-        assert resolver.current_index == 1
+        assert resolver.state.current_index == 1
 
     def test_reject_sets_status(self):
         op = EditOperation(operation="replace_line", line_number=1, content="test")
         resolver = InteractiveDiffResolver([op])
-        resolver.selected = 1  # Reject
+        resolver.state.selected = 1  # Reject
 
-        resolver._process_menu_selection()
+        resolver.input_handler._process_menu_selection()
 
         assert op.status == DiffOp.REJECT
-        assert resolver.current_index == 1
+        assert resolver.state.current_index == 1
 
     def test_skip_sets_status(self):
         op = EditOperation(operation="replace_line", line_number=1, content="test")
         resolver = InteractiveDiffResolver([op])
-        resolver.selected = 2  # Skip
+        resolver.state.selected = 2  # Skip
 
-        resolver._process_menu_selection()
+        resolver.input_handler._process_menu_selection()
 
         assert op.status == DiffOp.SKIP
-        assert resolver.current_index == 1
+        assert resolver.state.current_index == 1
 
     def test_modify_enters_text_input_mode(self):
         op = EditOperation(operation="replace_line", line_number=1, content="original")
         resolver = InteractiveDiffResolver([op])
-        resolver.selected = 3  # Modify
+        resolver.state.selected = 3  # Modify
 
-        resolver._process_menu_selection()
+        resolver.input_handler._process_menu_selection()
 
-        assert resolver.mode == DiffReviewMode.TEXT_INPUT
-        assert resolver.text_input_mode == "modify"
-        assert resolver.text_input_buffer == "original"
+        assert resolver.state.mode == DiffReviewMode.TEXT_INPUT
+        assert resolver.state.text_input_mode == "modify"
+        assert resolver.state.text_input_buffer == "original"
 
     def test_prompt_enters_text_input_mode(self):
         op = EditOperation(operation="replace_line", line_number=1, content="test")
         resolver = InteractiveDiffResolver([op])
-        resolver.selected = 4  # Prompt
+        resolver.state.selected = 4  # Prompt
 
-        resolver._process_menu_selection()
+        resolver.input_handler._process_menu_selection()
 
-        assert resolver.mode == DiffReviewMode.TEXT_INPUT
-        assert resolver.text_input_mode == "prompt"
-        assert resolver.text_input_buffer == ""
+        assert resolver.state.mode == DiffReviewMode.TEXT_INPUT
+        assert resolver.state.text_input_mode == "prompt"
+        assert resolver.state.text_input_buffer == ""
 
     def test_exit_returns_false(self):
         op = EditOperation(operation="replace_line", line_number=1, content="test")
         resolver = InteractiveDiffResolver([op])
-        resolver.selected = 5  # Exit
+        resolver.state.selected = 5  # Exit
 
-        result = resolver._process_menu_selection()
+        result = resolver.input_handler._process_menu_selection()
 
         assert result is False
 
     def test_submit_modify_updates_content(self):
         op = EditOperation(operation="replace_line", line_number=1, content="original")
         resolver = InteractiveDiffResolver([op])
-        resolver.mode = DiffReviewMode.TEXT_INPUT
-        resolver.text_input_mode = "modify"
-        resolver.text_input_buffer = "modified content"
+        resolver.state.mode = DiffReviewMode.TEXT_INPUT
+        resolver.state.text_input_mode = "modify"
+        resolver.state.text_input_buffer = "modified content"
 
-        resolver._submit_modify()
+        resolver._state_manager.submit_modify()
 
         assert op.content == "modified content"
-        assert resolver.operations_modified is True
-        assert resolver.mode == DiffReviewMode.MENU
+        assert resolver.state.operations_modified is True
+        assert resolver.state.mode == DiffReviewMode.MENU
 
     def test_submit_prompt_transitions_to_processing(self):
         op = EditOperation(operation="replace_line", line_number=1, content="test")
         resolver = InteractiveDiffResolver([op])
-        resolver.mode = DiffReviewMode.TEXT_INPUT
-        resolver.text_input_mode = "prompt"
-        resolver.text_input_buffer = "make it better"
+        resolver.state.mode = DiffReviewMode.TEXT_INPUT
+        resolver.state.text_input_mode = "prompt"
+        resolver.state.text_input_buffer = "make it better"
 
-        resolver._submit_prompt()
+        resolver._state_manager.submit_prompt()
 
         assert op.prompt_instruction == "make it better"
-        assert resolver.mode == DiffReviewMode.PROMPT_PROCESSING
-        assert resolver.text_input_buffer == ""
+        assert resolver.state.mode == DiffReviewMode.PROMPT_PROCESSING
+        assert resolver.state.text_input_buffer == ""
 
 
 # * Test main display loop
@@ -506,12 +512,12 @@ class TestPromptProcessingCallback:
             model="gpt-4o",
             on_prompt_regenerate=mock_callback,
         )
-        resolver.mode = DiffReviewMode.PROMPT_PROCESSING
+        resolver.state.mode = DiffReviewMode.PROMPT_PROCESSING
 
         # create mock live for process_prompt
         mock_live = MagicMock()
 
-        resolver.process_prompt(mock_live)
+        resolver.ai_processor.process_prompt(mock_live)
 
         assert callback_received["op"] == op
         assert callback_received["lines"] == {1: "line"}
@@ -534,13 +540,13 @@ class TestPromptProcessingCallback:
             model="gpt-4o",
             on_prompt_regenerate=failing_callback,
         )
-        resolver.mode = DiffReviewMode.PROMPT_PROCESSING
+        resolver.state.mode = DiffReviewMode.PROMPT_PROCESSING
 
         mock_live = MagicMock()
-        resolver.process_prompt(mock_live)
+        resolver.ai_processor.process_prompt(mock_live)
 
-        assert resolver.prompt_error is not None
-        assert "API error" in resolver.prompt_error
+        assert resolver.state.prompt_error is not None
+        assert "API error" in resolver.state.prompt_error
 
 
 # * Test get_result
@@ -552,7 +558,7 @@ class TestGetResult:
             EditOperation(operation="replace_line", line_number=1, content="test"),
         ]
         resolver = InteractiveDiffResolver(ops)
-        resolver.operations_modified = True
+        resolver.state.operations_modified = True
 
         result_ops, modified = resolver.get_result()
 
@@ -574,8 +580,8 @@ class TestRenderScreen:
     def test_render_screen_text_input_mode(self):
         op = EditOperation(operation="replace_line", line_number=1, content="test")
         resolver = InteractiveDiffResolver([op])
-        resolver.mode = DiffReviewMode.TEXT_INPUT
-        resolver.text_input_mode = "modify"
+        resolver.state.mode = DiffReviewMode.TEXT_INPUT
+        resolver.state.text_input_mode = "modify"
 
         result = resolver.render_screen()
         assert result is not None
@@ -583,7 +589,7 @@ class TestRenderScreen:
     def test_render_screen_prompt_processing_mode(self):
         op = EditOperation(operation="replace_line", line_number=1, content="test")
         resolver = InteractiveDiffResolver([op])
-        resolver.mode = DiffReviewMode.PROMPT_PROCESSING
+        resolver.state.mode = DiffReviewMode.PROMPT_PROCESSING
 
         result = resolver.render_screen()
         assert result is not None
@@ -591,8 +597,8 @@ class TestRenderScreen:
     def test_render_screen_with_error(self):
         op = EditOperation(operation="replace_line", line_number=1, content="test")
         resolver = InteractiveDiffResolver([op])
-        resolver.mode = DiffReviewMode.PROMPT_PROCESSING
-        resolver.prompt_error = "Something went wrong"
+        resolver.state.mode = DiffReviewMode.PROMPT_PROCESSING
+        resolver.state.prompt_error = "Something went wrong"
 
         result = resolver.render_screen()
         assert result is not None
