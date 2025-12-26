@@ -11,6 +11,7 @@ from ...core.constants import RiskLevel, ValidationPolicy
 from ...core.exceptions import handle_loom_error
 
 from ..app import app
+from ..helpers import handle_help_flag
 from ..logic import ArgResolver
 from ..runner import TailoringMode, TailoringRunner, build_tailoring_context
 from ..params import (
@@ -60,12 +61,7 @@ def plan(
         False, "--help", "-h", help="Show help message and exit."
     ),
 ) -> None:
-    # detect help flag & show custom help
-    if help:
-        from .help import show_command_help
-
-        show_command_help("plan")
-        ctx.exit()
+    handle_help_flag(ctx, help, "plan")
 
     # unused but planned
     _ = plan

@@ -71,8 +71,9 @@ class TestDisplayCommand:
         with pytest.raises(SystemExit):
             display(mock_ctx, help=True)
 
-        # verify help was shown and context exited
-        mock_show_help.assert_called_once_with("display")
+        # verify help was shown and context exited (second arg is command object)
+        mock_show_help.assert_called_once()
+        assert mock_show_help.call_args[0][0] == "display"
         mock_ctx.exit.assert_called_once()
 
     @patch("src.cli.commands.dev.display.get_settings")

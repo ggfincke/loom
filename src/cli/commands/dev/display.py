@@ -11,6 +11,7 @@ from ....core.constants import EditOperation
 from ....ui.diff_resolution.diff_display import main_display_loop
 from ....ui.help.help_data import command_help
 from ...app import app
+from ...helpers import handle_help_flag
 
 
 # * Display UI components for testing (dev/testing only, not for production)
@@ -35,11 +36,7 @@ def display(
     ),
 ) -> None:
     # detect help flag & display custom help
-    if help:
-        from ..help import show_command_help
-
-        show_command_help("display")
-        ctx.exit()
+    handle_help_flag(ctx, help, "display")
 
     # check if dev_mode is globally enabled
     settings = get_settings(ctx)

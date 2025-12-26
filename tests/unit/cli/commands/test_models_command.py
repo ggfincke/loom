@@ -17,10 +17,12 @@ class TestModelsCommand:
 
     # * Test models command help flag
     def test_models_help_flag(self, runner):
-        with patch("src.cli.commands.models.show_command_help") as mock_help:
+        with patch("src.cli.commands.help.show_command_help") as mock_help:
             result = runner.invoke(app, ["models", "--help"])
             # Help doesn't exit with SystemExit in this implementation
-            mock_help.assert_called_once_with("models")
+            # Second arg is command object (may be None or actual command)
+            mock_help.assert_called_once()
+            assert mock_help.call_args[0][0] == "models"
 
     # * Test models default callback (list models)
     @patch("src.cli.commands.models.get_models_by_provider")

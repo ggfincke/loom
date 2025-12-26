@@ -11,7 +11,7 @@ from ...core.constants import RiskLevel, ValidationPolicy
 from ...core.exceptions import handle_loom_error
 
 from ..app import app
-from ..helpers import is_test_environment
+from ..helpers import handle_help_flag, is_test_environment
 from ..logic import ArgResolver
 from ..runner import TailoringMode, TailoringRunner, build_tailoring_context
 from ..params import (
@@ -46,12 +46,7 @@ def apply(
     sections_path: Optional[Path] = SectionsPathOpt(),
     help: bool = typer.Option(False, "--help", "-h", help="Show help message & exit."),
 ) -> None:
-    # detect help flag & show custom help
-    if help:
-        from .help import show_command_help
-
-        show_command_help("apply")
-        ctx.exit()
+    handle_help_flag(ctx, help, "apply")
 
     settings = get_settings(ctx)
     resolver = ArgResolver(settings)

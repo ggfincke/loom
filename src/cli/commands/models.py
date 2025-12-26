@@ -12,8 +12,8 @@ from ...ai.clients.ollama_client import (
 from ...loom_io.console import console
 from ...ui.theming.theme_engine import styled_checkmark, accent_gradient, styled_bullet
 from ..app import app
+from ..helpers import handle_help_flag
 from ...ui.help.help_data import command_help
-from .help import show_command_help
 
 # * Sub-app for models commands; registered on root app
 models_app = typer.Typer(
@@ -46,10 +46,7 @@ def models_callback(
         False, "--help", "-h", help="Show help message and exit."
     ),
 ) -> None:
-    # detect help flag & show custom help
-    if help:
-        show_command_help("models")
-        ctx.exit()
+    handle_help_flag(ctx, help, "models")
 
     if ctx.invoked_subcommand is None:
         _show_models_list()

@@ -21,6 +21,7 @@ from ...ui.theming.theme_engine import (
     styled_arrow,
 )
 from ..app import app
+from ..helpers import handle_help_flag
 from ...ui.theming.theme_selector import interactive_theme_selector
 from ...ui.display.ascii_art import show_loom_art
 from ...ui.help.help_data import command_help
@@ -118,12 +119,7 @@ def config_callback(
         False, "--help", "-h", help="Show help message and exit."
     ),
 ) -> None:
-    # detect help flag & show custom help
-    if help:
-        from .help import show_command_help
-
-        show_command_help("config")
-        ctx.exit()
+    handle_help_flag(ctx, help, "config")
 
     if ctx.invoked_subcommand is None:
         _print_current_settings()
