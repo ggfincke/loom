@@ -36,6 +36,8 @@ def isolate_config(tmp_path, monkeypatch):
         "temperature": 0.2,
         "risk": "ask",
         "theme": "deep_blue",
+        "interactive": True,
+        "dev_mode": False,
     }
 
     config_file = loom_dir / "config.json"
@@ -55,6 +57,11 @@ def isolate_config(tmp_path, monkeypatch):
     from src.ui.theming.theme_engine import reset_color_cache
 
     reset_color_cache()
+
+    # ! reset dev mode cache to pick up isolated settings
+    from src.config.dev_mode import reset_dev_mode_cache
+
+    reset_dev_mode_cache()
 
     return fake_home
 
@@ -263,3 +270,28 @@ def mock_ai_failure_response():
     mock_response.json_text = '{"invalid": json}'
     mock_response.raw_text = None
     return mock_response
+
+
+@pytest.fixture
+def dev_mode_enabled(isolate_config):
+    """Enable dev_mode for tests that require it."""
+    config_file = isolate_config / ".loom" / "config.json"
+
+    with open(config_file, "r") as f:
+        config_data = json.load(f)
+
+    config_data["dev_mode"] = True
+
+    with open(config_file, "w") as f:
+        json.dump(config_data, f)
+
+    # reset caches to pick up new settings
+    from src.config.settings import settings_manager
+
+    settings_manager._settings = None
+
+    from src.config.dev_mode import reset_dev_mode_cache
+
+    reset_dev_mode_cache()
+
+    return isolate_config
