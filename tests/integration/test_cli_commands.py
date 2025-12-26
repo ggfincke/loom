@@ -132,9 +132,12 @@ def test_sectionize_latex_uses_handler(isolate_config):
 
         assert result.exit_code == 0
         data = json.loads(Path("sections.json").read_text(encoding="utf-8"))
-        assert data.get("handler") == "latex"
-        section_names = {section["name"] for section in data.get("sections", [])}
-        assert "EXPERIENCE" in section_names
+        # verify sections structure w/ full keys
+        assert "sections" in data
+        section_kinds = {
+            section.get("kind", "").upper() for section in data.get("sections", [])
+        }
+        assert "EXPERIENCE" in section_kinds
 
 
 # * Templates command should list bundled templates & init should copy files

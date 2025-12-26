@@ -51,6 +51,11 @@ def isolate_config(tmp_path, monkeypatch):
     settings_manager._settings = None
     settings_manager.config_path = fake_home / ".loom" / "config.json"
 
+    # ! reset LoomColors cache to pick up isolated settings
+    from src.ui.theming.theme_engine import reset_color_cache
+
+    reset_color_cache()
+
     return fake_home
 
 
