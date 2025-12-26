@@ -406,3 +406,157 @@ class TestConfigPathHandling:
         settings = manager.load()
         assert settings.theme == "deep_blue"  # from fixture
         assert settings.model == "gpt-5-mini"  # from fixture
+
+
+# * Test LoomSettings validation (__post_init__)
+
+
+class TestLoomSettingsValidation:
+    """Tests for __post_init__ validation in LoomSettings."""
+
+    # * Temperature validation tests
+
+    def test_valid_temperature_accepted(self):
+        """Valid temperature values are accepted."""
+        for temp in [0.0, 0.5, 1.0, 1.5, 2.0]:
+            settings = LoomSettings(temperature=temp)
+            assert settings.temperature == temp
+
+    def test_temperature_at_boundaries(self):
+        """Temperature at exact boundaries is accepted."""
+        settings_low = LoomSettings(temperature=0.0)
+        assert settings_low.temperature == 0.0
+
+        settings_high = LoomSettings(temperature=2.0)
+        assert settings_high.temperature == 2.0
+
+    def test_temperature_below_range_rejected(self):
+        """Temperature below 0.0 raises ValueError."""
+        with pytest.raises(ValueError, match="temperature must be 0.0-2.0"):
+            LoomSettings(temperature=-0.1)
+
+    def test_temperature_above_range_rejected(self):
+        """Temperature above 2.0 raises ValueError."""
+        with pytest.raises(ValueError, match="temperature must be 0.0-2.0"):
+            LoomSettings(temperature=2.1)
+
+    def test_temperature_non_numeric_rejected(self):
+        """Non-numeric temperature raises ValueError."""
+        with pytest.raises(ValueError, match="temperature must be a number"):
+            LoomSettings(temperature="high")
+
+    def test_temperature_none_rejected(self):
+        """None temperature raises ValueError."""
+        with pytest.raises(ValueError, match="temperature must be a number"):
+            LoomSettings(temperature=None)
+
+    # * Risk validation tests
+
+    def test_valid_risk_values_accepted(self):
+        """Valid risk values are accepted."""
+        for risk in ["ask", "skip", "abort", "auto"]:
+            settings = LoomSettings(risk=risk)
+            assert settings.risk == risk
+
+    def test_invalid_risk_rejected(self):
+        """Invalid risk value raises ValueError."""
+        with pytest.raises(ValueError, match="risk must be one of"):
+            LoomSettings(risk="invalid")
+
+    def test_risk_empty_string_rejected(self):
+        """Empty string risk raises ValueError."""
+        with pytest.raises(ValueError, match="risk must be one of"):
+            LoomSettings(risk="")
+
+    def test_risk_case_sensitive(self):
+        """Risk values are case-sensitive."""
+        with pytest.raises(ValueError, match="risk must be one of"):
+            LoomSettings(risk="Ask")
+
+    # * dev_mode validation tests
+
+    def test_dev_mode_bool_accepted(self):
+        """Boolean dev_mode values are accepted."""
+        assert LoomSettings(dev_mode=True).dev_mode is True
+        assert LoomSettings(dev_mode=False).dev_mode is False
+
+    def test_dev_mode_string_rejected(self):
+        """String dev_mode raises ValueError (no coercion)."""
+        with pytest.raises(ValueError, match="dev_mode must be a boolean"):
+            LoomSettings(dev_mode="true")
+
+    def test_dev_mode_int_rejected(self):
+        """Integer dev_mode raises ValueError (no coercion)."""
+        with pytest.raises(ValueError, match="dev_mode must be a boolean"):
+            LoomSettings(dev_mode=1)
+
+    def test_dev_mode_zero_rejected(self):
+        """Zero dev_mode raises ValueError (no coercion)."""
+        with pytest.raises(ValueError, match="dev_mode must be a boolean"):
+            LoomSettings(dev_mode=0)
+
+    # * interactive validation tests
+
+    def test_interactive_bool_accepted(self):
+        """Boolean interactive values are accepted."""
+        assert LoomSettings(interactive=True).interactive is True
+        assert LoomSettings(interactive=False).interactive is False
+
+    def test_interactive_string_rejected(self):
+        """String interactive raises ValueError."""
+        with pytest.raises(ValueError, match="interactive must be a boolean"):
+            LoomSettings(interactive="yes")
+
+    def test_interactive_int_rejected(self):
+        """Integer interactive raises ValueError."""
+        with pytest.raises(ValueError, match="interactive must be a boolean"):
+            LoomSettings(interactive=1)
+
+    # * Combined validation tests
+
+    def test_multiple_valid_settings(self):
+        """Multiple valid settings work together."""
+        settings = LoomSettings(
+            temperature=1.5,
+            risk="auto",
+            dev_mode=True,
+            interactive=False,
+        )
+        assert settings.temperature == 1.5
+        assert settings.risk == "auto"
+        assert settings.dev_mode is True
+        assert settings.interactive is False
+
+    def test_first_invalid_field_raises(self):
+        """First invalid field in order raises error."""
+        # temperature is validated first
+        with pytest.raises(ValueError, match="temperature"):
+            LoomSettings(temperature=-1, risk="invalid")
+
+
+# * Test SettingsManager cache invalidation
+
+
+class TestSettingsCacheInvalidation:
+    """Tests for cache invalidation when settings change."""
+
+    def test_save_invalidates_dev_mode_cache(self, tmp_path):
+        """Saving settings resets dev mode cache."""
+        from src.config.dev_mode import reset_dev_mode_cache, is_dev_mode_enabled
+
+        config_path = tmp_path / "config.json"
+        manager = SettingsManager(config_path)
+
+        # initial settings with dev_mode=False
+        settings = LoomSettings(dev_mode=False)
+        manager.save(settings)
+
+        # prime the cache
+        reset_dev_mode_cache()
+
+        # save new settings with dev_mode=True
+        settings = LoomSettings(dev_mode=True)
+        manager.save(settings)
+
+        # cache should have been reset by save()
+        # (we can't directly test the reset, but we verify no error occurs)

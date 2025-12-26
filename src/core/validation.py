@@ -2,13 +2,9 @@
 # Strategy pattern implementation for validation error handling
 
 import sys
-import json
-import subprocess
-import tempfile
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import List, Callable, Any, Optional, Dict
-from pathlib import Path
+from typing import List, Callable, Any, Optional
 from .constants import (
     ValidationPolicy,
     RiskLevel,
@@ -17,38 +13,13 @@ from .constants import (
     OP_INSERT_AFTER,
     OP_DELETE_RANGE,
 )
-from .exceptions import ValidationError, JSONParsingError
-from ..ai.models import SUPPORTED_MODELS, validate_model
+from .exceptions import ValidationError
+from ..ai.models import SUPPORTED_MODELS, OPENAI_MODELS, get_model_description
+from ..ai.provider_validator import validate_model
 from ..config.settings import settings_manager, LoomSettings
-from ..loom_io.generics import ensure_parent
+# ? Pragmatic exception: Lines is a pure type alias (no I/O operations)
 from ..loom_io.types import Lines
-
-
-# =============================================================================
-# Edit validation helpers (inlined from edit_helpers.py)
-# =============================================================================
-
-
-# * Line existence validation
-def check_line_exists(line: int, lines: Lines) -> bool:
-    return line in lines
-
-
-# * Range existence validation
-def check_range_exists(
-    start: int, end: int, lines: Lines
-) -> tuple[bool, Optional[int]]:
-    for line in range(start, end + 1):
-        if line not in lines:
-            return False, line
-    return True, None
-
-
-# * Line count calculation from text
-def count_text_lines(text: str, allow_empty: bool = False) -> int:
-    if not text:
-        return 1 if allow_empty else 0
-    return len(text.split("\n"))
+from .edit_helpers import check_line_exists, check_range_exists, count_text_lines
 
 
 # * Integer type & bounds validation
@@ -187,6 +158,22 @@ class ValidationOutcome:
 
 # * Base class for validation strategies
 class ValidationStrategy(ABC):
+    """Base class for validation strategies."""
+
+    def ensure_interactive(self, mode_name: str, warnings: List[str]) -> None:
+        """Ensure running in interactive terminal.
+
+        Args:
+            mode_name: Human-readable strategy name for error message
+            warnings: Original validation warnings to preserve in error
+
+        Raises:
+            ValidationError: If not running in interactive terminal
+        """
+        if not sys.stdin.isatty():
+            error_warnings = [f"{mode_name} not available - non-interactive terminal"] + warnings
+            raise ValidationError(error_warnings, recoverable=False)
+
     @abstractmethod
     def handle(self, warnings: List[str], ui, settings=None) -> ValidationOutcome:
         raise NotImplementedError
@@ -195,10 +182,7 @@ class ValidationStrategy(ABC):
 # * Interactive strategy that prompts user for choice
 class AskStrategy(ValidationStrategy):
     def handle(self, warnings: List[str], ui, settings=None) -> ValidationOutcome:
-
-        if not sys.stdin.isatty():
-            error_warnings = ["ask not possible - non-interactive"] + warnings
-            raise ValidationError(error_warnings, recoverable=False)
+        self.ensure_interactive("Ask mode", warnings)
 
         # display warnings to user
         ui.print()
@@ -240,10 +224,7 @@ class RetryStrategy(ValidationStrategy):
 # * Manual strategy that returns control for user intervention
 class ManualStrategy(ValidationStrategy):
     def handle(self, warnings: List[str], ui, settings=None) -> ValidationOutcome:
-        if not sys.stdin.isatty():
-            error_warnings = ["Manual mode not available (not a TTY)"] + warnings
-            raise ValidationError(error_warnings, recoverable=False)
-
+        self.ensure_interactive("Manual mode", warnings)
         return ValidationOutcome(success=False, should_continue=False)
 
 
@@ -269,18 +250,14 @@ class FailSoftStrategy(ValidationStrategy):
 # * Model retry strategy that prompts user to select different model
 class ModelRetryStrategy(ValidationStrategy):
     def handle(self, warnings: List[str], ui, settings=None) -> ValidationOutcome:
-        if not sys.stdin.isatty():
-            error_warnings = ["Model change not available (not a TTY):"] + warnings
-            raise ValidationError(error_warnings, recoverable=False)
+        self.ensure_interactive("Model change", warnings)
 
-        # available model options for selection
+        # Build model options from source of truth (OpenAI only for now)
         model_options = [
-            ("1", "gpt-5", "GPT-5 (latest, most capable)"),
-            ("2", "gpt-5-mini", "GPT-5 Mini (latest generation, cost-efficient)"),
-            ("3", "gpt-5-nano", "GPT-5 Nano (fastest, ultra-low latency)"),
-            ("4", "gpt-4o", "GPT-4o (multimodal, high capability)"),
-            ("5", "gpt-4o-mini", "GPT-4o Mini (fast, cost-effective)"),
+            (str(i + 1), model, get_model_description(model))
+            for i, model in enumerate(OPENAI_MODELS)
         ]
+        max_option = len(model_options)
 
         ui.print()
         ui.print("📋 Select a different model to retry with:")
@@ -290,20 +267,24 @@ class ModelRetryStrategy(ValidationStrategy):
         while True:
             ui.print()
             with ui.input_mode():
-                choice = ui.ask("Enter model number (1-5) or model name: ").strip()
+                choice = ui.ask(f"Enter model number (1-{max_option}) or model name: ").strip()
 
             # convert user choice to model name
             selected_model = None
-            if choice in ["1"]:
-                selected_model = "gpt-5"
-            elif choice in ["2"]:
-                selected_model = "gpt-5-mini"
-            elif choice in ["3"]:
-                selected_model = "gpt-5-nano"
-            elif choice in ["4"]:
-                selected_model = "gpt-4o"
-            elif choice in ["5"]:
-                selected_model = "gpt-4o-mini"
+
+            # check numeric selection
+            if choice.isdigit():
+                idx = int(choice)
+                if 1 <= idx <= max_option:
+                    selected_model = model_options[idx - 1][1]
+                else:
+                    ui.print(
+                        f"Invalid choice. Please enter a number (1-{max_option}) or valid model name."
+                    )
+                    continue
+            elif choice in OPENAI_MODELS:
+                # direct model name for OpenAI models
+                selected_model = choice
             elif choice.startswith("gpt-"):
                 # validate model against supported list
                 valid, _ = validate_model(choice)
@@ -311,12 +292,12 @@ class ModelRetryStrategy(ValidationStrategy):
                     selected_model = choice
                 else:
                     ui.print(
-                        f"Model '{choice}' is not supported. Supported models: {', '.join(SUPPORTED_MODELS)}"
+                        f"Model '{choice}' is not supported. Supported models: {', '.join(OPENAI_MODELS)}"
                     )
                     continue
             else:
                 ui.print(
-                    "Invalid choice. Please enter a number (1-5) or valid model name."
+                    f"Invalid choice. Please enter a number (1-{max_option}) or valid model name."
                 )
                 continue
 
@@ -391,85 +372,6 @@ def validate(
 
     # process warnings using selected strategy
     return strategy.handle(warnings, ui, settings)
-
-
-# * Handle validation errors w/ strategy pattern - centralized validation flow
-def handle_validation_error(
-    settings: LoomSettings | None,
-    validate_fn: Callable[[], List[str]],
-    policy: ValidationPolicy,
-    edit_fn: Optional[Callable[[List[str]], Any]] = None,
-    reload_fn: Optional[Callable[[Any], None]] = None,
-    ui=None,
-) -> Any:
-    result = None
-    while True:
-        outcome = validate(validate_fn, policy, ui, settings)
-
-        if outcome.success:
-            return result if result is not None else True
-
-        # handle retry policy or user retry selection
-        want_retry = outcome.should_continue or policy == ValidationPolicy.RETRY
-
-        if want_retry:
-            if edit_fn is None:
-                if ui:
-                    ui.print(
-                        "Retry requested but no AI correction is available; switching to manual..."
-                    )
-                # fall through to manual path below
-            else:
-                # use AI to generate corrected edits
-                prior_warnings: List[str] = (
-                    outcome.value if isinstance(outcome.value, list) else []
-                )
-                result = edit_fn(prior_warnings)
-                if settings is not None:
-                    settings.loom_dir.mkdir(parents=True, exist_ok=True)
-                    ensure_parent(settings.edits_path)
-                    settings.edits_path.write_text(
-                        json.dumps(result, indent=2), encoding="utf-8"
-                    )
-                if ui:
-                    ui.print("✅ Generated corrected edits, re-validating...")
-                # continue loop for re-validation
-                continue
-
-        # handle manual editing path
-        warnings = validate_fn()
-        if ui and settings is not None:
-            ui.print(
-                f"Validation errors found. Please edit {settings.edits_path} manually:"
-            )
-            for w in warnings:
-                ui.print(f"   {w}")
-
-            while True:
-                with ui.input_mode():
-                    ui.ask("Press Enter after editing edits.json to re-validate...")
-
-                try:
-                    if settings is None:
-                        break
-                    # ! use centralized read_json_safe for consistent error handling
-                    from ..loom_io.generics import read_json_safe
-
-                    data = read_json_safe(settings.edits_path)
-                    if reload_fn is not None:
-                        reload_fn(data)
-                    if ui:
-                        ui.print("✅ File edited, re-validating...")
-                    break
-                except JSONParsingError as e:
-                    # read_json_safe provides formatted error w/ snippet
-                    if ui:
-                        ui.print(str(e))
-                    continue
-                except FileNotFoundError as e:
-                    if ui:
-                        ui.print(f"File not found: {e}")
-                    continue
 
 
 # * Edit JSON validation logic (moved from pipeline.py)

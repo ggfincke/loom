@@ -1,5 +1,9 @@
 # src/cli/logic.py
 # CLI-layer logic wrappers & argument resolution
+#
+# ! High import count is intentional: logic.py bridges CLI commands to core
+# ! pipeline operations. It needs access to multiple layers (core, loom_io, ui)
+# ! to perform argument resolution, context building, & edit coordination.
 
 from __future__ import annotations
 
@@ -12,10 +16,8 @@ from ..loom_io.generics import ensure_parent, write_json_safe
 from ..loom_io.types import Lines
 from ..loom_io import (
     filter_latex_edits,
-    detect_template,
-    analyze_latex,
-    sections_to_payload,
     TemplateDescriptor,
+    build_latex_context,
 )
 from ..core.constants import RiskLevel, ValidationPolicy, EditOperation, DiffOp
 from ..core.pipeline import (
@@ -27,33 +29,12 @@ from ..core.pipeline import (
 )
 from ..core.validation import validate_edits
 from ..core.exceptions import EditError, JSONParsingError
-from ..core.validation import handle_validation_error
+from .validation_handlers import handle_validation_error
 from ..ui.diff_resolution.diff_display import main_display_loop
 
 
 def _resolve(provided_value: Any, settings_default: Any) -> Any:
     return settings_default if provided_value is None else provided_value
-
-
-# * Build LaTeX context (descriptor, sections JSON, notes) for LaTeX resume files
-def build_latex_context(
-    resume_path: Path, lines: Lines, resume_text: str | None = None
-) -> tuple[TemplateDescriptor | None, str | None, list[str]]:
-    # detect template, analyze sections, & collect notes for LaTeX resume; returns tuple of (descriptor, sections_json, notes) or (None, None, []) for non-LaTeX files
-    descriptor = None
-    sections_json = None
-    notes: list[str] = []
-
-    if resume_path.suffix.lower() == ".tex":
-        # use provided text or read from file
-        if resume_text is None:
-            resume_text = resume_path.read_text(encoding="utf-8")
-        descriptor = detect_template(resume_path, resume_text)
-        analysis = analyze_latex(lines, descriptor)
-        sections_json = json.dumps(sections_to_payload(analysis), indent=2)
-        notes = analysis.notes
-
-    return descriptor, sections_json, notes
 
 
 class OptionsResolved(TypedDict):

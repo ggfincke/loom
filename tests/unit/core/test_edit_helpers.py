@@ -1,26 +1,27 @@
 # tests/unit/core/test_edit_helpers.py
-# Unit tests for edit helper functions (now inlined in validation.py & pipeline.py)
+# Unit tests for shared edit helper functions in edit_helpers.py
+# Also tests validation-specific helpers that remain in validation.py
 
 import pytest
 
-# validation helpers (from validation.py)
-from src.core.validation import (
+# shared helpers (from edit_helpers.py)
+from src.core.edit_helpers import (
     check_line_exists,
     check_range_exists,
-    check_range_usage,
     count_text_lines,
+    get_operation_line,
+    collect_lines_to_move,
+    shift_lines,
+)
+
+# validation-specific helpers (from validation.py)
+from src.core.validation import (
+    check_range_usage,
     validate_line_number,
     validate_operation_interactions,
     validate_range_bounds,
     validate_required_fields,
     validate_text_field,
-)
-
-# apply helpers (from pipeline.py)
-from src.core.pipeline import (
-    get_operation_line,
-    collect_lines_to_move,
-    shift_lines,
 )
 
 # operation constants (from constants.py)

@@ -44,6 +44,35 @@ class LoomSettings:
     # dev mode setting (enables access to development commands)
     dev_mode: bool = False
 
+    def __post_init__(self) -> None:
+        """Validate settings values after initialization."""
+        # Temperature validation (OpenAI/Anthropic range: 0.0-2.0)
+        if not isinstance(self.temperature, (int, float)):
+            raise ValueError(
+                f"temperature must be a number, got {type(self.temperature).__name__}"
+            )
+        if not 0.0 <= self.temperature <= 2.0:
+            raise ValueError(f"temperature must be 0.0-2.0, got {self.temperature}")
+
+        # Risk validation
+        valid_risks = {"ask", "skip", "abort", "auto"}
+        if self.risk not in valid_risks:
+            raise ValueError(f"risk must be one of {valid_risks}, got '{self.risk}'")
+
+        # dev_mode strict bool validation (no coercion)
+        if not isinstance(self.dev_mode, bool):
+            raise ValueError(
+                f"dev_mode must be a boolean (true/false), "
+                f"got {type(self.dev_mode).__name__}: {self.dev_mode}"
+            )
+
+        # interactive strict bool validation
+        if not isinstance(self.interactive, bool):
+            raise ValueError(
+                f"interactive must be a boolean (true/false), "
+                f"got {type(self.interactive).__name__}"
+            )
+
     @property
     def resume_path(self) -> Path:
         return Path(self.data_dir) / self.resume_filename
@@ -106,6 +135,24 @@ class SettingsManager:
     def save(self, settings: LoomSettings) -> None:
         write_json_safe(asdict(settings), self.config_path)
         self._settings = settings
+        self._notify_settings_changed()
+
+    def _notify_settings_changed(self) -> None:
+        """Notify dependent caches of settings change."""
+        try:
+            from ..ai.cache import AICache
+
+            AICache.invalidate_all()
+        except ImportError:
+            pass  # AI module not loaded yet
+
+        # Reset dev mode cache
+        try:
+            from .dev_mode import reset_dev_mode_cache
+
+            reset_dev_mode_cache()
+        except ImportError:
+            pass  # dev_mode module not loaded yet
 
     # get a specific setting value
     def get(self, key: str) -> Any:

@@ -1,5 +1,9 @@
 # src/cli/runner.py
 # Unified tailoring runner for CLI commands (generate, apply, tailor, plan)
+#
+# ! High import count is intentional: runner.py is the orchestration hub that
+# ! coordinates between AI, I/O, validation, & UI layers. This coupling is
+# ! inherent to its role as the central tailoring workflow coordinator.
 
 from __future__ import annotations
 
@@ -11,7 +15,7 @@ from typing import Any
 from ..config.settings import LoomSettings
 from ..core.constants import RiskLevel, ValidationPolicy
 from ..core.exceptions import EditError
-from ..loom_io import read_resume, TemplateDescriptor
+from ..loom_io import read_resume, TemplateDescriptor, build_latex_context
 from ..loom_io.generics import ensure_parent
 from ..loom_io.types import Lines
 from ..ui.core.progress import (
@@ -29,7 +33,6 @@ from .logic import (
     ArgResolver,
     generate_edits_core,
     apply_edits_core,
-    build_latex_context,
 )
 from .helpers import validate_required_args
 
@@ -314,46 +317,18 @@ class TailoringRunner:
     def _run_apply(self, ui, progress, task) -> None:
         from pathlib import Path
 
-        # read resume (apply reads resume separately from job)
-        progress.update(task, description="Reading resume document...")
-        lines = read_resume(self.ctx.resume)
-        progress.advance(task)
+        # use shared context preparation (without loading job initially)
+        resume_ctx = prepare_resume_context(
+            self.ctx, ui, progress, task, load_job=False
+        )
 
-        # build LaTeX context if applicable
-        descriptor = None
-        auto_sections_json = None
-        template_notes: list[str] = []
-
-        if self.ctx.is_latex:
-            progress.update(task, description="Analyzing LaTeX structure...")
-            descriptor, auto_sections_json, template_notes = build_latex_context(
-                self.ctx.resume, lines
-            )
-            progress.advance(task)
-
-            # display LaTeX info
-            if descriptor:
-                ui.print(f"[green]Detected LaTeX template:[/] {descriptor.id}")
-            if template_notes:
-                ui.print("[yellow]Template notes:[/]")
-                for note in template_notes:
-                    ui.print(f" - {note}")
-
-        # read job description if available (for PROMPT support)
-        job_text = None
+        # optionally load job for PROMPT support (apply allows job to be optional)
+        job_text = resume_ctx.job_text
         if self.ctx.job is not None:
             progress.update(task, description="Reading job description...")
             if Path(self.ctx.job).exists():
                 job_text = Path(self.ctx.job).read_text(encoding="utf-8")
             progress.advance(task)
-
-        # resolve sections (explicit path or auto-LaTeX)
-        if self.ctx.sections_path:
-            sections_json_str = load_sections(self.ctx.sections_path, progress, task)
-        elif self.ctx.is_latex:
-            sections_json_str = auto_sections_json
-        else:
-            sections_json_str = None
 
         # load edits
         edits_obj = load_edits_json(self.ctx.edits_json, progress, task)
@@ -362,37 +337,37 @@ class TailoringRunner:
         progress.update(task, description="Applying edits...")
         self._new_lines = apply_edits_core(
             self.ctx.settings,
-            lines,
+            resume_ctx.lines,
             edits_obj,
             self.ctx.risk,
             self.ctx.on_error,
             ui,
             self.ctx.interactive,
             job_text=job_text,
-            sections_json=sections_json_str,
+            sections_json=resume_ctx.sections_json_str,
             model=self.ctx.model,
             persist_special_ops=self.ctx.interactive,
             edits_json_path=self.ctx.edits_json,
             resume_path=self.ctx.resume,
-            descriptor=descriptor,
+            descriptor=resume_ctx.descriptor,
         )
         progress.advance(task)
 
-        # store for reporting
+        # store for reporting (update job_text if loaded)
         self._resume_ctx = ResumeContext(
-            lines=lines,
+            lines=resume_ctx.lines,
             job_text=job_text,
-            descriptor=descriptor,
-            auto_sections_json=auto_sections_json,
-            template_notes=template_notes,
-            sections_json_str=sections_json_str,
+            descriptor=resume_ctx.descriptor,
+            auto_sections_json=resume_ctx.auto_sections_json,
+            template_notes=resume_ctx.template_notes,
+            sections_json_str=resume_ctx.sections_json_str,
         )
 
         # write output w/ diff generation
         write_output_with_diff(
             self.ctx.settings,
             self.ctx.resume,
-            lines,
+            resume_ctx.lines,
             self._new_lines,
             self.ctx.output_resume,
             self.ctx.preserve_formatting,

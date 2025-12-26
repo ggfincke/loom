@@ -13,7 +13,43 @@ from src.core.exceptions import (
     JSONParsingError,
     LaTeXError,
     handle_loom_error,
+    format_error_message,
 )
+
+# * Test format_error_message helper
+
+
+class TestFormatErrorMessage:
+
+    # * Test format_error_message produces correct Rich markup
+    def test_format_error_message_basic(self):
+        result = format_error_message("Test Error", "something went wrong")
+        assert result == "[red]Test Error:[/] something went wrong"
+
+    # * Test format_error_message handles empty message
+    def test_format_error_message_empty(self):
+        result = format_error_message("Error", "")
+        assert result == "[red]Error:[/] "
+
+    # * Test format_error_message preserves special characters
+    def test_format_error_message_special_chars(self):
+        result = format_error_message("JSON Error", "unexpected token at line 5: '{'")
+        assert "unexpected token" in result
+        assert "[red]JSON Error:[/]" in result
+
+    # * Test format_error_message no duplicate prefixes
+    def test_format_error_message_no_duplicate_prefix(self):
+        result = format_error_message("AI Error", "model failed")
+        # should have exactly one "[red]" and one "[/]"
+        assert result.count("[red]") == 1
+        assert result.count("[/]") == 1
+
+    # * Test format_error_message with multiline message
+    def test_format_error_message_multiline(self):
+        result = format_error_message("Validation Error", "line 1\nline 2\nline 3")
+        assert "[red]Validation Error:[/]" in result
+        assert "line 1\nline 2\nline 3" in result
+
 
 # * Test exception hierarchy & attributes
 

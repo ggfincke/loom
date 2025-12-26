@@ -16,8 +16,8 @@ from src.core.validation import (
     FailHardStrategy,
     ModelRetryStrategy,
     validate,
-    handle_validation_error,
 )
+from src.cli.validation_handlers import handle_validation_error
 from src.loom_io.latex_handler import (
     validate_latex_compilation,
     validate_basic_latex_syntax,
@@ -326,7 +326,7 @@ class TestValidationStrategies:
                 strategy.handle(["test warning"], mock_ui)
 
             assert not exc_info.value.recoverable
-            assert "not a TTY" in str(exc_info.value)
+            assert "non-interactive" in str(exc_info.value)
 
     # * Test ManualStrategy returns control in interactive environment
     def test_manual_strategy_interactive(self):
@@ -404,7 +404,7 @@ class TestValidationStrategies:
         assert mock_current_settings.model == "gpt-5"
         mock_settings_manager.save.assert_called_once()
 
-    # * Test ModelRetryStrategy raises error in non-interactive environment (covers lines 98-99)
+    # * Test ModelRetryStrategy raises error in non-interactive environment
     def test_model_retry_strategy_non_interactive(self):
         strategy = ModelRetryStrategy()
         mock_ui = MagicMock()
@@ -414,7 +414,7 @@ class TestValidationStrategies:
                 strategy.handle(["test warning"], mock_ui)
 
             assert not exc_info.value.recoverable
-            assert "not a TTY" in str(exc_info.value)
+            assert "non-interactive" in str(exc_info.value)
 
     @patch("src.core.validation.settings_manager")
     # * Test ModelRetryStrategy w/ invalid choice (covers lines 140-142)
@@ -730,3 +730,160 @@ class TestLatexValidation:
         assert result["compilation_checked"] is False
         assert len(result["errors"]) > 0
         assert "Compilation validation error" in result["errors"][0]
+
+
+# * Test ensure_interactive base method
+
+
+class TestEnsureInteractive:
+
+    # * Test ensure_interactive raises ValidationError when not TTY
+    def test_ensure_interactive_non_tty_raises(self):
+        strategy = AskStrategy()
+        with patch("sys.stdin.isatty", return_value=False):
+            with pytest.raises(ValidationError) as exc_info:
+                strategy.ensure_interactive("Test mode", ["original warning"])
+
+            assert not exc_info.value.recoverable
+            assert "Test mode not available" in str(exc_info.value)
+            assert "non-interactive" in str(exc_info.value)
+
+    # * Test ensure_interactive preserves original warnings
+    def test_ensure_interactive_preserves_warnings(self):
+        strategy = AskStrategy()
+        original_warnings = ["warning 1", "warning 2"]
+
+        with patch("sys.stdin.isatty", return_value=False):
+            with pytest.raises(ValidationError) as exc_info:
+                strategy.ensure_interactive("Test mode", original_warnings)
+
+            # original warnings should be preserved (prepended with mode-specific message)
+            assert "warning 1" in str(exc_info.value)
+            assert "warning 2" in str(exc_info.value)
+
+    # * Test ensure_interactive passes when TTY available
+    def test_ensure_interactive_tty_passes(self):
+        strategy = AskStrategy()
+        with patch("sys.stdin.isatty", return_value=True):
+            # should not raise - just returns None
+            result = strategy.ensure_interactive("Test mode", ["warning"])
+            assert result is None
+
+    # * Test all interactive strategies use ensure_interactive guard (parametrized)
+    @pytest.mark.parametrize("strategy_class,mode_name", [
+        (AskStrategy, "Ask mode"),
+        (ManualStrategy, "Manual mode"),
+        (ModelRetryStrategy, "Model change"),
+    ])
+    def test_interactive_strategies_guard_tty(self, strategy_class, mode_name):
+        strategy = strategy_class()
+        mock_ui = MagicMock()
+
+        with patch("sys.stdin.isatty", return_value=False):
+            with pytest.raises(ValidationError) as exc_info:
+                strategy.handle(["test warning"], mock_ui)
+
+            # verify error mentions non-interactive (standardized format)
+            error_msg = str(exc_info.value)
+            assert "non-interactive" in error_msg
+            assert not exc_info.value.recoverable
+
+
+# * Test ModelRetryStrategy uses model source of truth
+
+
+class TestModelRetrySourceOfTruth:
+
+    # * Test model options come from ai/models.py, not hardcoded
+    @patch("src.core.validation.settings_manager")
+    def test_model_options_from_models_module(self, mock_settings_manager):
+        from src.ai.models import OPENAI_MODELS
+
+        strategy = ModelRetryStrategy()
+        mock_ui = MagicMock()
+        mock_ui.ask.return_value = "1"  # Select first option
+        mock_settings_manager.load.return_value = MagicMock()
+
+        with patch("sys.stdin.isatty", return_value=True):
+            outcome = strategy.handle(["test"], mock_ui)
+
+        # verify first model selected matches OPENAI_MODELS[0]
+        assert outcome.value == OPENAI_MODELS[0]
+
+    # * Test model options don't include Claude/Ollama models
+    @patch("src.core.validation.settings_manager")
+    def test_model_options_openai_only(self, mock_settings_manager):
+        strategy = ModelRetryStrategy()
+        mock_ui = MagicMock()
+
+        # capture printed output
+        printed_lines = []
+        mock_ui.print.side_effect = lambda x="": printed_lines.append(str(x))
+        mock_ui.ask.return_value = "1"
+        mock_settings_manager.load.return_value = MagicMock()
+
+        with patch("sys.stdin.isatty", return_value=True):
+            strategy.handle(["test"], mock_ui)
+
+        output = "\n".join(printed_lines)
+        assert "claude" not in output.lower()
+        assert "llama" not in output.lower()
+        assert "gpt" in output.lower()
+
+    # * Test all OPENAI_MODELS are available as options
+    @patch("src.core.validation.settings_manager")
+    def test_all_openai_models_available(self, mock_settings_manager):
+        from src.ai.models import OPENAI_MODELS
+
+        strategy = ModelRetryStrategy()
+        mock_ui = MagicMock()
+
+        # capture printed output
+        printed_lines = []
+        mock_ui.print.side_effect = lambda x="": printed_lines.append(str(x))
+        mock_ui.ask.return_value = "1"
+        mock_settings_manager.load.return_value = MagicMock()
+
+        with patch("sys.stdin.isatty", return_value=True):
+            strategy.handle(["test"], mock_ui)
+
+        output = "\n".join(printed_lines)
+        # all OpenAI models should appear in output
+        for model in OPENAI_MODELS:
+            assert model in output, f"Model {model} should be in options"
+
+    # * Test numeric selection matches OPENAI_MODELS order
+    @pytest.mark.parametrize("choice,expected_index", [
+        ("1", 0),
+        ("2", 1),
+        ("3", 2),
+    ])
+    @patch("src.core.validation.settings_manager")
+    def test_numeric_selection_order(self, mock_settings_manager, choice, expected_index):
+        from src.ai.models import OPENAI_MODELS
+
+        strategy = ModelRetryStrategy()
+        mock_ui = MagicMock()
+        mock_ui.ask.return_value = choice
+        mock_settings_manager.load.return_value = MagicMock()
+
+        with patch("sys.stdin.isatty", return_value=True):
+            outcome = strategy.handle(["test"], mock_ui)
+
+        assert outcome.value == OPENAI_MODELS[expected_index]
+
+    # * Test direct model name input works
+    @patch("src.core.validation.settings_manager")
+    def test_direct_model_name_input(self, mock_settings_manager):
+        from src.ai.models import OPENAI_MODELS
+
+        strategy = ModelRetryStrategy()
+        mock_ui = MagicMock()
+        # use a model name directly instead of number
+        mock_ui.ask.return_value = OPENAI_MODELS[2]
+        mock_settings_manager.load.return_value = MagicMock()
+
+        with patch("sys.stdin.isatty", return_value=True):
+            outcome = strategy.handle(["test"], mock_ui)
+
+        assert outcome.value == OPENAI_MODELS[2]

@@ -13,6 +13,8 @@ from ..ai.prompts import (
 from ..ai.clients import run_generate
 from ..ai.utils import process_ai_response
 
+# ? Pragmatic exception: Lines is a pure type alias, number_lines is a pure function
+# ? These don't violate core layer purity as they don't perform I/O
 from ..loom_io.types import Lines
 from ..loom_io import number_lines
 from .constants import (
@@ -23,67 +25,13 @@ from .constants import (
     OP_DELETE_RANGE,
 )
 from .debug import debug_ai
-
-
-# =============================================================================
-# Edit application helpers (inlined from edit_helpers.py)
-# =============================================================================
-
-
-# * Line existence validation
-def check_line_exists(line: int, lines: Lines) -> bool:
-    return line in lines
-
-
-# * Range existence validation
-def check_range_exists(
-    start: int, end: int, lines: Lines
-) -> tuple[bool, int | None]:
-    for line in range(start, end + 1):
-        if line not in lines:
-            return False, line
-    return True, None
-
-
-# * Line count calculation from text
-def count_text_lines(text: str, allow_empty: bool = False) -> int:
-    if not text:
-        return 1 if allow_empty else 0
-    return len(text.split("\n"))
-
-
-# * Get operation line number (for sorting)
-def get_operation_line(op: dict) -> int:
-    if "line" in op:
-        return op["line"]
-    elif "start" in op:
-        return op["start"]
-    else:
-        return 0
-
-
-# * Collect lines to move after a position
-def collect_lines_to_move(lines: Lines, after_line: int) -> list[tuple[int, str]]:
-    return sorted(
-        [(k, v) for k, v in lines.items() if k > after_line],
-        key=lambda t: t[0],
-        reverse=True,
-    )
-
-
-# * Shift lines by delta
-def shift_lines(
-    lines: Lines,
-    lines_to_move: list[tuple[int, str]],
-    delta: int,
-) -> None:
-    # delete original positions
-    for k, v in lines_to_move:
-        del lines[k]
-
-    # reinsert at shifted positions
-    for k, v in lines_to_move:
-        lines[k + delta] = v
+from .edit_helpers import (
+    check_line_exists,
+    check_range_exists,
+    get_operation_line,
+    collect_lines_to_move,
+    shift_lines,
+)
 
 
 # * Generate edits.json for resume using AI model w/ job description & sections context

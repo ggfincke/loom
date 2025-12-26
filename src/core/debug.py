@@ -1,25 +1,27 @@
 # src/core/debug.py
 # Debug logging utilities for verbose output & troubleshooting
+#
+# ? Pragmatic exception: Debug utilities need console output & config access.
+# ? Lazy imports used inside functions to avoid circular dependencies while
+# ? keeping debug utilities centralized in the core layer.
 
 from typing import Optional
 
 
 # * Check if debug mode is enabled (based on dev_mode config)
 def is_debug_enabled() -> bool:
-    try:
-        from ..config.settings import settings_manager
+    """Check if debug mode is enabled.
 
-        settings = settings_manager.load()
-        return settings.dev_mode
-    except (ImportError, AttributeError):
-        # fallback if settings not available
-        return False
+    Delegates to config.dev_mode for unified dev mode detection.
+    """
+    from ..config.dev_mode import is_dev_mode_enabled
+
+    return is_dev_mode_enabled()
 
 
 # * Print debug message if debug mode is enabled
 def debug_print(message: str, category: str = "DEBUG") -> None:
     if is_debug_enabled():
-        # lazy import to avoid circular dependencies
         from ..loom_io.console import console
 
         console.print(f"[debug]\\[{category}][/] {message}")
