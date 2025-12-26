@@ -1,90 +1,130 @@
-# tests/unit/test_claude_client.py
-# Thin tests for Claude client: success normalization & API error raising AIError
+# tests/unit/ai/clients/test_claude_client.py
+# Unit tests for Claude (Anthropic) client functionality
 
 import json
 import sys
 import types
-import importlib
-import typing as t
 import pytest
+from unittest.mock import patch, Mock
+import os
 
 # provide minimal anthropic module so client import succeeds even if not installed
 if "anthropic" not in sys.modules:
     dummy = types.ModuleType("anthropic")
 
-    # placeholder; tests will monkeypatch src module's Anthropic symbol
     class _Placeholder:
         pass
 
-    # cast to Any so Pylance accepts dynamic attribute
-    t.cast(t.Any, dummy).Anthropic = _Placeholder
+    dummy.Anthropic = _Placeholder  # type: ignore
     sys.modules["anthropic"] = dummy
 
-from src.ai.clients import claude_client as cc
+from src.ai.clients.claude_client import run_generate, ClaudeClient, _get_client
 from src.core.exceptions import AIError, ConfigurationError
 
 
-# describe fake messages surface for Anthropic SDK
-class _FakeAnthropicMessages:
-    def __init__(
-        self, response_text: str | None = None, error: Exception | None = None
-    ):
+@pytest.fixture(autouse=True)
+def reset_client_cache():
+    """Reset the singleton client cache before each test."""
+    _get_client.cache_clear()
+    yield
+    _get_client.cache_clear()
+
+
+# * Fake Anthropic response objects for testing
+class _FakeContentBlock:
+    def __init__(self, text: str):
+        self.type = "text"
+        self.text = text
+
+
+class _FakeResponse:
+    def __init__(self, text: str):
+        self.content = [_FakeContentBlock(text)]
+
+
+class _FakeMessages:
+    def __init__(self, response_text: str | None = None, error: Exception | None = None):
         self._response_text = response_text
         self._error = error
 
     def create(self, **kwargs):
         if self._error:
             raise self._error
-
-        class _ContentBlock:
-            def __init__(self, text):
-                self.type = "text"
-                self.text = text
-
-        class _Response:
-            def __init__(self, text):
-                self.content = [_ContentBlock(text)]
-
-        return _Response(self._response_text or "{}")
+        return _FakeResponse(self._response_text or "{}")
 
 
-# describe fake Anthropic client wrapper
 class _FakeAnthropic:
-    def __init__(
-        self, response_text: str | None = None, error: Exception | None = None
-    ):
-        self.messages = _FakeAnthropicMessages(response_text, error)
+    def __init__(self, response_text: str | None = None, error: Exception | None = None):
+        self.messages = _FakeMessages(response_text, error)
 
 
-# * verify successful result normalization & JSON parsing
-def test_claude_success_normalized_result(monkeypatch, mock_env_vars):
+# * Test successful result normalization & JSON parsing
+@patch("anthropic.Anthropic")
+@patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"})
+def test_claude_success_normalized_result(mock_anthropic_class):
     payload = {"sections": [{"name": "SUMMARY"}]}
 
-    # patch Anthropic client constructor to our fake
-    monkeypatch.setattr(cc, "Anthropic", lambda: _FakeAnthropic(json.dumps(payload)))
+    mock_anthropic_class.return_value = _FakeAnthropic(json.dumps(payload))
 
-    result = cc.run_generate("Parse resume", model="claude-sonnet-4-20250514")
+    result = run_generate("Parse resume", model="claude-sonnet-4-20250514")
     assert result.success is True
     assert result.data == payload
     assert result.raw_text
     assert result.json_text
 
 
-# * verify API error raised as AIError
-def test_claude_api_error_raises_aierror(monkeypatch, mock_env_vars):
-    # patch Anthropic to raise on create
-    monkeypatch.setattr(
-        cc, "Anthropic", lambda: _FakeAnthropic(None, RuntimeError("boom"))
-    )
+# * Test API error raised as AIError (caught by base class, returns error result)
+@patch("anthropic.Anthropic")
+@patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"})
+def test_claude_api_error_returns_error_result(mock_anthropic_class):
+    mock_anthropic_class.return_value = _FakeAnthropic(None, RuntimeError("boom"))
 
-    with pytest.raises(AIError):
-        cc.run_generate("Parse resume", model="claude-sonnet-4-20250514")
+    result = run_generate("Parse resume", model="claude-sonnet-4-20250514")
+    assert result.success is False
+    assert "Anthropic API error" in result.error
 
 
-# * verify missing API key raises ConfigurationError
-def test_claude_missing_api_key_raises_configuration_error(monkeypatch):
-    # clear the ANTHROPIC_API_KEY env var
-    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+# * Test missing API key returns error result
+@patch.dict(os.environ, {}, clear=True)
+def test_claude_missing_api_key_returns_error_result():
+    result = run_generate("Test prompt", model="claude-sonnet-4-20250514")
 
-    with pytest.raises(ConfigurationError, match="Missing ANTHROPIC_API_KEY"):
-        cc.run_generate("Test prompt", model="claude-sonnet-4-20250514")
+    assert result.success is False
+    assert "ANTHROPIC_API_KEY" in result.error or "anthropic" in result.error.lower()
+
+
+# * Test markdown code block stripping
+@patch("anthropic.Anthropic")
+@patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"})
+def test_claude_strips_markdown_code_blocks(mock_anthropic_class):
+    payload = {"result": "test"}
+    markdown_response = f"```json\n{json.dumps(payload)}\n```"
+
+    mock_anthropic_class.return_value = _FakeAnthropic(markdown_response)
+
+    result = run_generate("Test prompt", model="claude-sonnet-4-20250514")
+
+    assert result.success is True
+    assert result.raw_text == markdown_response
+    assert result.json_text == json.dumps(payload)
+    assert result.data == payload
+
+
+# * Test ClaudeClient class directly
+class TestClaudeClientClass:
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_validate_credentials_missing_key(self):
+        client = ClaudeClient()
+        with pytest.raises(ConfigurationError):
+            client.validate_credentials()
+
+    @patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"})
+    def test_validate_credentials_with_key(self):
+        client = ClaudeClient()
+        # should not raise
+        client.validate_credentials()
+
+    def test_provider_name(self):
+        client = ClaudeClient()
+        assert client.provider_name == "anthropic"

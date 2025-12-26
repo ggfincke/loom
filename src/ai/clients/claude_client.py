@@ -1,52 +1,78 @@
 # src/ai/clients/claude_client.py
-# Claude API client functions for generating JSON responses
+# Claude (Anthropic) API client for generating JSON responses
 
-import os
-from anthropic import Anthropic
-from ...config.settings import settings_manager
+from functools import lru_cache
+
+from .base import BaseClient
+from ..models import get_default_model
 from ..types import GenerateResult
-from ..models import ensure_valid_model
+from ..utils import APICallContext
+from ...config.env_validator import validate_provider_env, get_missing_env_message
+from ...config.settings import settings_manager
 from ...core.exceptions import AIError, ConfigurationError
-from ..utils import APICallContext, process_json_response
 
 
-# * Internal helper to make Claude API call & return raw context
-def _make_claude_call(prompt: str, model: str) -> APICallContext:
-    client = Anthropic()
-    settings = settings_manager.load()
+class ClaudeClient(BaseClient):
+    """Anthropic Claude API client."""
 
-    try:
-        response = client.messages.create(
-            model=model,
-            max_tokens=4096,
-            temperature=settings.temperature,
-            messages=[
-                {
-                    "role": "user",
-                    "content": f"{prompt}\n\nPlease respond with valid JSON only, no additional text or formatting.",
-                }
-            ],
-        )
-    except Exception as e:
-        raise AIError(f"Anthropic API error: {str(e)}")
+    provider_name = "anthropic"
 
-    # extract text from response (process text blocks only & skip tool blocks)
-    raw_text = ""
-    for content_block in response.content:
-        if content_block.type == "text":
-            raw_text += content_block.text
+    def validate_credentials(self) -> None:
+        """Check if ANTHROPIC_API_KEY is available."""
+        if not validate_provider_env("anthropic"):
+            raise ConfigurationError(get_missing_env_message("anthropic"))
 
-    return APICallContext(raw_text=raw_text, provider_name="claude", model=model)
+    def make_call(self, prompt: str, model: str) -> APICallContext:
+        """Make Claude API call."""
+        from anthropic import Anthropic
+
+        client = Anthropic()
+        settings = settings_manager.load()
+
+        try:
+            response = client.messages.create(
+                model=model,
+                max_tokens=4096,
+                temperature=settings.temperature,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": f"{prompt}\n\nPlease respond with valid JSON only, no additional text or formatting.",
+                    }
+                ],
+            )
+        except Exception as e:
+            raise AIError(f"Anthropic API error: {str(e)}")
+
+        # extract text from response (process text blocks only & skip tool blocks)
+        raw_text = ""
+        for content_block in response.content:
+            if content_block.type == "text":
+                raw_text += content_block.text
+
+        return APICallContext(raw_text=raw_text, provider_name="anthropic", model=model)
 
 
-# * Generate JSON response via Claude API w/ model validation
-def run_generate(
-    prompt: str, model: str = "claude-sonnet-4-20250514"
-) -> GenerateResult:
-    if not os.getenv("ANTHROPIC_API_KEY"):
-        raise ConfigurationError("Missing ANTHROPIC_API_KEY in environment or .env")
+# =============================================================================
+# Module-level API (backward compatibility + lazy singleton)
+# =============================================================================
 
-    # validate model before API call
-    validated_model = ensure_valid_model(model)
-    assert validated_model is not None, "Model validation returned None unexpectedly"
-    return process_json_response(_make_claude_call, prompt, validated_model)
+
+@lru_cache(maxsize=1)
+def _get_client() -> ClaudeClient:
+    """Get lazily-initialized singleton client."""
+    return ClaudeClient()
+
+
+def run_generate(prompt: str, model: str | None = None) -> GenerateResult:
+    """Generate JSON response using Claude API.
+
+    Args:
+        prompt: The prompt to send
+        model: Model name (defaults to provider default if None)
+
+    Returns:
+        GenerateResult with success/failure status and data
+    """
+    resolved_model = model or get_default_model("anthropic")
+    return _get_client().run_generate(prompt, resolved_model)

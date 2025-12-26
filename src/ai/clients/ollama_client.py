@@ -1,124 +1,181 @@
 # src/ai/clients/ollama_client.py
-# Ollama API client functions for generating JSON responses using local models
+# Ollama API client for generating JSON responses using local models
 
-from typing import List, Optional
+from functools import lru_cache
+from typing import List
 
-import ollama  # type: ignore
-
-from ...config.settings import settings_manager
+from .base import BaseClient
+from ..cache import AICache
+from ..models import get_default_model
 from ..types import GenerateResult, OllamaStatus
+from ..utils import APICallContext
+from ...config.settings import settings_manager
 from ...core.exceptions import AIError
-from ..utils import APICallContext, process_json_response
 from ...core.debug import debug_ai, debug_error, debug_api_call
 
 
-# * Per-invocation cache for Ollama status (cleared by reset_cache)
-_cached_status: Optional[OllamaStatus] = None
+class OllamaClient(BaseClient):
+    """Ollama API client for local model inference."""
 
+    provider_name = "ollama"
 
-# * Reset the cached Ollama status (call at start of each CLI invocation)
-def reset_cache() -> None:
-    global _cached_status
-    _cached_status = None
+    def preflight(self) -> None:
+        """Check Ollama server status before making API call."""
+        status = self._check_ollama_status(with_debug=True)
+        if not status.available:
+            raise AIError(f"Ollama server error: {status.error}")
 
+    def validate_credentials(self) -> None:
+        """Ollama doesn't require API key - handled by preflight."""
+        pass
 
-# * Single core function to check Ollama server & retrieve models (cached)
-def check_ollama_status(*, with_debug: bool = False) -> OllamaStatus:
-    global _cached_status
-    if _cached_status is not None:
-        return _cached_status
+    def validate_model(self, model: str) -> str:
+        """Validate model exists in Ollama's local model list."""
+        status = self._check_ollama_status()
 
-    try:
-        if with_debug:
-            debug_ai("Checking Ollama server availability...")
-        response = ollama.list()
-        models = [m.model for m in response.models if m.model]
-        if with_debug:
-            debug_ai(
-                f"Ollama server available - found {len(models)} models: {', '.join(models)}"
+        if model not in status.models:
+            if not status.models:
+                error_msg = f"Model '{model}' not found & no local models available. Run 'ollama pull {model}' to install it."
+            else:
+                error_msg = f"Model '{model}' not found locally. Available models: {', '.join(status.models)}. Run 'ollama pull {model}' to install it."
+            raise AIError(f"Ollama model error: {error_msg}")
+
+        return model
+
+    def make_call(self, prompt: str, model: str) -> APICallContext:
+        """Make Ollama API call."""
+        import ollama  # type: ignore
+
+        settings = settings_manager.load()
+
+        debug_api_call("Ollama", model, len(prompt))
+        debug_ai(
+            f"Making Ollama API call with model: {model}, temperature: {settings.temperature}"
+        )
+
+        try:
+            response = ollama.chat(
+                model=model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a helpful assistant. Always respond with valid JSON only, no additional text or formatting.",
+                    },
+                    {
+                        "role": "user",
+                        "content": f"{prompt}\n\nPlease respond with valid JSON only, no additional text or formatting.",
+                    },
+                ],
+                options={"temperature": settings.temperature},
             )
-        _cached_status = OllamaStatus(available=True, models=models, error="")
-    except Exception as e:
-        if with_debug:
-            debug_error(e, "Ollama server check")
-        error_msg = f"Ollama server connection failed: {str(e)}. Please ensure Ollama is running locally."
-        _cached_status = OllamaStatus(available=False, models=[], error=error_msg)
 
-    return _cached_status
+            raw_text = response.get("message", {}).get("content", "")
+            debug_ai(f"Received response from Ollama: {len(raw_text)} characters")
+
+            return APICallContext(raw_text=raw_text, provider_name="ollama", model=model)
+
+        except Exception as e:
+            debug_error(e, "Ollama API call")
+            raise AIError(
+                f"Ollama API error: {str(e)}. Model: {model}. Check if Ollama is running & model is properly installed."
+            )
+
+    def _check_ollama_status(self, *, with_debug: bool = False) -> OllamaStatus:
+        """Check & cache Ollama server status."""
+        # check cache first
+        if AICache.is_ollama_cached():
+            cached_models = AICache.get_ollama_models()
+            cached_error = AICache.get_ollama_error()
+            if cached_models is not None:
+                return OllamaStatus(available=True, models=cached_models, error="")
+            elif cached_error:
+                return OllamaStatus(available=False, models=[], error=cached_error)
+
+        # fetch from server
+        try:
+            import ollama  # type: ignore
+
+            if with_debug:
+                debug_ai("Checking Ollama server availability...")
+
+            response = ollama.list()
+            models = [m.model for m in response.models if m.model]
+
+            if with_debug:
+                debug_ai(
+                    f"Ollama server available - found {len(models)} models: {', '.join(models)}"
+                )
+
+            AICache.set_ollama_status(models)
+            return OllamaStatus(available=True, models=models, error="")
+
+        except Exception as e:
+            if with_debug:
+                debug_error(e, "Ollama server check")
+
+            error_msg = f"Ollama server connection failed: {str(e)}. Please ensure Ollama is running locally."
+            AICache.set_ollama_status(None, error_msg)
+            return OllamaStatus(available=False, models=[], error=error_msg)
 
 
-# * Check if Ollama server is running & accessible (backward-compat wrapper)
+# =============================================================================
+# Module-level API (backward compatibility + lazy singleton)
+# =============================================================================
+
+
+@lru_cache(maxsize=1)
+def _get_client() -> OllamaClient:
+    """Get lazily-initialized singleton client."""
+    return OllamaClient()
+
+
+def run_generate(prompt: str, model: str | None = None) -> GenerateResult:
+    """Generate JSON response using Ollama API.
+
+    Args:
+        prompt: The prompt to send
+        model: Model name (defaults to provider default if None)
+
+    Returns:
+        GenerateResult with success/failure status and data
+    """
+    resolved_model = model or get_default_model("ollama")
+    return _get_client().run_generate(prompt, resolved_model)
+
+
+# =============================================================================
+# Backward-compatibility wrappers (used by other modules)
+# =============================================================================
+
+
+def reset_cache() -> None:
+    """Reset the Ollama cache."""
+    AICache.invalidate_provider("ollama")
+    _get_client.cache_clear()
+
+
+def check_ollama_status(*, with_debug: bool = False) -> OllamaStatus:
+    """Check Ollama server status (cached)."""
+    return _get_client()._check_ollama_status(with_debug=with_debug)
+
+
 def is_ollama_available() -> bool:
+    """Check if Ollama server is running & accessible."""
     return check_ollama_status().available
 
 
-# * Check if Ollama server is running & return detailed error if not (backward-compat wrapper)
 def check_ollama_with_error() -> tuple[bool, str]:
+    """Check if Ollama server is running & return detailed error if not."""
     status = check_ollama_status(with_debug=True)
     return status.available, status.error
 
 
-# * Get list of available local models from Ollama (backward-compat wrapper)
 def get_available_models() -> List[str]:
+    """Get list of available local models from Ollama."""
     return check_ollama_status().models
 
 
-# * Get list of available local models w/ detailed error reporting (backward-compat wrapper)
 def get_available_models_with_error() -> tuple[List[str], str]:
+    """Get list of available local models w/ detailed error reporting."""
     status = check_ollama_status(with_debug=True)
     return status.models, status.error
-
-
-# * Internal helper to make Ollama API call & return raw context
-def _make_ollama_call(prompt: str, model: str) -> APICallContext:
-    settings = settings_manager.load()
-
-    debug_api_call("Ollama", model, len(prompt))
-    debug_ai(
-        f"Making Ollama API call with model: {model}, temperature: {settings.temperature}"
-    )
-
-    try:
-        response = ollama.chat(
-            model=model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a helpful assistant. Always respond with valid JSON only, no additional text or formatting.",
-                },
-                {
-                    "role": "user",
-                    "content": f"{prompt}\n\nPlease respond with valid JSON only, no additional text or formatting.",
-                },
-            ],
-            options={"temperature": settings.temperature},
-        )
-
-        raw_text = response.get("message", {}).get("content", "")
-        debug_ai(f"Received response from Ollama: {len(raw_text)} characters")
-
-        return APICallContext(raw_text=raw_text, provider_name="ollama", model=model)
-
-    except Exception as e:
-        debug_error(e, "Ollama API call")
-        raise AIError(
-            f"Ollama API error: {str(e)}. Model: {model}. Check if Ollama is running & model is properly installed."
-        )
-
-
-# * Generate JSON response using Ollama API w/ model validation
-def run_generate(prompt: str, model: str = "llama3.2") -> GenerateResult:
-    # single call to check server & get models (cached)
-    status = check_ollama_status(with_debug=True)
-
-    if not status.available:
-        raise AIError(f"Ollama server error: {status.error}")
-
-    if model not in status.models:
-        if not status.models:
-            error_msg = f"Model '{model}' not found & no local models available. Run 'ollama pull {model}' to install it."
-        else:
-            error_msg = f"Model '{model}' not found locally. Available models: {', '.join(status.models)}. Run 'ollama pull {model}' to install it."
-        raise AIError(f"Ollama model error: {error_msg}")
-
-    return process_json_response(_make_ollama_call, prompt, model)
