@@ -35,7 +35,7 @@ from ...config.settings import get_settings
     name="sectionize",
     description="Parse resume document into structured sections using AI",
     long_description=(
-        "analyze resume (.docx or .tex) & identify distinct sections such as "
+        "analyze resume (.docx, .tex, or .typ) & identify distinct sections such as "
         "SUMMARY, EXPERIENCE & EDUCATION. Produce machine-readable JSON map "
         "used to target edits precisely in later steps.\n\n"
         "Defaults: paths come from config when omitted (see 'loom config')."
@@ -70,7 +70,7 @@ def sectionize(
         resolved["model"],
     )
 
-    # validate required arguments (model not required for LaTeX path)
+    # validate required arguments (model not required for LaTeX/Typst path)
     required_args = {
         "resume_path": (resume_path, "Resume path"),
         "out_json": (
@@ -79,7 +79,9 @@ def sectionize(
         ),
     }
     resume_suffix = resume_path.suffix.lower() if resume_path else ""
-    if resume_suffix != ".tex":
+    is_latex = resume_suffix == ".tex"
+    is_typst = resume_suffix == ".typ"
+    if not (is_latex or is_typst):
         required_args["model"] = (model, "Model (provide --model or set in config)")
 
     validate_required_args(**required_args)
@@ -88,10 +90,9 @@ def sectionize(
     assert resume_path is not None
     assert out_json is not None
 
-    is_latex = resume_path.suffix.lower() == ".tex"
-    if not is_latex:
+    if not (is_latex or is_typst):
         assert model is not None
-    total_steps = 3 if is_latex else 4
+    total_steps = 3 if (is_latex or is_typst) else 4
 
     with setup_ui_with_progress("Processing resume...", total=total_steps) as (
         ui,
@@ -108,6 +109,23 @@ def sectionize(
             descriptor = detect_template(resume_path, resume_text)
             analysis = analyze_latex(lines, descriptor)
             payload = sections_to_payload(analysis)
+            progress.advance(task)
+
+            progress.update(task, description="Writing sections JSON...")
+            write_json_safe(payload, out_json)
+            progress.advance(task)
+        elif is_typst:
+            progress.update(task, description="Analyzing Typst structure...")
+            from ...loom_io.typst_handler import (
+                detect_template as detect_typst_template,
+                analyze_typst,
+                sections_to_payload as typst_sections_to_payload,
+            )
+
+            resume_text = resume_path.read_text(encoding="utf-8")
+            descriptor = detect_typst_template(resume_path, resume_text)
+            analysis = analyze_typst(lines, descriptor)
+            payload = typst_sections_to_payload(analysis)
             progress.advance(task)
 
             progress.update(task, description="Writing sections JSON...")
