@@ -5,6 +5,7 @@ from .documents import (
     read_docx,
     read_resume,
     read_latex,
+    read_typst,
     write_docx,
     write_text_lines,
     read_text,
@@ -28,22 +29,34 @@ from .latex_handler import (
     load_descriptor,
     build_latex_context,
 )
+from .typst_handler import (
+    build_typst_context,
+    analyze_typst,
+    sections_to_payload as typst_sections_to_payload,
+    filter_typst_edits,
+    TypstSection,
+    TypstAnalysis,
+)
 
 __all__ = [
+    # Document I/O
     "read_docx",
     "read_resume",
     "read_latex",
+    "read_typst",
     "write_docx",
     "write_text_lines",
     "read_text",
     "read_docx_with_formatting",
     "apply_edits_to_docx",
+    # Generics
     "write_json_safe",
     "read_json_safe",
     "ensure_parent",
     "exit_with_error",
     "number_lines",
     "Lines",
+    # LaTeX
     "detect_template",
     "analyze_latex",
     "sections_to_payload",
@@ -51,4 +64,11 @@ __all__ = [
     "TemplateDescriptor",
     "load_descriptor",
     "build_latex_context",
+    # Typst
+    "build_typst_context",
+    "analyze_typst",
+    "typst_sections_to_payload",
+    "filter_typst_edits",
+    "TypstSection",
+    "TypstAnalysis",
 ]
