@@ -96,34 +96,23 @@ MODEL_METADATA: dict[str, tuple[str, str]] = {
     "claude-opus-4-20250514": ("anthropic", "Claude Opus 4 (high capability)"),
     "claude-sonnet-4-20250514": ("anthropic", "Claude Sonnet 4 (balanced)"),
     "claude-3-7-sonnet-20250219": ("anthropic", "Claude 3.7 Sonnet (fast, capable)"),
-    "claude-3-5-haiku-20241022": ("anthropic", "Claude 3.5 Haiku (fast, cost-effective)"),
+    "claude-3-5-haiku-20241022": (
+        "anthropic",
+        "Claude 3.5 Haiku (fast, cost-effective)",
+    ),
     "claude-3-haiku-20240307": ("anthropic", "Claude 3 Haiku (fastest, economical)"),
 }
 
 
 def get_model_description(model: str) -> str:
-    """Get human-readable description for a model.
-
-    Args:
-        model: Model name
-
-    Returns:
-        Description string, or model name if not found
-    """
+    # Get human-readable description for a model.
     if model in MODEL_METADATA:
         return MODEL_METADATA[model][1]
     return model
 
 
 def resolve_model_alias(model: str) -> str:
-    """Resolve model alias to full model name.
-
-    Args:
-        model: Model name or alias
-
-    Returns:
-        Full model name (resolved from alias if applicable)
-    """
+    # Resolve model alias to full model name.
     # first check if it's already a valid full model name
     if model in SUPPORTED_MODELS:
         return model
@@ -137,32 +126,17 @@ def resolve_model_alias(model: str) -> str:
 
 
 def get_default_model(provider: Optional[str] = None) -> str:
-    """Get the default model for a provider.
-
-    Args:
-        provider: Provider ID ("openai", "anthropic", "ollama") or None for global default
-
-    Returns:
-        Default model name for the provider
-    """
+    # Get the default model for a provider.
     if provider is None:
         # global default is OpenAI
         return DEFAULT_MODELS_BY_PROVIDER["openai"]
-    return DEFAULT_MODELS_BY_PROVIDER.get(provider, DEFAULT_MODELS_BY_PROVIDER["openai"])
+    return DEFAULT_MODELS_BY_PROVIDER.get(
+        provider, DEFAULT_MODELS_BY_PROVIDER["openai"]
+    )
 
 
 def get_provider_for_model(model: str) -> Optional[str]:
-    """Get the provider ID for a known static model.
-
-    Note: This only checks static model lists. For dynamic validation
-    including Ollama, use provider_validator.validate_model().
-
-    Args:
-        model: Model name (not alias)
-
-    Returns:
-        Provider ID ("openai", "anthropic") or None if not found
-    """
+    # Get the provider ID for a known static model. Note: This only checks static model lists. For dynamic validation including Ollama, use provider_validator.validate_model().
     if model in OPENAI_MODELS:
         return "openai"
     if model in CLAUDE_MODELS:

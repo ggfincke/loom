@@ -24,7 +24,7 @@ from ..config.env_validator import validate_provider_env
 
 
 def check_openai_api_key() -> bool:
-    """Check if OpenAI API key is available (cached)."""
+    # Check if OpenAI API key is available (cached).
     cached = AICache.get_provider_available("openai")
     if cached is not None:
         return cached
@@ -35,7 +35,7 @@ def check_openai_api_key() -> bool:
 
 
 def check_anthropic_api_key() -> bool:
-    """Check if Anthropic API key is available (cached)."""
+    # Check if Anthropic API key is available (cached).
     cached = AICache.get_provider_available("anthropic")
     if cached is not None:
         return cached
@@ -46,7 +46,7 @@ def check_anthropic_api_key() -> bool:
 
 
 def get_ollama_models() -> List[str]:
-    """Get available Ollama models (cached)."""
+    # Get available Ollama models (cached).
     cached = AICache.get_ollama_models()
     if cached is not None:
         return cached
@@ -55,7 +55,7 @@ def get_ollama_models() -> List[str]:
 
 
 def is_ollama_available() -> bool:
-    """Check if Ollama is available (based on cache)."""
+    # Check if Ollama is available (based on cache).
     cached = AICache.get_provider_available("ollama")
     return cached is True
 
@@ -65,20 +65,8 @@ def is_ollama_available() -> bool:
 # =============================================================================
 
 
+# validate model & determine its provider
 def validate_model(model: str) -> Tuple[bool, Optional[str]]:
-    """Validate model & determine its provider.
-
-    Args:
-        model: Model name (may be an alias)
-
-    Returns:
-        (valid, provider_or_error_code)
-        - valid: True if model is usable
-        - provider_or_error_code:
-          - If valid: provider ID ("openai", "anthropic", "ollama")
-          - If invalid: error code ("openai_key_missing", "anthropic_key_missing",
-            "ollama_model_missing", "model_not_found")
-    """
     # resolve alias first
     resolved = resolve_model_alias(model)
 
@@ -108,15 +96,8 @@ def validate_model(model: str) -> Tuple[bool, Optional[str]]:
     return False, "model_not_found"
 
 
+# generate comprehensive error message for unavailable models
 def get_model_error_message(invalid_model: str) -> str:
-    """Generate comprehensive error message for unavailable models.
-
-    Args:
-        invalid_model: The model that failed validation
-
-    Returns:
-        Human-readable error message with suggestions
-    """
     _, provider_status = validate_model(invalid_model)
 
     if provider_status == "openai_key_missing":
@@ -173,18 +154,8 @@ def get_model_error_message(invalid_model: str) -> str:
     return "\n".join(message_parts)
 
 
+# validate model & show error if invalid
 def ensure_valid_model(model: Optional[str]) -> Optional[str]:
-    """Validate model & show error if invalid.
-
-    Args:
-        model: Model name to validate (may be None)
-
-    Returns:
-        Resolved model name if valid, None if input was None
-
-    Raises:
-        typer.Exit: if model is invalid (after printing error)
-    """
     if model is None:
         return None
 
@@ -204,15 +175,8 @@ def ensure_valid_model(model: Optional[str]) -> Optional[str]:
 # =============================================================================
 
 
+# get all supported models grouped by provider w/ availability status
 def get_models_by_provider() -> Dict[str, Dict[str, Any]]:
-    """Get all supported models grouped by provider with availability status.
-
-    Returns:
-        Dict mapping provider ID to info dict with keys:
-        - models: list of model names
-        - available: bool indicating if provider is usable
-        - requirement: human-readable requirement description
-    """
     return {
         "openai": {
             "models": OPENAI_MODELS,
@@ -232,15 +196,8 @@ def get_models_by_provider() -> Dict[str, Dict[str, Any]]:
     }
 
 
+# get provider ID for a model
 def get_model_provider(model: str) -> Optional[str]:
-    """Get provider ID for a model.
-
-    Args:
-        model: Model name (may be alias)
-
-    Returns:
-        Provider ID ("openai", "anthropic", "ollama") or None if invalid
-    """
     valid, provider = validate_model(model)
     return provider if valid else None
 
@@ -251,8 +208,5 @@ def get_model_provider(model: str) -> Optional[str]:
 
 
 def reset_model_cache() -> None:
-    """Reset all model-related caches.
-
-    Call at start of each CLI invocation to ensure fresh state.
-    """
+    # Reset all model-related caches. Call at start of each CLI invocation to ensure fresh state.
     AICache.invalidate_all()

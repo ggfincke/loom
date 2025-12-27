@@ -17,6 +17,7 @@ from .exceptions import ValidationError
 from ..ai.models import SUPPORTED_MODELS, OPENAI_MODELS, get_model_description
 from ..ai.provider_validator import validate_model
 from ..config.settings import settings_manager, LoomSettings
+
 # ? Pragmatic exception: Lines is a pure type alias (no I/O operations)
 from ..loom_io.types import Lines
 from .edit_helpers import check_line_exists, check_range_exists, count_text_lines
@@ -158,20 +159,14 @@ class ValidationOutcome:
 
 # * Base class for validation strategies
 class ValidationStrategy(ABC):
-    """Base class for validation strategies."""
+    # Base class for validation strategies.
 
     def ensure_interactive(self, mode_name: str, warnings: List[str]) -> None:
-        """Ensure running in interactive terminal.
-
-        Args:
-            mode_name: Human-readable strategy name for error message
-            warnings: Original validation warnings to preserve in error
-
-        Raises:
-            ValidationError: If not running in interactive terminal
-        """
+        # Ensure running in interactive terminal.
         if not sys.stdin.isatty():
-            error_warnings = [f"{mode_name} not available - non-interactive terminal"] + warnings
+            error_warnings = [
+                f"{mode_name} not available - non-interactive terminal"
+            ] + warnings
             raise ValidationError(error_warnings, recoverable=False)
 
     @abstractmethod
@@ -267,7 +262,9 @@ class ModelRetryStrategy(ValidationStrategy):
         while True:
             ui.print()
             with ui.input_mode():
-                choice = ui.ask(f"Enter model number (1-{max_option}) or model name: ").strip()
+                choice = ui.ask(
+                    f"Enter model number (1-{max_option}) or model name: "
+                ).strip()
 
             # convert user choice to model name
             selected_model = None

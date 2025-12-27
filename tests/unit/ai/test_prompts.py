@@ -178,7 +178,7 @@ class TestPromptAssembly:
 
     # * Test prompts handle special characters & edge cases safely
     def test_prompt_parameter_injection_safety(self):
-        # test with potentially problematic inputs
+        # test w/ potentially problematic inputs
         problematic_resume = (
             '1\tName with "quotes" & special chars\n'
             "2\tLine with\nnewlines and\ttabs\n"
@@ -204,10 +204,11 @@ class TestPromptAssembly:
 
 
 class TestPromptRequiredElements:
-    """Test prompts contain all necessary instructional elements"""
+    # Test prompts contain all necessary instructional elements
 
+    # * Verify sectionizer schema completeness
     def test_sectionizer_schema_completeness(self):
-        """Ensure sectionizer prompt defines complete JSON schema (short keys)"""
+        # Ensure sectionizer prompt defines complete JSON schema (short keys)
         prompt = build_sectionizer_prompt("1\tTest Resume\n")
 
         # schema field requirements (short keys: k=kind, h=heading, s=start, e=end, c=confidence, sub=subsections)
@@ -226,8 +227,9 @@ class TestPromptRequiredElements:
         assert '"c": 0.95' in prompt  # short key for confidence
         assert '"k": "SUMMARY"' in prompt  # short key for kind
 
+    # * Verify generate operation schema completeness
     def test_generate_operation_schema_completeness(self):
-        """Ensure generate prompt defines all operation schemas (short keys)"""
+        # Ensure generate prompt defines all operation schemas (short keys)
         prompt = build_generate_prompt(
             job_info="Test job",
             resume_with_line_numbers="1\tTest\n",
@@ -253,8 +255,9 @@ class TestPromptRequiredElements:
         assert '"cur": "Original"' in prompt  # short key for current_snippet
         assert '"w": "Python req"' in prompt  # short key for why
 
+    # * Verify validation checklist presence
     def test_validation_checklist_presence(self):
-        """Ensure prompts include validation checklists"""
+        # Ensure prompts include validation checklists
         prompt = build_generate_prompt(
             job_info="Test",
             resume_with_line_numbers="1\tTest\n",
@@ -269,11 +272,12 @@ class TestPromptRequiredElements:
 
 
 class TestPromptEdgeCases:
-    """Test prompt builders handle edge cases gracefully"""
+    # Test prompt builders handle edge cases gracefully
 
+    # * Verify empty inputs
     def test_empty_inputs(self):
-        """Test prompts with minimal/empty inputs"""
-        # should not crash with empty inputs
+        # Test prompts w/ minimal/empty inputs
+        # should not crash w/ empty inputs
         prompt1 = build_sectionizer_prompt("")
         assert isinstance(prompt1, str)
         assert len(prompt1) > 100  # still contains instructions
@@ -287,8 +291,9 @@ class TestPromptEdgeCases:
         assert isinstance(prompt2, str)
         assert len(prompt2) > 200
 
+    # * Verify very long inputs
     def test_very_long_inputs(self):
-        """Test prompts with unusually long inputs"""
+        # Test prompts w/ unusually long inputs
         long_resume = "\n".join([f"{i}\tLine {i} content" for i in range(1, 1001)])
         long_job = "Very long job description. " * 100
 
@@ -303,8 +308,9 @@ class TestPromptEdgeCases:
         assert long_resume in prompt
         assert long_job in prompt
 
+    # * Verify none optional parameters
     def test_none_optional_parameters(self):
-        """Test optional parameters can be None"""
+        # Test optional parameters can be None
         prompt = build_generate_prompt(
             job_info="Test job",
             resume_with_line_numbers="1\tTest\n",
@@ -318,10 +324,11 @@ class TestPromptEdgeCases:
 
 
 class TestPromptHelperFunctionality:
-    """Test any helper functions mentioned in prompt construction"""
+    # Test any helper functions mentioned in prompt construction
 
+    # * Verify prompt consistency across models
     def test_prompt_consistency_across_models(self):
-        """Test prompts remain consistent regardless of model parameter"""
+        # Test prompts remain consistent regardless of model parameter
         base_args = {
             "job_info": "Test job description",
             "resume_with_line_numbers": "1\tTest Resume\n2\tContent\n",
@@ -344,8 +351,9 @@ class TestPromptHelperFunctionality:
             assert "surgical edits" in prompt.lower()
             assert "current_snippet" in prompt
 
+    # * Verify timestamp injection formats
     def test_timestamp_injection_formats(self):
-        """Test various timestamp format handling"""
+        # Test various timestamp format handling
         timestamps = [
             "2024-01-15T12:00:00Z",
             "2024-01-15T12:00:00.123Z",
@@ -755,37 +763,45 @@ class TestPromptOperationPrompt:
 # * Test _is_latex_content() helper function
 class TestIsLatexContent:
 
+    # * Verify docx content returns false
     def test_docx_content_returns_false(self):
-        """Plain text resume content should return False."""
+        # Plain text resume content should return False.
         assert _is_latex_content("1\tJohn Doe\n2\tSoftware Engineer") is False
 
+    # * Verify documentclass at start returns true
     def test_documentclass_at_start_returns_true(self):
-        """Content starting with \\documentclass should return True."""
+        # Content starting w/ \\documentclass should return True.
         assert _is_latex_content("\\documentclass{article}\n\\begin{document}") is True
 
+    # * Verify documentclass w/ whitespace returns true
     def test_documentclass_with_whitespace_returns_true(self):
-        """Content with leading whitespace before \\documentclass should return True."""
+        # Content w/ leading whitespace before \\documentclass should return True.
         assert _is_latex_content("  \\documentclass{article}") is True
 
+    # * Verify begin document anywhere returns true
     def test_begin_document_anywhere_returns_true(self):
-        """Content containing \\begin{document} anywhere should return True."""
+        # Content containing \\begin{document} anywhere should return True.
         assert _is_latex_content("some preamble\n\\begin{document}") is True
 
+    # * Verify empty string returns false
     def test_empty_string_returns_false(self):
-        """Empty string should return False."""
+        # Empty string should return False.
         assert _is_latex_content("") is False
 
+    # * Verify whitespace only returns false
     def test_whitespace_only_returns_false(self):
-        """Whitespace-only content should return False."""
+        # Whitespace-only content should return False.
         assert _is_latex_content("   \n\t  ") is False
 
+    # * Verify partial markers return false
     def test_partial_markers_return_false(self):
-        """Partial LaTeX markers should return False."""
+        # Partial LaTeX markers should return False.
         assert _is_latex_content("document class article") is False
         assert _is_latex_content("begin document") is False
 
+    # * Verify numbered lines latex returns true
     def test_numbered_lines_latex_returns_true(self):
-        """Numbered LaTeX resume lines should return True."""
+        # Numbered LaTeX resume lines should return True.
         content = (
             "1\t\\documentclass[11pt]{article}\n"
             "2\t\\usepackage{geometry}\n"

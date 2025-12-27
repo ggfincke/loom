@@ -12,18 +12,18 @@ from ...config.settings import settings_manager
 from ...core.exceptions import AIError, ConfigurationError
 
 
+# Anthropic Claude API client
 class ClaudeClient(BaseClient):
-    """Anthropic Claude API client."""
 
     provider_name = "anthropic"
 
+    # check if ANTHROPIC_API_KEY is available
     def validate_credentials(self) -> None:
-        """Check if ANTHROPIC_API_KEY is available."""
         if not validate_provider_env("anthropic"):
             raise ConfigurationError(get_missing_env_message("anthropic"))
 
+    # make Claude API call
     def make_call(self, prompt: str, model: str) -> APICallContext:
-        """Make Claude API call."""
         from anthropic import Anthropic
 
         client = Anthropic()
@@ -58,21 +58,14 @@ class ClaudeClient(BaseClient):
 # =============================================================================
 
 
+# get lazily-initialized singleton client
 @lru_cache(maxsize=1)
 def _get_client() -> ClaudeClient:
-    """Get lazily-initialized singleton client."""
     return ClaudeClient()
 
 
+# generate JSON response using Claude API
+# returns GenerateResult w/ success/failure status & data
 def run_generate(prompt: str, model: str | None = None) -> GenerateResult:
-    """Generate JSON response using Claude API.
-
-    Args:
-        prompt: The prompt to send
-        model: Model name (defaults to provider default if None)
-
-    Returns:
-        GenerateResult with success/failure status and data
-    """
     resolved_model = model or get_default_model("anthropic")
     return _get_client().run_generate(prompt, resolved_model)

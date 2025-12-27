@@ -1,5 +1,5 @@
 # src/config/dev_mode.py
-# Unified dev mode detection with ctx-first, global-fallback pattern
+# Unified dev mode detection w/ ctx-first, global-fallback pattern
 #
 # * Placed in config/ (not core/) because it reads settings from disk.
 # * Follows "core is pure (no I/O)" rule per docs/contributing.md.
@@ -14,15 +14,7 @@ _cached_dev_mode: Optional[bool] = None
 
 # * Single source of truth for dev mode status
 def is_dev_mode_enabled(ctx: Optional[typer.Context] = None) -> bool:
-    """Check if dev mode is enabled.
-
-    Args:
-        ctx: Optional Typer context. If provided, uses get_settings(ctx) for
-             test injection support. If None, falls back to cached global read.
-
-    Returns:
-        True if dev_mode is enabled, False otherwise.
-    """
+    # Check if dev mode is enabled.
     global _cached_dev_mode
 
     # ctx-first: respect injected settings for testing
@@ -32,7 +24,7 @@ def is_dev_mode_enabled(ctx: Optional[typer.Context] = None) -> bool:
         settings = get_settings(ctx)
         return settings.dev_mode
 
-    # global fallback with caching
+    # global fallback w/ caching
     if _cached_dev_mode is None:
         from .settings import settings_manager
 
@@ -47,9 +39,6 @@ def is_dev_mode_enabled(ctx: Optional[typer.Context] = None) -> bool:
 
 # * Reset cached dev mode status (called when settings change)
 def reset_dev_mode_cache() -> None:
-    """Reset cached dev mode status.
-
-    Should be called when settings are modified to ensure fresh reads.
-    """
+    # Reset cached dev mode status. Should be called when settings are modified to ensure fresh reads.
     global _cached_dev_mode
     _cached_dev_mode = None

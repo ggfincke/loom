@@ -757,7 +757,7 @@ class TestEnsureInteractive:
             with pytest.raises(ValidationError) as exc_info:
                 strategy.ensure_interactive("Test mode", original_warnings)
 
-            # original warnings should be preserved (prepended with mode-specific message)
+            # original warnings should be preserved (prepended w/ mode-specific message)
             assert "warning 1" in str(exc_info.value)
             assert "warning 2" in str(exc_info.value)
 
@@ -770,11 +770,15 @@ class TestEnsureInteractive:
             assert result is None
 
     # * Test all interactive strategies use ensure_interactive guard (parametrized)
-    @pytest.mark.parametrize("strategy_class,mode_name", [
-        (AskStrategy, "Ask mode"),
-        (ManualStrategy, "Manual mode"),
-        (ModelRetryStrategy, "Model change"),
-    ])
+    @pytest.mark.parametrize(
+        "strategy_class,mode_name",
+        [
+            (AskStrategy, "Ask mode"),
+            (ManualStrategy, "Manual mode"),
+            (ModelRetryStrategy, "Model change"),
+        ],
+    )
+    # * Verify interactive strategies guard tty
     def test_interactive_strategies_guard_tty(self, strategy_class, mode_name):
         strategy = strategy_class()
         mock_ui = MagicMock()
@@ -796,6 +800,7 @@ class TestModelRetrySourceOfTruth:
 
     # * Test model options come from ai/models.py, not hardcoded
     @patch("src.core.validation.settings_manager")
+    # * Verify model options from models module
     def test_model_options_from_models_module(self, mock_settings_manager):
         from src.ai.models import OPENAI_MODELS
 
@@ -812,6 +817,7 @@ class TestModelRetrySourceOfTruth:
 
     # * Test model options don't include Claude/Ollama models
     @patch("src.core.validation.settings_manager")
+    # * Verify model options openai only
     def test_model_options_openai_only(self, mock_settings_manager):
         strategy = ModelRetryStrategy()
         mock_ui = MagicMock()
@@ -832,6 +838,7 @@ class TestModelRetrySourceOfTruth:
 
     # * Test all OPENAI_MODELS are available as options
     @patch("src.core.validation.settings_manager")
+    # * Verify all openai models available
     def test_all_openai_models_available(self, mock_settings_manager):
         from src.ai.models import OPENAI_MODELS
 
@@ -853,13 +860,19 @@ class TestModelRetrySourceOfTruth:
             assert model in output, f"Model {model} should be in options"
 
     # * Test numeric selection matches OPENAI_MODELS order
-    @pytest.mark.parametrize("choice,expected_index", [
-        ("1", 0),
-        ("2", 1),
-        ("3", 2),
-    ])
+    @pytest.mark.parametrize(
+        "choice,expected_index",
+        [
+            ("1", 0),
+            ("2", 1),
+            ("3", 2),
+        ],
+    )
     @patch("src.core.validation.settings_manager")
-    def test_numeric_selection_order(self, mock_settings_manager, choice, expected_index):
+    # * Verify numeric selection order
+    def test_numeric_selection_order(
+        self, mock_settings_manager, choice, expected_index
+    ):
         from src.ai.models import OPENAI_MODELS
 
         strategy = ModelRetryStrategy()
@@ -874,6 +887,7 @@ class TestModelRetrySourceOfTruth:
 
     # * Test direct model name input works
     @patch("src.core.validation.settings_manager")
+    # * Verify direct model name input
     def test_direct_model_name_input(self, mock_settings_manager):
         from src.ai.models import OPENAI_MODELS
 

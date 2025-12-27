@@ -11,15 +11,7 @@ F = TypeVar("F", bound=Callable[..., Any])
 
 # * Format error message for display (pure string formatting, no I/O)
 def format_error_message(error_type: str, message: str) -> str:
-    """Format error message with consistent Rich markup styling.
-
-    Args:
-        error_type: Error category label (e.g., "Validation Error")
-        message: Error details
-
-    Returns:
-        Rich-formatted error string ready for console output
-    """
+    # Format error message w/ consistent Rich markup styling.
     return f"[red]{error_type}:[/] {message}"
 
 
@@ -69,6 +61,11 @@ class DevModeError(LoomError):
     pass
 
 
+# * ATS compatibility check errors
+class ATSError(LoomError):
+    pass
+
+
 # * Decorator for handling Loom errors in CLI commands
 # ? Pragmatic exception: This decorator needs console output for error display.
 # ? Lazy import pattern used to avoid circular dependencies while keeping
@@ -106,6 +103,9 @@ def handle_loom_error(func: F) -> F:
         except DevModeError as e:
             console.print(format_error_message("Dev Mode Error", str(e)))
             raise SystemExit(1)
+        except ATSError as e:
+            console.print(format_error_message("ATS Error", str(e)))
+            raise SystemExit(1)
         except LoomError as e:
             console.print(format_error_message("Error", str(e)))
             raise SystemExit(1)
@@ -126,7 +126,7 @@ def require_dev_mode(func: F) -> F:
         # extract ctx from args (first positional arg is always typer.Context)
         ctx = args[0] if args and isinstance(args[0], typer.Context) else None
 
-        # use unified dev mode check with ctx for test injection support
+        # use unified dev mode check w/ ctx for test injection support
         if not is_dev_mode_enabled(ctx):
             raise DevModeError(
                 "Development mode required. Enable with: loom config set dev_mode true"

@@ -24,7 +24,7 @@ from src.core.exceptions import AIError, ConfigurationError
 
 @pytest.fixture(autouse=True)
 def reset_client_cache():
-    """Reset the singleton client cache before each test."""
+    # Reset the singleton client cache before each test.
     _get_client.cache_clear()
     yield
     _get_client.cache_clear()
@@ -43,7 +43,9 @@ class _FakeResponse:
 
 
 class _FakeMessages:
-    def __init__(self, response_text: str | None = None, error: Exception | None = None):
+    def __init__(
+        self, response_text: str | None = None, error: Exception | None = None
+    ):
         self._response_text = response_text
         self._error = error
 
@@ -54,13 +56,16 @@ class _FakeMessages:
 
 
 class _FakeAnthropic:
-    def __init__(self, response_text: str | None = None, error: Exception | None = None):
+    def __init__(
+        self, response_text: str | None = None, error: Exception | None = None
+    ):
         self.messages = _FakeMessages(response_text, error)
 
 
 # * Test successful result normalization & JSON parsing
 @patch("anthropic.Anthropic")
 @patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"})
+# * Verify claude success normalized result
 def test_claude_success_normalized_result(mock_anthropic_class):
     payload = {"sections": [{"name": "SUMMARY"}]}
 
@@ -76,6 +81,7 @@ def test_claude_success_normalized_result(mock_anthropic_class):
 # * Test API error raised as AIError (caught by base class, returns error result)
 @patch("anthropic.Anthropic")
 @patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"})
+# * Verify claude api error returns error result
 def test_claude_api_error_returns_error_result(mock_anthropic_class):
     mock_anthropic_class.return_value = _FakeAnthropic(None, RuntimeError("boom"))
 
@@ -86,6 +92,7 @@ def test_claude_api_error_returns_error_result(mock_anthropic_class):
 
 # * Test missing API key returns error result
 @patch.dict(os.environ, {}, clear=True)
+# * Verify claude missing api key returns error result
 def test_claude_missing_api_key_returns_error_result():
     result = run_generate("Test prompt", model="claude-sonnet-4-20250514")
 
@@ -96,6 +103,7 @@ def test_claude_missing_api_key_returns_error_result():
 # * Test markdown code block stripping
 @patch("anthropic.Anthropic")
 @patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"})
+# * Verify claude strips markdown code blocks
 def test_claude_strips_markdown_code_blocks(mock_anthropic_class):
     payload = {"result": "test"}
     markdown_response = f"```json\n{json.dumps(payload)}\n```"
@@ -114,17 +122,20 @@ def test_claude_strips_markdown_code_blocks(mock_anthropic_class):
 class TestClaudeClientClass:
 
     @patch.dict(os.environ, {}, clear=True)
+    # * Verify validate credentials missing key
     def test_validate_credentials_missing_key(self):
         client = ClaudeClient()
         with pytest.raises(ConfigurationError):
             client.validate_credentials()
 
     @patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"})
+    # * Verify validate credentials w/ key
     def test_validate_credentials_with_key(self):
         client = ClaudeClient()
         # should not raise
         client.validate_credentials()
 
+    # * Verify provider name
     def test_provider_name(self):
         client = ClaudeClient()
         assert client.provider_name == "anthropic"

@@ -36,7 +36,11 @@ from .edit_helpers import (
 
 # * Generate edits.json for resume using AI model w/ job description & sections context
 def generate_edits(
-    resume_lines: Lines, job_text: str, sections_json: str | None, model: str
+    resume_lines: Lines,
+    job_text: str,
+    sections_json: str | None,
+    model: str,
+    user_prompt: str | None = None,
 ) -> dict:
     debug_ai(
         f"Starting edit generation - Model: {model}, Resume lines: {len(resume_lines)}, Job text: {len(job_text)} chars"
@@ -45,7 +49,12 @@ def generate_edits(
     # generate edits
     created_at = datetime.now(timezone.utc).isoformat()
     prompt = build_generate_prompt(
-        job_text, number_lines(resume_lines), model, created_at, sections_json
+        job_text,
+        number_lines(resume_lines),
+        model,
+        created_at,
+        sections_json,
+        user_prompt,
     )
     debug_ai(f"Generated generation prompt: {len(prompt)} characters")
 

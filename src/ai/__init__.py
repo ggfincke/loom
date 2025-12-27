@@ -6,7 +6,8 @@ from .types import GenerateResult
 
 
 # * Lazy proxy to avoid importing provider SDKs at package import time
-def run_generate(prompt: str, model: str) -> GenerateResult:  # type: ignore[name-defined]
+# type: ignore[name-defined]
+def run_generate(prompt: str, model: str) -> GenerateResult:
     from .clients.factory import run_generate as _run_generate
 
     return _run_generate(prompt, model)

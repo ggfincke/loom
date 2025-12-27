@@ -10,10 +10,7 @@ from typing import Optional
 
 # * Check if debug mode is enabled (based on dev_mode config)
 def is_debug_enabled() -> bool:
-    """Check if debug mode is enabled.
-
-    Delegates to config.dev_mode for unified dev mode detection.
-    """
+    # Check if debug mode is enabled. Delegates to config.dev_mode for unified dev mode detection.
     from ..config.dev_mode import is_dev_mode_enabled
 
     return is_dev_mode_enabled()

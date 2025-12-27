@@ -30,9 +30,7 @@ class TestAIClientRouting:
 
         # patch the registry to return our mock
         with (
-            patch.dict(
-                CLIENT_REGISTRY, {"openai": lambda: mock_client_class}
-            ),
+            patch.dict(CLIENT_REGISTRY, {"openai": lambda: mock_client_class}),
             patch(
                 "src.ai.clients.factory.validate_model", return_value=(True, "openai")
             ),
@@ -63,9 +61,7 @@ class TestAIClientRouting:
         mock_client_class = Mock(return_value=mock_client_instance)
 
         with (
-            patch.dict(
-                CLIENT_REGISTRY, {"anthropic": lambda: mock_client_class}
-            ),
+            patch.dict(CLIENT_REGISTRY, {"anthropic": lambda: mock_client_class}),
             patch(
                 "src.ai.clients.factory.validate_model",
                 return_value=(True, "anthropic"),
@@ -95,9 +91,7 @@ class TestAIClientRouting:
         mock_client_class = Mock(return_value=mock_client_instance)
 
         with (
-            patch.dict(
-                CLIENT_REGISTRY, {"ollama": lambda: mock_client_class}
-            ),
+            patch.dict(CLIENT_REGISTRY, {"ollama": lambda: mock_client_class}),
             patch(
                 "src.ai.clients.factory.validate_model",
                 return_value=(True, "ollama"),
@@ -114,9 +108,7 @@ class TestAIClientRouting:
 
     # * Test invalid models are rejected before client calls
     def test_invalid_model_rejection(self):
-        with patch(
-            "src.ai.clients.factory.validate_model", return_value=(False, None)
-        ):
+        with patch("src.ai.clients.factory.validate_model", return_value=(False, None)):
             result = run_generate("Test prompt", "nonexistent-model")
 
             assert not result.success
@@ -141,9 +133,7 @@ class TestAIClientRouting:
         mock_client_class = Mock(return_value=mock_client_instance)
 
         with (
-            patch.dict(
-                CLIENT_REGISTRY, {"openai": lambda: mock_client_class}
-            ),
+            patch.dict(CLIENT_REGISTRY, {"openai": lambda: mock_client_class}),
             patch(
                 "src.ai.clients.factory.validate_model", return_value=(True, "openai")
             ),
@@ -156,7 +146,7 @@ class TestAIClientRouting:
             assert result.success
             # verify alias was resolved
             resolve_mock.assert_called_once_with("gpt5")
-            # verify client was called with resolved model
+            # verify client was called w/ resolved model
             mock_client_instance.run_generate.assert_called_once_with(
                 "Test prompt", "gpt-5"
             )
@@ -245,8 +235,9 @@ class TestResponseParsing:
         # even though parsing fails, code blocks should be stripped
         assert "```" not in result.json_text
 
+    # * Verify ollama thinking token stripping
     def test_ollama_thinking_token_stripping(self, mock_ai):
-        """Test Ollama thinking tokens are stripped correctly"""
+        # Test Ollama thinking tokens are stripped correctly
         result = mock_ai.generate(
             prompt="You are a resume section parser.",
             model="llama3.2",

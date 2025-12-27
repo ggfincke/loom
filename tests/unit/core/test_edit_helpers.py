@@ -44,34 +44,41 @@ def sample_lines():
 
 
 class TestLineExistence:
+    # * Verify check line exists true
     def test_check_line_exists_true(self, sample_lines):
         assert check_line_exists(1, sample_lines) is True
         assert check_line_exists(3, sample_lines) is True
 
+    # * Verify check line exists false
     def test_check_line_exists_false(self, sample_lines):
         assert check_line_exists(4, sample_lines) is False
         assert check_line_exists(99, sample_lines) is False
 
+    # * Verify check line exists empty dict
     def test_check_line_exists_empty_dict(self):
         assert check_line_exists(1, {}) is False
 
 
 class TestRangeExistence:
+    # * Verify check range exists all present
     def test_check_range_exists_all_present(self, sample_lines):
         exists, missing = check_range_exists(1, 3, sample_lines)
         assert exists is True
         assert missing is None
 
+    # * Verify check range exists gap in middle
     def test_check_range_exists_gap_in_middle(self, sample_lines):
         exists, missing = check_range_exists(3, 5, sample_lines)
         assert exists is False
         assert missing == 4
 
+    # * Verify check range exists start missing
     def test_check_range_exists_start_missing(self, sample_lines):
         exists, missing = check_range_exists(0, 2, sample_lines)
         assert exists is False
         assert missing == 0
 
+    # * Verify check range exists end missing
     def test_check_range_exists_end_missing(self, sample_lines):
         exists, missing = check_range_exists(1, 99, sample_lines)
         assert exists is False
@@ -79,43 +86,53 @@ class TestRangeExistence:
 
 
 class TestLineCountCalculation:
+    # * Verify count text lines single
     def test_count_text_lines_single(self):
         assert count_text_lines("single line") == 1
 
+    # * Verify count text lines multiple
     def test_count_text_lines_multiple(self):
         assert count_text_lines("line 1\nline 2\nline 3") == 3
 
+    # * Verify count text lines empty no allow
     def test_count_text_lines_empty_no_allow(self):
         assert count_text_lines("") == 0
 
+    # * Verify count text lines empty w/ allow
     def test_count_text_lines_empty_with_allow(self):
         assert count_text_lines("", allow_empty=True) == 1
 
+    # * Verify count text lines trailing newline
     def test_count_text_lines_trailing_newline(self):
         assert count_text_lines("line 1\nline 2\n") == 3
 
 
 class TestLineNumberValidation:
+    # * Verify validate line number valid
     def test_validate_line_number_valid(self):
         is_valid, error = validate_line_number(5)
         assert is_valid is True
         assert error is None
 
+    # * Verify validate line number invalid type
     def test_validate_line_number_invalid_type(self):
         is_valid, error = validate_line_number("5")
         assert is_valid is False
         assert "'line' must be integer >= 1" in error
 
+    # * Verify validate line number zero
     def test_validate_line_number_zero(self):
         is_valid, error = validate_line_number(0)
         assert is_valid is False
         assert "'line' must be integer >= 1" in error
 
+    # * Verify validate line number negative
     def test_validate_line_number_negative(self):
         is_valid, error = validate_line_number(-1)
         assert is_valid is False
         assert "'line' must be integer >= 1" in error
 
+    # * Verify validate line number w/ op index
     def test_validate_line_number_with_op_index(self):
         is_valid, error = validate_line_number("5", op_index=2)
         assert is_valid is False
@@ -123,36 +140,43 @@ class TestLineNumberValidation:
 
 
 class TestRangeBoundsValidation:
+    # * Verify validate range bounds valid
     def test_validate_range_bounds_valid(self):
         is_valid, error = validate_range_bounds(1, 5)
         assert is_valid is True
         assert error is None
 
+    # * Verify validate range bounds invalid type start
     def test_validate_range_bounds_invalid_type_start(self):
         is_valid, error = validate_range_bounds("1", 5)
         assert is_valid is False
         assert "start and end must be integers" in error
 
+    # * Verify validate range bounds invalid type end
     def test_validate_range_bounds_invalid_type_end(self):
         is_valid, error = validate_range_bounds(1, "5")
         assert is_valid is False
         assert "start and end must be integers" in error
 
+    # * Verify validate range bounds start less than one
     def test_validate_range_bounds_start_less_than_one(self):
         is_valid, error = validate_range_bounds(0, 5)
         assert is_valid is False
         assert "invalid range 0-5" in error
 
+    # * Verify validate range bounds end less than one
     def test_validate_range_bounds_end_less_than_one(self):
         is_valid, error = validate_range_bounds(1, 0)
         assert is_valid is False
         assert "invalid range 1-0" in error
 
+    # * Verify validate range bounds start greater than end
     def test_validate_range_bounds_start_greater_than_end(self):
         is_valid, error = validate_range_bounds(5, 3)
         assert is_valid is False
         assert "invalid range 5-3" in error
 
+    # * Verify validate range bounds w/ op index
     def test_validate_range_bounds_with_op_index(self):
         is_valid, error = validate_range_bounds(5, 3, op_index=7)
         assert is_valid is False
@@ -160,18 +184,21 @@ class TestRangeBoundsValidation:
 
 
 class TestRequiredFieldsValidation:
+    # * Verify validate required fields all present
     def test_validate_required_fields_all_present(self):
         op = {"line": 1, "text": "test"}
         is_valid, error = validate_required_fields(op, ["line", "text"], "replace_line")
         assert is_valid is True
         assert error is None
 
+    # * Verify validate required fields one missing
     def test_validate_required_fields_one_missing(self):
         op = {"line": 1}
         is_valid, error = validate_required_fields(op, ["line", "text"], "replace_line")
         assert is_valid is False
         assert "missing required fields (text)" in error
 
+    # * Verify validate required fields multiple missing
     def test_validate_required_fields_multiple_missing(self):
         op = {}
         is_valid, error = validate_required_fields(
@@ -183,6 +210,7 @@ class TestRequiredFieldsValidation:
         assert "end" in error
         assert "text" in error
 
+    # * Verify validate required fields w/ op index
     def test_validate_required_fields_with_op_index(self):
         op = {"line": 1}
         is_valid, error = validate_required_fields(
@@ -193,27 +221,32 @@ class TestRequiredFieldsValidation:
 
 
 class TestTextFieldValidation:
+    # * Verify validate text field valid string
     def test_validate_text_field_valid_string(self):
         is_valid, error = validate_text_field("test text")
         assert is_valid is True
         assert error is None
 
+    # * Verify validate text field invalid type
     def test_validate_text_field_invalid_type(self):
         is_valid, error = validate_text_field(123)
         assert is_valid is False
         assert "'text' must be string" in error
 
+    # * Verify validate text field newlines allowed
     def test_validate_text_field_newlines_allowed(self):
         is_valid, error = validate_text_field("line 1\nline 2", allow_newlines=True)
         assert is_valid is True
         assert error is None
 
+    # * Verify validate text field newlines disallowed
     def test_validate_text_field_newlines_disallowed(self):
         is_valid, error = validate_text_field("line 1\nline 2", allow_newlines=False)
         assert is_valid is False
         assert "contains newline" in error
         assert "use replace_range" in error
 
+    # * Verify validate text field w/ op index
     def test_validate_text_field_with_op_index(self):
         is_valid, error = validate_text_field(123, op_index=5)
         assert is_valid is False
@@ -221,25 +254,30 @@ class TestTextFieldValidation:
 
 
 class TestGetOperationLine:
+    # * Verify get operation line w/ line field
     def test_get_operation_line_with_line_field(self):
         op = {"line": 42, "text": "test"}
         assert get_operation_line(op) == 42
 
+    # * Verify get operation line w/ start field
     def test_get_operation_line_with_start_field(self):
         op = {"start": 10, "end": 15, "text": "test"}
         assert get_operation_line(op) == 10
 
+    # * Verify get operation line w/ both fields
     def test_get_operation_line_with_both_fields(self):
         # line takes precedence
         op = {"line": 42, "start": 10, "text": "test"}
         assert get_operation_line(op) == 42
 
+    # * Verify get operation line w/ neither field
     def test_get_operation_line_with_neither_field(self):
         op = {"other": "field"}
         assert get_operation_line(op) == 0
 
 
 class TestOperationConstants:
+    # * Verify operation constants defined
     def test_operation_constants_defined(self):
         assert OP_REPLACE_LINE == "replace_line"
         assert OP_REPLACE_RANGE == "replace_range"

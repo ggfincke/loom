@@ -36,19 +36,19 @@ SECTION_KEY_ALIASES: dict[str, str] = {
 
 
 def normalize_op_keys(op: dict[str, Any]) -> dict[str, Any]:
-    """Expand short keys to full names for downstream compatibility."""
+    # Expand short keys to full names for downstream compatibility.
     return {OP_KEY_ALIASES.get(k, k): v for k, v in op.items()}
 
 
 def normalize_edits_response(edits: dict[str, Any]) -> dict[str, Any]:
-    """Normalize all ops in an edits response (expand short keys)."""
+    # Normalize all ops in an edits response (expand short keys).
     if "ops" in edits and isinstance(edits["ops"], list):
         edits["ops"] = [normalize_op_keys(op) for op in edits["ops"]]
     return edits
 
 
 def _normalize_subsection(sub: Any) -> dict[str, Any]:
-    """Normalize a subsection entry (array format or dict)."""
+    # Normalize a subsection entry (array format or dict).
     if isinstance(sub, list) and len(sub) >= 3:
         # array format: [name, start_line, end_line, optional_meta]
         result: dict[str, Any] = {
@@ -71,7 +71,7 @@ def _normalize_subsection(sub: Any) -> dict[str, Any]:
 
 
 def normalize_section_keys(section: dict[str, Any]) -> dict[str, Any]:
-    """Expand short section keys to full names."""
+    # Expand short section keys to full names.
     normalized: dict[str, Any] = {}
     for k, v in section.items():
         key = SECTION_KEY_ALIASES.get(k, k) if isinstance(k, str) else str(k)
@@ -85,7 +85,7 @@ def normalize_section_keys(section: dict[str, Any]) -> dict[str, Any]:
 
 
 def normalize_sections_response(data: dict[str, Any]) -> dict[str, Any]:
-    """Normalize all sections in a sectionizer response (expand short keys)."""
+    # Normalize all sections in a sectionizer response (expand short keys).
     if "sections" in data and isinstance(data["sections"], list):
         data["sections"] = [normalize_section_keys(s) for s in data["sections"]]
     return data
@@ -105,7 +105,7 @@ class APICallContext:
 
 
 def strip_markdown_code_blocks(text: str) -> str:
-    """Strip markdown code blocks & thinking tokens from AI responses."""
+    # Strip markdown code blocks & thinking tokens from AI responses.
     # first strip thinking tokens if present
     thinking_pattern = r"<think>.*?</think>\s*(.*)"
     thinking_match = re.match(thinking_pattern, text.strip(), re.DOTALL)
@@ -128,14 +128,7 @@ def strip_markdown_code_blocks(text: str) -> str:
 
 
 def parse_json(text: str) -> tuple[Optional[dict[str, Any]], str, str]:
-    """Parse JSON from text after stripping markdown.
-
-    Returns:
-        (data, json_text, error_message)
-        - data: parsed dict on success, None on failure
-        - json_text: the stripped text that was parsed
-        - error_message: empty on success, error details on failure
-    """
+    # Parse JSON from text after stripping markdown. (data, json_text, error_message) - data: parsed dict on success, None on failure - json_text: the stripped text that was parsed - error_message: empty on success, error details on failure
     json_text = strip_markdown_code_blocks(text)
 
     try:
@@ -165,12 +158,7 @@ def validate_and_extract(
     log_version_debug: bool = False,
     log_structure: bool = False,
 ) -> dict[str, Any]:
-    """Validate AI response structure & extract normalized data.
-
-    Raises:
-        JSONParsingError: if JSON parsing failed but we got a response
-        AIError: if API call failed or response structure is invalid
-    """
+    # Validate AI response structure & extract normalized data. Raises: JSONParsingError: if JSON parsing failed but we got a response AIError: if API call failed or response structure is invalid
     # ! import here to avoid circular dependency w/ core module
     from ..core.exceptions import JSONParsingError, AIError
     from ..core.debug import debug_ai
@@ -197,7 +185,7 @@ def validate_and_extract(
                 error_msg += f"\nFull raw response: {raw_text[:300]}{'...' if len(raw_text) > 300 else ''}"
             raise JSONParsingError(error_msg)
         else:
-            # API call failed with no response - AIError
+            # API call failed w/ no response - AIError
             raise AIError(f"AI failed to process {context}: {parse_error}")
 
     # validate structure
@@ -252,10 +240,7 @@ def validate_and_extract(
 def process_json_response(
     api_call: Callable[[str, str], APICallContext], prompt: str, model: str
 ) -> GenerateResult:
-    """Process API response into GenerateResult w/ consistent JSON parsing.
-
-    Used by clients to convert raw API call to GenerateResult.
-    """
+    # Process API response into GenerateResult w/ consistent JSON parsing. Used by clients to convert raw API call to GenerateResult.
     ctx = api_call(prompt, model)
     data, json_text, error = parse_json(ctx.raw_text)
 
@@ -279,16 +264,7 @@ def process_ai_response(
     log_version_debug: bool = False,
     log_structure: bool = False,
 ) -> dict[str, Any]:
-    """High-level helper: GenerateResult -> validated dict.
-
-    Orchestrates the 3-layer processing:
-    1. (already done) strip & parse in GenerateResult
-    2. validate_and_extract for structure validation
-
-    Raises:
-        JSONParsingError: if JSON parsing failed
-        AIError: if validation fails
-    """
+    # High-level helper: GenerateResult -> validated dict. Orchestrates the 3-layer processing: 1. (already done) strip & parse in GenerateResult 2. validate_and_extract for structure validation Raises: JSONParsingError: if JSON parsing failed AIError: if validation fails
     # if result already failed, extract error info
     if not result.success:
         # parse_json was already called, pass through the error

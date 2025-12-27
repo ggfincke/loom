@@ -73,6 +73,7 @@ class TestResolveModelAlias:
 class TestValidateModel:
     # * Test OpenAI model validation w/ API key available
     @patch("src.ai.provider_validator.check_openai_api_key")
+    # * Verify validate openai model with key
     def test_validate_openai_model_with_key(self, mock_check_key):
         mock_check_key.return_value = True
 
@@ -83,6 +84,7 @@ class TestValidateModel:
 
     # * Test OpenAI model validation w/o API key
     @patch("src.ai.provider_validator.check_openai_api_key")
+    # * Verify validate openai model without key
     def test_validate_openai_model_without_key(self, mock_check_key):
         mock_check_key.return_value = False
 
@@ -93,6 +95,7 @@ class TestValidateModel:
 
     # * Test Claude model validation w/ API key available
     @patch("src.ai.provider_validator.check_anthropic_api_key")
+    # * Verify validate claude model with key
     def test_validate_claude_model_with_key(self, mock_check_key):
         mock_check_key.return_value = True
 
@@ -103,6 +106,7 @@ class TestValidateModel:
 
     # * Test Claude model validation w/o API key
     @patch("src.ai.provider_validator.check_anthropic_api_key")
+    # * Verify validate claude model without key
     def test_validate_claude_model_without_key(self, mock_check_key):
         mock_check_key.return_value = False
 
@@ -114,6 +118,7 @@ class TestValidateModel:
     # * Test Ollama model validation when available
     @patch("src.ai.provider_validator.get_ollama_models")
     @patch("src.ai.provider_validator.is_ollama_available")
+    # * Verify validate ollama model available
     def test_validate_ollama_model_available(self, mock_is_available, mock_get_models):
         mock_get_models.return_value = ["llama3", "mistral", "codellama"]
         mock_is_available.return_value = True
@@ -126,6 +131,7 @@ class TestValidateModel:
     # * Test Ollama model validation when Ollama available but model missing
     @patch("src.ai.provider_validator.get_ollama_models")
     @patch("src.ai.provider_validator.is_ollama_available")
+    # * Verify validate ollama model missing
     def test_validate_ollama_model_missing(self, mock_is_available, mock_get_models):
         mock_get_models.return_value = ["llama3", "mistral"]
         mock_is_available.return_value = True
@@ -138,6 +144,7 @@ class TestValidateModel:
     # * Test model validation when not found anywhere
     @patch("src.ai.provider_validator.get_ollama_models")
     @patch("src.ai.provider_validator.is_ollama_available")
+    # * Verify validate model not found
     def test_validate_model_not_found(self, mock_is_available, mock_get_models):
         mock_get_models.return_value = []
         mock_is_available.return_value = False
@@ -154,6 +161,7 @@ class TestValidateModel:
 class TestGetModelErrorMessage:
     # * Test error message for missing OpenAI API key
     @patch("src.ai.provider_validator.validate_model")
+    # * Verify error message openai key missing
     def test_error_message_openai_key_missing(self, mock_validate):
         mock_validate.return_value = (False, "openai_key_missing")
 
@@ -164,6 +172,7 @@ class TestGetModelErrorMessage:
 
     # * Test error message for missing Claude API key
     @patch("src.ai.provider_validator.validate_model")
+    # * Verify error message anthropic key missing
     def test_error_message_anthropic_key_missing(self, mock_validate):
         mock_validate.return_value = (False, "anthropic_key_missing")
 
@@ -175,6 +184,7 @@ class TestGetModelErrorMessage:
     # * Test error message for missing Ollama model w/ available models
     @patch("src.ai.provider_validator.validate_model")
     @patch("src.ai.provider_validator.get_ollama_models")
+    # * Verify error message ollama model missing with available
     def test_error_message_ollama_model_missing_with_available(
         self, mock_get_models, mock_validate
     ):
@@ -193,6 +203,7 @@ class TestGetModelErrorMessage:
 class TestEnsureValidModel:
     # * Test successful validation returns resolved model
     @patch("src.ai.provider_validator.validate_model")
+    # * Verify ensure valid model success
     def test_ensure_valid_model_success(self, mock_validate):
         mock_validate.return_value = (True, "openai")
 
@@ -210,9 +221,8 @@ class TestEnsureValidModel:
     @patch("src.ai.provider_validator.validate_model")
     @patch("src.ai.provider_validator.get_model_error_message")
     @patch("typer.echo")
-    def test_ensure_valid_model_invalid(
-        self, mock_echo, mock_error_msg, mock_validate
-    ):
+    # * Verify ensure valid model invalid
+    def test_ensure_valid_model_invalid(self, mock_echo, mock_error_msg, mock_validate):
         mock_validate.return_value = (False, "model_not_found")
         mock_error_msg.return_value = "Error message"
 
@@ -229,22 +239,26 @@ class TestEnsureValidModel:
 class TestAPIKeyChecking:
     # * Test OpenAI API key detection
     @patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"})
+    # * Verify check openai api key present
     def test_check_openai_api_key_present(self):
         AICache.invalidate_all()  # clear cache
         assert check_openai_api_key() is True
 
     @patch.dict("os.environ", {}, clear=True)
+    # * Verify check openai api key absent
     def test_check_openai_api_key_absent(self):
         AICache.invalidate_all()  # clear cache
         assert check_openai_api_key() is False
 
     # * Test Anthropic API key detection
     @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"})
+    # * Verify check anthropic api key present
     def test_check_anthropic_api_key_present(self):
         AICache.invalidate_all()  # clear cache
         assert check_anthropic_api_key() is True
 
     @patch.dict("os.environ", {}, clear=True)
+    # * Verify check anthropic api key absent
     def test_check_anthropic_api_key_absent(self):
         AICache.invalidate_all()  # clear cache
         assert check_anthropic_api_key() is False
@@ -256,6 +270,7 @@ class TestAPIKeyChecking:
 class TestUtilityFunctions:
     # * Test get_model_provider wrapper
     @patch("src.ai.provider_validator.validate_model")
+    # * Verify get model provider success
     def test_get_model_provider_success(self, mock_validate):
         mock_validate.return_value = (True, "openai")
 
@@ -264,6 +279,7 @@ class TestUtilityFunctions:
         assert result == "openai"
 
     @patch("src.ai.provider_validator.validate_model")
+    # * Verify get model provider invalid
     def test_get_model_provider_invalid(self, mock_validate):
         mock_validate.return_value = (False, "model_not_found")
 
@@ -276,6 +292,7 @@ class TestUtilityFunctions:
         result = get_default_model()
         assert result == "gpt-5-mini"
 
+    # * Verify get default model by provider
     def test_get_default_model_by_provider(self):
         assert get_default_model("openai") == "gpt-5-mini"
         assert get_default_model("anthropic") == "claude-sonnet-4-20250514"
@@ -286,10 +303,12 @@ class TestUtilityFunctions:
         assert get_provider_for_model("gpt-5") == "openai"
         assert get_provider_for_model("gpt-4o") == "openai"
 
+    # * Verify get provider for model anthropic
     def test_get_provider_for_model_anthropic(self):
         assert get_provider_for_model("claude-opus-4-1-20250805") == "anthropic"
         assert get_provider_for_model("claude-sonnet-4-20250514") == "anthropic"
 
+    # * Verify get provider for model unknown
     def test_get_provider_for_model_unknown(self):
         assert get_provider_for_model("llama3") is None  # Ollama is dynamic
         assert get_provider_for_model("unknown") is None
@@ -327,7 +346,7 @@ class TestModelConstants:
 
     # * Test default models are valid
     def test_default_models_validity(self):
-        # OpenAI and Anthropic defaults should be in SUPPORTED_MODELS
+        # OpenAI & Anthropic defaults should be in SUPPORTED_MODELS
         assert DEFAULT_MODELS_BY_PROVIDER["openai"] in SUPPORTED_MODELS
         assert DEFAULT_MODELS_BY_PROVIDER["anthropic"] in SUPPORTED_MODELS
         # Ollama default is dynamic, just check it's a string

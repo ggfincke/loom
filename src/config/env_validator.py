@@ -13,17 +13,12 @@ REQUIRED_ENV_VARS: dict[str, str] = {
 
 
 def get_required_env_var(provider: str) -> Optional[str]:
-    """Get the required environment variable name for a provider."""
+    # Get the required environment variable name for a provider.
     return REQUIRED_ENV_VARS.get(provider)
 
 
 def validate_provider_env(provider: str) -> bool:
-    """Check if required environment variable is set for provider.
-
-    Returns True if:
-    - Provider has no env requirement (e.g., ollama)
-    - Provider's required env var is set & non-empty
-    """
+    # Check if required environment variable is set for provider. Returns True if: - Provider has no env requirement (e.g., ollama) - Provider's required env var is set & non-empty
     var_name = REQUIRED_ENV_VARS.get(provider)
     if var_name is None:
         return True  # no requirement for this provider
@@ -31,7 +26,7 @@ def validate_provider_env(provider: str) -> bool:
 
 
 def get_missing_env_message(provider: str) -> str:
-    """Generate error message for missing environment variable."""
+    # Generate error message for missing environment variable.
     var_name = REQUIRED_ENV_VARS.get(provider)
     if var_name is None:
         return f"Provider '{provider}' does not require an API key."

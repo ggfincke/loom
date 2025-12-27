@@ -19,16 +19,19 @@ from .base import BaseClient
 
 def _get_openai_client_class() -> Type[BaseClient]:
     from .openai_client import OpenAIClient
+
     return OpenAIClient
 
 
 def _get_anthropic_client_class() -> Type[BaseClient]:
     from .claude_client import ClaudeClient
+
     return ClaudeClient
 
 
 def _get_ollama_client_class() -> Type[BaseClient]:
     from .ollama_client import OllamaClient
+
     return OllamaClient
 
 
@@ -46,15 +49,7 @@ CLIENT_REGISTRY: dict[str, Callable[[], Type[BaseClient]]] = {
 
 
 def run_generate(prompt: str, model: str) -> GenerateResult:
-    """Generate JSON response using appropriate AI client based on model.
-
-    Args:
-        prompt: The prompt to send to the AI
-        model: Model name (may be an alias)
-
-    Returns:
-        GenerateResult with success/failure status and data
-    """
+    # Generate JSON response using appropriate AI client based on model.
     # validate model & determine provider
     valid, provider = validate_model(model)
 
@@ -68,9 +63,7 @@ def run_generate(prompt: str, model: str) -> GenerateResult:
     # get client factory from registry
     client_factory = CLIENT_REGISTRY.get(provider)  # type: ignore[arg-type]
     if client_factory is None:
-        return GenerateResult(
-            success=False, error=f"Unknown provider: {provider}"
-        )
+        return GenerateResult(success=False, error=f"Unknown provider: {provider}")
 
     # instantiate client & run generation
     client_class = client_factory()

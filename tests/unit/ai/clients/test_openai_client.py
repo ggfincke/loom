@@ -13,7 +13,7 @@ from src.core.exceptions import AIError, ConfigurationError
 
 @pytest.fixture(autouse=True)
 def reset_client_cache():
-    """Reset the singleton client cache before each test."""
+    # Reset the singleton client cache before each test.
     _get_client.cache_clear()
     yield
     _get_client.cache_clear()
@@ -21,9 +21,10 @@ def reset_client_cache():
 
 class TestOpenAIClient:
 
-    # * Test successful API call with valid JSON response
+    # * Test successful API call w/ valid JSON response
     @patch("openai.OpenAI")
     @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
+    # * Verify run generate success
     def test_run_generate_success(self, mock_openai_class):
         mock_client = Mock()
         mock_openai_class.return_value = mock_client
@@ -47,9 +48,10 @@ class TestOpenAIClient:
         # verify API call was made
         mock_client.responses.create.assert_called_once()
 
-    # * Test successful API call with GPT-5 model (no temperature)
+    # * Test successful API call w/ GPT-5 model (no temperature)
     @patch("openai.OpenAI")
     @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
+    # * Verify run generate gpt5 no temperature
     def test_run_generate_gpt5_no_temperature(self, mock_openai_class):
         mock_client = Mock()
         mock_openai_class.return_value = mock_client
@@ -71,6 +73,7 @@ class TestOpenAIClient:
 
     # * Test missing API key error
     @patch.dict(os.environ, {}, clear=True)
+    # * Verify run generate missing api key
     def test_run_generate_missing_api_key(self):
         # when no API key, run_generate returns error result (base class catches exception)
         result = run_generate("Test prompt", "gpt-4o")
@@ -81,6 +84,7 @@ class TestOpenAIClient:
     # * Test OpenAI API error handling
     @patch("openai.OpenAI")
     @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
+    # * Verify run generate api error
     def test_run_generate_api_error(self, mock_openai_class):
         mock_client = Mock()
         mock_openai_class.return_value = mock_client
@@ -97,6 +101,7 @@ class TestOpenAIClient:
     # * Test JSON parsing failure
     @patch("openai.OpenAI")
     @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
+    # * Verify run generate json parsing error
     def test_run_generate_json_parsing_error(self, mock_openai_class):
         mock_client = Mock()
         mock_openai_class.return_value = mock_client
@@ -116,6 +121,7 @@ class TestOpenAIClient:
     # * Test markdown code block stripping
     @patch("openai.OpenAI")
     @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
+    # * Verify run generate strips markdown
     def test_run_generate_strips_markdown(self, mock_openai_class):
         mock_client = Mock()
         mock_openai_class.return_value = mock_client
@@ -145,6 +151,7 @@ class TestOpenAIClient:
     @patch("openai.OpenAI")
     @patch("src.ai.clients.openai_client.settings_manager")
     @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
+    # * Verify run generate custom temperature
     def test_run_generate_custom_temperature(
         self, mock_settings_manager, mock_openai_class
     ):
@@ -171,6 +178,7 @@ class TestOpenAIClient:
     # * Test default model parameter
     @patch("openai.OpenAI")
     @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
+    # * Verify run generate default model
     def test_run_generate_default_model(self, mock_openai_class):
         mock_client = Mock()
         mock_openai_class.return_value = mock_client
@@ -189,6 +197,7 @@ class TestOpenAIClient:
     # * Test empty response handling
     @patch("openai.OpenAI")
     @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
+    # * Verify run generate empty response
     def test_run_generate_empty_response(self, mock_openai_class):
         mock_client = Mock()
         mock_openai_class.return_value = mock_client
@@ -208,6 +217,7 @@ class TestOpenAIClient:
     # * Test complex JSON response handling
     @patch("openai.OpenAI")
     @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
+    # * Verify run generate complex json
     def test_run_generate_complex_json(self, mock_openai_class):
         mock_client = Mock()
         mock_openai_class.return_value = mock_client
@@ -252,6 +262,7 @@ class TestOpenAIClientClass:
 
     # * Test validate_credentials raises ConfigurationError when key missing
     @patch.dict(os.environ, {}, clear=True)
+    # * Verify validate credentials missing key
     def test_validate_credentials_missing_key(self):
         client = OpenAIClient()
         with pytest.raises(ConfigurationError):
@@ -259,6 +270,7 @@ class TestOpenAIClientClass:
 
     # * Test validate_credentials succeeds when key present
     @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
+    # * Verify validate credentials with key
     def test_validate_credentials_with_key(self):
         client = OpenAIClient()
         # should not raise

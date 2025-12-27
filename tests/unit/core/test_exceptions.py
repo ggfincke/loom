@@ -40,11 +40,11 @@ class TestFormatErrorMessage:
     # * Test format_error_message no duplicate prefixes
     def test_format_error_message_no_duplicate_prefix(self):
         result = format_error_message("AI Error", "model failed")
-        # should have exactly one "[red]" and one "[/]"
+        # should have exactly one "[red]" & one "[/]"
         assert result.count("[red]") == 1
         assert result.count("[/]") == 1
 
-    # * Test format_error_message with multiline message
+    # * Test format_error_message w/ multiline message
     def test_format_error_message_multiline(self):
         result = format_error_message("Validation Error", "line 1\nline 2\nline 3")
         assert "[red]Validation Error:[/]" in result
@@ -208,8 +208,8 @@ class TestHandleLoomErrorDecorator:
     # * Test decorator preserves original function metadata
     def test_decorator_preserves_function_metadata(self):
         @handle_loom_error
+        # This function has documentation.
         def documented_function(arg1, arg2=None):
-            """This function has documentation."""
             return arg1
 
         assert documented_function.__name__ == "documented_function"
