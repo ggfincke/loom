@@ -72,50 +72,50 @@ class InteractiveDiffResolver:
 
     @property
     def state(self) -> DiffState:
-        """Access to diff state (read-only accessor)."""
+        # Access to diff state (read-only accessor).
         return self._state
 
     @property
     def renderer(self) -> DiffRenderer:
-        """Access to renderer (read-only accessor)."""
+        # Access to renderer (read-only accessor).
         return self._renderer
 
     @property
     def input_handler(self) -> DiffInputHandler:
-        """Access to input handler (read-only accessor)."""
+        # Access to input handler (read-only accessor).
         return self._input_handler
 
     @property
     def ai_processor(self) -> DiffAIProcessor:
-        """Access to AI processor (read-only accessor)."""
+        # Access to AI processor (read-only accessor).
         return self._ai_processor
 
     # ===== INTENTIONAL PUBLIC API =====
 
     @property
     def operations(self) -> list["EditOperation"]:
-        """Operations list - primary data access."""
+        # Operations list - primary data access.
         return self._state.operations
 
     @property
     def is_complete(self) -> bool:
-        """Whether the review session is complete."""
+        # Whether the review session is complete.
         return self._state.is_complete
 
     def render_screen(self) -> RenderableType:
-        """Render the current screen state."""
+        # Render the current screen state.
         return self._renderer.render_screen(self._state)
 
     def handle_key(self, k: str) -> bool:
-        """Handle keyboard input. Returns False to exit loop."""
+        # Handle keyboard input. Returns False to exit loop.
         return self._input_handler.handle_key(k)
 
     def get_result(self) -> tuple[list["EditOperation"], bool]:
-        """Get final result: (operations, were_modified)."""
+        # Get final result: (operations, were_modified).
         return self._state.operations, self._state.operations_modified
 
     def run(self) -> tuple[list["EditOperation"], bool]:
-        """Run the interactive review session. Returns (operations, were_modified)."""
+        # Run the interactive review session. Returns (operations, were_modified).
         prompt_just_submitted = False
 
         with Live(

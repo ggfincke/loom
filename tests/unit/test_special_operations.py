@@ -250,6 +250,7 @@ class TestProcessPromptOperationAdvanced:
     # * Test successful PROMPT operation w/ context building
     @patch("src.core.pipeline.run_generate")
     @patch("src.core.pipeline.build_prompt_operation_prompt")
+    # * Verify process prompt operation context building
     def test_process_prompt_operation_context_building(
         self,
         mock_build_prompt,
@@ -328,6 +329,7 @@ class TestProcessPromptOperationAdvanced:
     # * Test PROMPT operation w/ insert_after context
     @patch("src.core.pipeline.run_generate")
     @patch("src.core.pipeline.build_prompt_operation_prompt")
+    # * Verify process prompt operation insert context
     def test_process_prompt_operation_insert_context(
         self,
         mock_build_prompt,
@@ -370,6 +372,7 @@ class TestProcessPromptOperationAdvanced:
     # * Test PROMPT operation w/ sections_json integration
     @patch("src.core.pipeline.run_generate")
     @patch("src.core.pipeline.build_prompt_operation_prompt")
+    # * Verify process prompt operation with sections
     def test_process_prompt_operation_with_sections(
         self,
         mock_build_prompt,
@@ -407,6 +410,7 @@ class TestProcessPromptOperationAdvanced:
     # * Test operation type specific context building
     @patch("src.core.pipeline.run_generate")
     @patch("src.core.pipeline.build_prompt_operation_prompt")
+    # * Verify process prompt operation type contexts
     def test_process_prompt_operation_type_contexts(
         self,
         mock_build_prompt,
@@ -465,7 +469,7 @@ class TestSpecialOperationsIntegration:
 
     # * Test operation status transitions through special operations
     def test_operation_status_workflow(self):
-        # create base operation with content already set by UI
+        # create base operation w/ content already set by UI
         operation = EditOperation(
             operation="replace_line",
             line_number=5,

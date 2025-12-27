@@ -64,11 +64,11 @@ class TestDisplayCommand:
         mock_ctx = Mock(spec=typer.Context)
         mock_ctx.exit = Mock(side_effect=SystemExit(0))
 
-        # call with help flag - should exit
+        # call w/ help flag - should exit
         with pytest.raises(SystemExit):
             display(mock_ctx, help=True)
 
-        # verify help was shown and context exited (second arg is command object)
+        # verify help was shown & context exited (second arg is command object)
         mock_show_help.assert_called_once()
         assert mock_show_help.call_args[0][0] == "display"
         mock_ctx.exit.assert_called_once()
@@ -172,11 +172,11 @@ class TestDisplayCommand:
         # call display command
         display(mock_ctx, help=False)
 
-        # extract operations and check confidence values
+        # extract operations & check confidence values
         operations = mock_display_loop.call_args[0][0]
 
         for op in operations:
-            # confidence should be realistic (between 0.8 and 1.0 for sample data)
+            # confidence should be realistic (between 0.8 & 1.0 for sample data)
             assert 0.8 <= op.confidence <= 1.0
             # should be rounded to 2 decimal places
             assert op.confidence == round(op.confidence, 2)
@@ -194,14 +194,14 @@ class TestDisplayCommand:
         # call display command
         display(mock_ctx, help=False)
 
-        # extract operations and verify reasoning quality
+        # extract operations & verify reasoning quality
         operations = mock_display_loop.call_args[0][0]
 
         for op in operations:
             # all operations should have non-empty reasoning
             assert op.reasoning != ""
             assert len(op.reasoning) > 10  # should be descriptive
-            # reasoning should start lowercase or with special chars (following style guide)
+            # reasoning should start lowercase or w/ special chars (following style guide)
             first_char = op.reasoning[0] if op.reasoning else ""
             assert first_char.islower() or first_char in "•-" or first_char.isupper()
 
@@ -213,7 +213,7 @@ class TestDisplayCommand:
 
         mock_ctx = Mock(spec=typer.Context)
 
-        # handle_loom_error catches all exceptions and converts to SystemExit
+        # handle_loom_error catches all exceptions & converts to SystemExit
         with pytest.raises(SystemExit) as exc_info:
             display(mock_ctx, help=False)
 
@@ -222,9 +222,7 @@ class TestDisplayCommand:
     @patch("src.config.dev_mode.is_dev_mode_enabled")
     @patch("src.cli.commands.dev.display.main_display_loop")
     # * Test error handling when display loop fails
-    def test_display_loop_exception_handling(
-        self, mock_display_loop, mock_dev_enabled
-    ):
+    def test_display_loop_exception_handling(self, mock_display_loop, mock_dev_enabled):
         # setup mocks
         mock_dev_enabled.return_value = True
 
@@ -233,7 +231,7 @@ class TestDisplayCommand:
 
         mock_ctx = Mock(spec=typer.Context)
 
-        # handle_loom_error catches all exceptions and converts to SystemExit
+        # handle_loom_error catches all exceptions & converts to SystemExit
         with pytest.raises(SystemExit) as exc_info:
             display(mock_ctx, help=False)
 
@@ -256,7 +254,7 @@ class TestDevModeIntegration:
     @patch("src.config.dev_mode.is_dev_mode_enabled")
     # * Test various falsy values for dev_mode setting
     def test_dev_mode_false_variations(self, mock_dev_enabled):
-        """Test different ways dev_mode could be falsy"""
+        # Test different ways dev_mode could be falsy
         falsy_values = [False, None, 0, "", []]
 
         for falsy_value in falsy_values:
@@ -273,7 +271,7 @@ class TestDevModeIntegration:
     @patch("src.cli.commands.dev.display.main_display_loop")
     # * Test various truthy values for dev_mode setting
     def test_dev_mode_true_variations(self, mock_display_loop, mock_dev_enabled):
-        """Test different ways dev_mode could be truthy"""
+        # Test different ways dev_mode could be truthy
         truthy_values = [True, 1, "true", "yes", [1]]
 
         mock_display_loop.return_value = []
@@ -294,7 +292,7 @@ class TestDevModeIntegration:
 
 
 class TestRequireDevModeDecorator:
-    """Tests for the @require_dev_mode decorator on display command."""
+    # Tests for the @require_dev_mode decorator on display command.
 
     @patch("src.config.dev_mode.is_dev_mode_enabled")
     # * Test decorator passes ctx to is_dev_mode_enabled

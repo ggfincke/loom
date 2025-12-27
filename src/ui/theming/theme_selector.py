@@ -12,7 +12,7 @@ from ..display.ascii_art import show_loom_art
 
 
 def _apply_theme_temporarily(theme_name: str) -> None:
-    """Apply a theme for preview purposes."""
+    # Apply a theme for preview purposes.
     settings_manager.set("theme", theme_name)
     refresh_theme()
 

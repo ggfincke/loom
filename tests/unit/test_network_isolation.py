@@ -26,6 +26,7 @@ def test_http_requests_blocked():
 
 # * Verify network can be enabled for specific tests that need it
 @pytest.mark.enable_socket
+# * Verify network can be enabled when needed
 def test_network_can_be_enabled_when_needed():
     # note: this test would only pass if pytest-socket allows the marker
     # for now we'll just verify the test infrastructure recognizes the marker

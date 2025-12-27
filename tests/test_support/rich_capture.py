@@ -31,7 +31,7 @@ def capture_rich_output() -> Generator[Console, None, None]:
         record=True, width=80, height=24, force_terminal=True, theme=theme
     )
 
-    # patch both the global console and modules that have already imported it
+    # patch both the global console & modules that have already imported it
     patches = [
         patch("src.loom_io.console.console", recording_console),
         # these modules import console directly at module level, so need individual patches

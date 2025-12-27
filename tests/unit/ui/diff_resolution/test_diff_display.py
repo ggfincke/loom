@@ -18,22 +18,27 @@ from src.core.constants import EditOperation, DiffOp
 
 
 class TestClampFunction:
+    # * Verify clamp within bounds
     def test_clamp_within_bounds(self):
         assert _clamp(5, 1, 10) == 5
         assert _clamp(7, 3, 15) == 7
 
+    # * Verify clamp at lower bound
     def test_clamp_at_lower_bound(self):
         assert _clamp(-5, 0, 10) == 0
         assert _clamp(2, 5, 15) == 5
 
+    # * Verify clamp at upper bound
     def test_clamp_at_upper_bound(self):
         assert _clamp(20, 0, 10) == 10
         assert _clamp(100, 5, 50) == 50
 
+    # * Verify clamp equal bounds
     def test_clamp_equal_bounds(self):
         assert _clamp(5, 10, 10) == 10
         assert _clamp(15, 10, 10) == 10
 
+    # * Verify clamp negative numbers
     def test_clamp_negative_numbers(self):
         assert _clamp(-15, -10, -5) == -10
         assert _clamp(-3, -10, -5) == -5
@@ -44,6 +49,7 @@ class TestClampFunction:
 
 
 class TestInteractiveDiffResolverInit:
+    # * Verify init w/ operations
     def test_init_with_operations(self):
         ops = [
             EditOperation(operation="replace_line", line_number=1, content="test1"),
@@ -58,6 +64,7 @@ class TestInteractiveDiffResolverInit:
         assert resolver.state.mode == DiffReviewMode.MENU
         assert resolver.state.operations_modified is False
 
+    # * Verify init w/ ai context
     def test_init_with_ai_context(self):
         ops = [EditOperation(operation="replace_line", line_number=1, content="test")]
         resolver = InteractiveDiffResolver(
@@ -72,6 +79,7 @@ class TestInteractiveDiffResolverInit:
         assert resolver.ai_processor.context.job_text == "job desc"
         assert resolver.ai_processor.context.model == "gpt-4o"
 
+    # * Verify current operation property
     def test_current_operation_property(self):
         ops = [
             EditOperation(operation="replace_line", line_number=1, content="test1"),
@@ -85,6 +93,7 @@ class TestInteractiveDiffResolverInit:
         resolver.state.current_index = 10  # out of bounds
         assert resolver.state.current_operation is None
 
+    # * Verify is complete property
     def test_is_complete_property(self):
         ops = [EditOperation(operation="replace_line", line_number=1, content="test")]
         resolver = InteractiveDiffResolver(ops)
@@ -98,12 +107,16 @@ class TestInteractiveDiffResolverInit:
 
 
 class TestRenderOperationDisplay:
+    # * Verify none operation
     def test_none_operation(self):
         resolver = InteractiveDiffResolver([])
-        result = resolver.renderer.render_operation_display(resolver.state.current_operation)
+        result = resolver.renderer.render_operation_display(
+            resolver.state.current_operation
+        )
         assert len(result) == 1
         assert "No edit operation selected" in str(result[0])
 
+    # * Verify replace line operation
     def test_replace_line_operation(self):
         op = EditOperation(
             operation="replace_line",
@@ -115,7 +128,9 @@ class TestRenderOperationDisplay:
         )
         resolver = InteractiveDiffResolver([op])
 
-        result = resolver.renderer.render_operation_display(resolver.state.current_operation)
+        result = resolver.renderer.render_operation_display(
+            resolver.state.current_operation
+        )
         content_lines = [str(line) for line in result]
 
         assert any("replace_line" in line for line in content_lines)
@@ -125,6 +140,7 @@ class TestRenderOperationDisplay:
         assert any("New content" in line for line in content_lines)
         assert any("Test reasoning" in line for line in content_lines)
 
+    # * Verify replace range operation
     def test_replace_range_operation(self):
         op = EditOperation(
             operation="replace_range",
@@ -137,12 +153,15 @@ class TestRenderOperationDisplay:
         )
         resolver = InteractiveDiffResolver([op])
 
-        result = resolver.renderer.render_operation_display(resolver.state.current_operation)
+        result = resolver.renderer.render_operation_display(
+            resolver.state.current_operation
+        )
         content_lines = [str(line) for line in result]
 
         assert any("replace_range" in line for line in content_lines)
         assert any("Lines 10-12" in line for line in content_lines)
 
+    # * Verify insert after operation
     def test_insert_after_operation(self):
         op = EditOperation(
             operation="insert_after",
@@ -152,12 +171,15 @@ class TestRenderOperationDisplay:
         )
         resolver = InteractiveDiffResolver([op])
 
-        result = resolver.renderer.render_operation_display(resolver.state.current_operation)
+        result = resolver.renderer.render_operation_display(
+            resolver.state.current_operation
+        )
         content_lines = [str(line) for line in result]
 
         assert any("insert_after" in line for line in content_lines)
         assert any("Insert after line 8" in line for line in content_lines)
 
+    # * Verify delete range operation
     def test_delete_range_operation(self):
         op = EditOperation(
             operation="delete_range",
@@ -168,30 +190,38 @@ class TestRenderOperationDisplay:
         )
         resolver = InteractiveDiffResolver([op])
 
-        result = resolver.renderer.render_operation_display(resolver.state.current_operation)
+        result = resolver.renderer.render_operation_display(
+            resolver.state.current_operation
+        )
         content_lines = [str(line) for line in result]
 
         assert any("delete_range" in line for line in content_lines)
         assert any("Delete lines 15-17" in line for line in content_lines)
 
+    # * Verify operation without confidence
     def test_operation_without_confidence(self):
         op = EditOperation(
             operation="replace_line", line_number=3, content="Test content"
         )
         resolver = InteractiveDiffResolver([op])
 
-        result = resolver.renderer.render_operation_display(resolver.state.current_operation)
+        result = resolver.renderer.render_operation_display(
+            resolver.state.current_operation
+        )
         content_lines = [str(line) for line in result]
 
         assert not any("Confidence: 0.00" in line for line in content_lines)
 
+    # * Verify operation w/ no original content
     def test_operation_with_no_original_content(self):
         op = EditOperation(
             operation="replace_line", line_number=5, content="New content"
         )
         resolver = InteractiveDiffResolver([op])
 
-        result = resolver.renderer.render_operation_display(resolver.state.current_operation)
+        result = resolver.renderer.render_operation_display(
+            resolver.state.current_operation
+        )
         content_lines = [str(line) for line in result]
 
         assert any("[no content]" in line for line in content_lines)
@@ -201,6 +231,7 @@ class TestRenderOperationDisplay:
 
 
 class TestRenderTextInputDisplay:
+    # * Verify modify mode display
     def test_modify_mode_display(self):
         op = EditOperation(
             operation="replace_line", line_number=5, content="Original content"
@@ -217,6 +248,7 @@ class TestRenderTextInputDisplay:
         assert any("MODIFY OPERATION" in line for line in content_lines)
         assert any("Edit the suggested content below" in line for line in content_lines)
 
+    # * Verify prompt mode display
     def test_prompt_mode_display(self):
         op = EditOperation(
             operation="replace_line", line_number=5, content="Original content"
@@ -232,10 +264,11 @@ class TestRenderTextInputDisplay:
         assert any("Enter additional instructions" in line for line in content_lines)
 
 
-# * Test header and footer layout
+# * Test header & footer layout
 
 
 class TestHeaderFooterLayouts:
+    # * Verify header w/ operations
     def test_header_with_operations(self):
         ops = [
             EditOperation(operation="replace_line", line_number=1, content="test1"),
@@ -250,6 +283,7 @@ class TestHeaderFooterLayouts:
         )
         assert result is not None
 
+    # * Verify footer w/ processed operations
     def test_footer_with_processed_operations(self):
         op1 = EditOperation(operation="replace_line", line_number=1, content="t1")
         op2 = EditOperation(operation="replace_line", line_number=2, content="t2")
@@ -272,6 +306,7 @@ class TestHeaderFooterLayouts:
 
 
 class TestKeyHandling:
+    # * Verify menu navigation up
     def test_menu_navigation_up(self):
         op = EditOperation(operation="replace_line", line_number=1, content="test")
         resolver = InteractiveDiffResolver([op])
@@ -282,6 +317,7 @@ class TestKeyHandling:
         resolver.input_handler._handle_menu_key(key.UP)
         assert resolver.state.selected == 0
 
+    # * Verify menu navigation down
     def test_menu_navigation_down(self):
         op = EditOperation(operation="replace_line", line_number=1, content="test")
         resolver = InteractiveDiffResolver([op])
@@ -292,6 +328,7 @@ class TestKeyHandling:
         resolver.input_handler._handle_menu_key(key.DOWN)
         assert resolver.state.selected == 1
 
+    # * Verify text input backspace
     def test_text_input_backspace(self):
         op = EditOperation(operation="replace_line", line_number=1, content="test")
         resolver = InteractiveDiffResolver([op])
@@ -305,6 +342,7 @@ class TestKeyHandling:
         assert resolver.state.text_input_buffer == "hell"
         assert resolver.state.text_input_cursor == 4
 
+    # * Verify text input typing
     def test_text_input_typing(self):
         op = EditOperation(operation="replace_line", line_number=1, content="test")
         resolver = InteractiveDiffResolver([op])
@@ -316,6 +354,7 @@ class TestKeyHandling:
         assert resolver.state.text_input_buffer == "a"
         assert resolver.state.text_input_cursor == 1
 
+    # * Verify text input escape cancels
     def test_text_input_escape_cancels(self):
         op = EditOperation(operation="replace_line", line_number=1, content="test")
         resolver = InteractiveDiffResolver([op])
@@ -336,6 +375,7 @@ class TestKeyHandling:
 
 
 class TestOperationActions:
+    # * Verify approve sets status
     def test_approve_sets_status(self):
         op = EditOperation(operation="replace_line", line_number=1, content="test")
         resolver = InteractiveDiffResolver([op])
@@ -346,6 +386,7 @@ class TestOperationActions:
         assert op.status == DiffOp.APPROVE
         assert resolver.state.current_index == 1
 
+    # * Verify reject sets status
     def test_reject_sets_status(self):
         op = EditOperation(operation="replace_line", line_number=1, content="test")
         resolver = InteractiveDiffResolver([op])
@@ -356,6 +397,7 @@ class TestOperationActions:
         assert op.status == DiffOp.REJECT
         assert resolver.state.current_index == 1
 
+    # * Verify skip sets status
     def test_skip_sets_status(self):
         op = EditOperation(operation="replace_line", line_number=1, content="test")
         resolver = InteractiveDiffResolver([op])
@@ -366,6 +408,7 @@ class TestOperationActions:
         assert op.status == DiffOp.SKIP
         assert resolver.state.current_index == 1
 
+    # * Verify modify enters text input mode
     def test_modify_enters_text_input_mode(self):
         op = EditOperation(operation="replace_line", line_number=1, content="original")
         resolver = InteractiveDiffResolver([op])
@@ -377,6 +420,7 @@ class TestOperationActions:
         assert resolver.state.text_input_mode == "modify"
         assert resolver.state.text_input_buffer == "original"
 
+    # * Verify prompt enters text input mode
     def test_prompt_enters_text_input_mode(self):
         op = EditOperation(operation="replace_line", line_number=1, content="test")
         resolver = InteractiveDiffResolver([op])
@@ -388,6 +432,7 @@ class TestOperationActions:
         assert resolver.state.text_input_mode == "prompt"
         assert resolver.state.text_input_buffer == ""
 
+    # * Verify exit returns false
     def test_exit_returns_false(self):
         op = EditOperation(operation="replace_line", line_number=1, content="test")
         resolver = InteractiveDiffResolver([op])
@@ -397,6 +442,7 @@ class TestOperationActions:
 
         assert result is False
 
+    # * Verify submit modify updates content
     def test_submit_modify_updates_content(self):
         op = EditOperation(operation="replace_line", line_number=1, content="original")
         resolver = InteractiveDiffResolver([op])
@@ -410,6 +456,7 @@ class TestOperationActions:
         assert resolver.state.operations_modified is True
         assert resolver.state.mode == DiffReviewMode.MENU
 
+    # * Verify submit prompt transitions to processing
     def test_submit_prompt_transitions_to_processing(self):
         op = EditOperation(operation="replace_line", line_number=1, content="test")
         resolver = InteractiveDiffResolver([op])
@@ -430,6 +477,7 @@ class TestOperationActions:
 class TestMainDisplayLoop:
     @patch("src.ui.diff_resolution.diff_display.Live")
     @patch("src.ui.diff_resolution.diff_display.readkey")
+    # * Verify main display loop initialization
     def test_main_display_loop_initialization(self, mock_readkey, mock_live):
         from readchar import key
 
@@ -450,6 +498,7 @@ class TestMainDisplayLoop:
 
     @patch("src.ui.diff_resolution.diff_display.Live")
     @patch("src.ui.diff_resolution.diff_display.readkey")
+    # * Verify main display loop w/ none operations
     def test_main_display_loop_with_none_operations(self, mock_readkey, mock_live):
         from readchar import key
 
@@ -460,13 +509,14 @@ class TestMainDisplayLoop:
         # should handle None operations gracefully (becomes empty list)
         try:
             result = main_display_loop(None, "test.txt")
-            # with no operations, should complete immediately
+            # w/ no operations, should complete immediately
             assert result == ([], False)
         except SystemExit:
             pass  # might exit depending on state
 
     @patch("src.ui.diff_resolution.diff_display.Live")
     @patch("src.ui.diff_resolution.diff_display.readkey")
+    # * Verify main display loop returns result
     def test_main_display_loop_returns_result(self, mock_readkey, mock_live):
         from readchar import key
 
@@ -480,17 +530,18 @@ class TestMainDisplayLoop:
 
         try:
             result = main_display_loop(test_ops, "test.txt")
-            # should return the operations and modification flag
+            # should return the operations & modification flag
             ops, modified = result
             assert ops == test_ops
         except SystemExit:
             pass  # ESC causes system exit
 
 
-# * Test prompt processing with callback
+# * Test prompt processing w/ callback
 
 
 class TestPromptProcessingCallback:
+    # * Verify callback receives correct args
     def test_callback_receives_correct_args(self):
         callback_received = {}
 
@@ -524,6 +575,7 @@ class TestPromptProcessingCallback:
         assert callback_received["job"] == "job desc"
         assert callback_received["model"] == "gpt-4o"
 
+    # * Verify callback error sets prompt error
     def test_callback_error_sets_prompt_error(self):
         def failing_callback(op, lines, job, sections, model):
             from src.core.exceptions import AIError
@@ -553,6 +605,7 @@ class TestPromptProcessingCallback:
 
 
 class TestGetResult:
+    # * Verify returns operations & modified flag
     def test_returns_operations_and_modified_flag(self):
         ops = [
             EditOperation(operation="replace_line", line_number=1, content="test"),
@@ -570,6 +623,7 @@ class TestGetResult:
 
 
 class TestRenderScreen:
+    # * Verify render screen menu mode
     def test_render_screen_menu_mode(self):
         op = EditOperation(operation="replace_line", line_number=1, content="test")
         resolver = InteractiveDiffResolver([op], filename="test.txt")
@@ -577,6 +631,7 @@ class TestRenderScreen:
         result = resolver.render_screen()
         assert result is not None
 
+    # * Verify render screen text input mode
     def test_render_screen_text_input_mode(self):
         op = EditOperation(operation="replace_line", line_number=1, content="test")
         resolver = InteractiveDiffResolver([op])
@@ -586,6 +641,7 @@ class TestRenderScreen:
         result = resolver.render_screen()
         assert result is not None
 
+    # * Verify render screen prompt processing mode
     def test_render_screen_prompt_processing_mode(self):
         op = EditOperation(operation="replace_line", line_number=1, content="test")
         resolver = InteractiveDiffResolver([op])
@@ -594,6 +650,7 @@ class TestRenderScreen:
         result = resolver.render_screen()
         assert result is not None
 
+    # * Verify render screen w/ error
     def test_render_screen_with_error(self):
         op = EditOperation(operation="replace_line", line_number=1, content="test")
         resolver = InteractiveDiffResolver([op])

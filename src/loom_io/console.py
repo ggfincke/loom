@@ -41,7 +41,7 @@ console = _ConsoleProxy()
 
 # * Get the underlying Console instance
 def get_console() -> Console:
-    # handle both proxy and direct Console (e.g., when patched in tests)
+    # handle both proxy & direct Console (e.g., when patched in tests)
     if hasattr(console, "_get_console"):
         return console._get_console()
     return console  # type: ignore[return-value]

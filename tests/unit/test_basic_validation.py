@@ -54,6 +54,7 @@ def test_env_vars_isolated(mock_env_vars):
 
 # * Test marked as slow for testing marker functionality
 @pytest.mark.slow
+# * Verify slow marker
 def test_slow_marker():
     import time
 

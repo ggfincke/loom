@@ -48,6 +48,7 @@ class TestThemeValidationIntegration:
 
     # * Test theme validation integration w/ CLI config command validation
     @patch("src.cli.commands.config._valid_themes")
+    # * Verify cli theme validation integration
     def test_cli_theme_validation_integration(self, mock_valid_themes, tmp_path):
         # simulate CLI validation logic
         mock_valid_themes.return_value = {"deep_blue", "cyber_neon", "volcanic_fire"}
@@ -179,7 +180,7 @@ class TestThemeConfigFileFormat:
         with open(config_path, "w") as f:
             json.dump(config_data, f, indent=2)
 
-        # load settings and verify theme
+        # load settings & verify theme
         manager = SettingsManager(config_path)
         settings = manager.load()
 
@@ -243,7 +244,7 @@ class TestThemeKnownKeysIntegration:
         known_keys = _known_keys()
         settings_fields = {f.name for f in fields(LoomSettings)}
 
-        # verify known_keys matches exactly with LoomSettings fields
+        # verify known_keys matches exactly w/ LoomSettings fields
         assert known_keys == settings_fields
         assert "theme" in settings_fields
 
@@ -269,7 +270,7 @@ class TestThemeIntegrationScenarios:
             saved_data = json.load(f)
         assert saved_data["theme"] == "sunset_coral"
 
-        # step 4: reload with new manager instance
+        # step 4: reload w/ new manager instance
         manager2 = SettingsManager(config_path)
         reloaded_settings = manager2.load()
         assert reloaded_settings.theme == "sunset_coral"
@@ -319,7 +320,7 @@ class TestThemeIntegrationScenarios:
         assert settings.data_dir == "legacy_data"
         assert settings.model == "gpt-3.5-turbo"
 
-        # set theme and verify it gets added to config
+        # set theme & verify it gets added to config
         manager.set("theme", "arctic_ice")
 
         with open(config_path, "r") as f:

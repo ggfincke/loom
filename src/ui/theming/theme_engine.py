@@ -85,8 +85,8 @@ def _lerp_color(a_hex: str, b_hex: str, t: float) -> str:
     return _rgb_to_hex((cr, cg, cb))
 
 
-# * LoomColors provides color constants with lazy-loaded theme-aware colors.
-# * Dynamic colors (ACCENT_*, ARROW) are deferred until first access and cache-invalidate on theme change.
+# * LoomColors provides color constants w/ lazy-loaded theme-aware colors.
+# * Dynamic colors (ACCENT_*, ARROW) are deferred until first access & cache-invalidate on theme change.
 # * Static colors (SUCCESS_*, WARNING, etc.) are plain class attributes.
 class LoomColors:
     # theme-aware accent colors (lazy-loaded, cache-invalidated on theme change)

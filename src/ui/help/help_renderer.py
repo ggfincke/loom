@@ -23,7 +23,7 @@ class HelpRenderer:
     def _create_styled_panel(
         self, content, title: str, padding: tuple[int, int] = (0, 1)
     ) -> Panel:
-        """Create consistently styled panel for help output."""
+        # Create consistently styled panel for help output.
         return Panel(
             content,
             title=f"[bold]{title}[/]",
@@ -33,7 +33,7 @@ class HelpRenderer:
         )
 
     def _create_commands_table(self) -> Table:
-        """Create consistently styled commands table."""
+        # Create consistently styled commands table.
         table = Table(
             border_style=self.theme_colors[2],
             show_header=False,
@@ -45,7 +45,7 @@ class HelpRenderer:
         return table
 
     def _create_options_table(self, show_default: bool = True) -> Table:
-        """Create consistently styled options table."""
+        # Create consistently styled options table.
         table = Table(
             title="Options",
             title_style=f"bold {self.theme_colors[0]}",
@@ -141,6 +141,7 @@ class HelpRenderer:
         ]
 
         utility_commands = [
+            ("ats", "Check resume for ATS compatibility"),
             ("plan", "Generate edits w/ planning workflow"),
             ("config", "Manage settings & configuration"),
             ("templates", "List available templates"),
@@ -274,11 +275,11 @@ class HelpRenderer:
         self._render_options_from_metadata(command_name)
 
     def _render_introspected_options(self, options: list[IntrospectedOption]) -> None:
-        """Render options table from introspected data."""
+        # Render options table from introspected data.
         table = self._create_options_table(show_default=True)
 
         for opt in options:
-            # try to enhance with help_data if available
+            # try to enhance w/ help_data if available
             help_key = opt.name.lstrip("-").replace("-", "_")
             enhanced = get_option_help(help_key)
 
@@ -305,7 +306,7 @@ class HelpRenderer:
         console.print(table)
 
     def _render_options_from_metadata(self, command_name: str) -> None:
-        """Render options table from hardcoded metadata (fallback)."""
+        # Render options table from hardcoded metadata (fallback).
         # map commands to option keys defined in help_data.OPTION_HELP
         options_map = {
             "sectionize": [

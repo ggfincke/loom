@@ -21,7 +21,7 @@ from ..theming.theme_engine import styled_checkmark, styled_arrow, success_gradi
 
 
 def _print_success_line(label: str, path: str | Path | None = None) -> None:
-    """Print styled success line: checkmark + gradient label [+ arrow + path]."""
+    # Print styled success line: checkmark + gradient label [+ arrow + path].
     checkmark = styled_checkmark()
     if path is not None:
         arrow = styled_arrow()

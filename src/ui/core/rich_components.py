@@ -32,15 +32,7 @@ def themed_panel(
     padding: tuple[int, int] = (0, 1),
     **kwargs,
 ) -> Panel:
-    """Create Panel with consistent theming.
-
-    Args:
-        content: Renderable content for the panel
-        title: Optional panel title (will be bolded automatically)
-        theme_colors: Color palette; defaults to active theme
-        padding: Panel padding; defaults to (0, 1)
-        **kwargs: Additional Panel arguments
-    """
+    # Create Panel w/ consistent theming.
     # lazy import to avoid circular dependency
     from ..theming.theme_engine import get_active_theme
 
@@ -62,13 +54,7 @@ def themed_table(
     show_header: bool = False,
     **kwargs,
 ) -> Table:
-    """Create Table with consistent theming.
-
-    Args:
-        theme_colors: Color palette; defaults to active theme
-        show_header: Whether to show table header
-        **kwargs: Additional Table arguments
-    """
+    # Create Table w/ consistent theming.
     # lazy import to avoid circular dependency
     from ..theming.theme_engine import get_active_theme
 

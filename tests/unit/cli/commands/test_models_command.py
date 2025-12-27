@@ -19,7 +19,7 @@ class TestModelsCommand:
     def test_models_help_flag(self, runner):
         with patch("src.cli.commands.help.show_command_help") as mock_help:
             result = runner.invoke(app, ["models", "--help"])
-            # Help doesn't exit with SystemExit in this implementation
+            # Help doesn't exit w/ SystemExit in this implementation
             # Second arg is command object (may be None or actual command)
             mock_help.assert_called_once()
             assert mock_help.call_args[0][0] == "models"
@@ -27,6 +27,7 @@ class TestModelsCommand:
     # * Test models default callback (list models)
     @patch("src.cli.commands.models.get_models_by_provider")
     @patch("src.cli.commands.models.console")
+    # * Verify models default callback
     def test_models_default_callback(self, mock_console, mock_get_models, runner):
         # mock provider data
         mock_get_models.return_value = {
@@ -58,6 +59,7 @@ class TestModelsCommand:
     # * Test models list subcommand
     @patch("src.cli.commands.models.get_models_by_provider")
     @patch("src.cli.commands.models.console")
+    # * Verify models list subcommand
     def test_models_list_subcommand(self, mock_console, mock_get_models, runner):
         mock_get_models.return_value = {
             "openai": {
@@ -73,9 +75,10 @@ class TestModelsCommand:
         mock_get_models.assert_called_once()
         assert mock_console.print.called
 
-    # * Test _show_models_list with available OpenAI models
+    # * Test _show_models_list w/ available OpenAI models
     @patch("src.cli.commands.models.get_models_by_provider")
     @patch("src.cli.commands.models.console")
+    # * Verify show models list openai available
     def test_show_models_list_openai_available(
         self, mock_console, mock_get_models, runner
     ):
@@ -104,9 +107,10 @@ class TestModelsCommand:
         available_status_found = any("Available" in str(call) for call in print_calls)
         assert available_status_found
 
-    # * Test _show_models_list with unavailable Claude models
+    # * Test _show_models_list w/ unavailable Claude models
     @patch("src.cli.commands.models.get_models_by_provider")
     @patch("src.cli.commands.models.console")
+    # * Verify show models list claude unavailable
     def test_show_models_list_claude_unavailable(
         self, mock_console, mock_get_models, runner
     ):
@@ -136,9 +140,10 @@ class TestModelsCommand:
         requirement_found = any("ANTHROPIC_API_KEY" in call for call in print_calls)
         assert requirement_found
 
-    # * Test _show_models_list with no Ollama models
+    # * Test _show_models_list w/ no Ollama models
     @patch("src.cli.commands.models.get_models_by_provider")
     @patch("src.cli.commands.models.console")
+    # * Verify show models list ollama no models
     def test_show_models_list_ollama_no_models(
         self, mock_console, mock_get_models, runner
     ):
@@ -160,9 +165,10 @@ class TestModelsCommand:
         )
         assert ollama_message_found
 
-    # * Test _show_models_list with mixed provider availability
+    # * Test _show_models_list w/ mixed provider availability
     @patch("src.cli.commands.models.get_models_by_provider")
     @patch("src.cli.commands.models.console")
+    # * Verify show models list mixed availability
     def test_show_models_list_mixed_availability(
         self, mock_console, mock_get_models, runner
     ):
@@ -215,6 +221,7 @@ class TestModelsTestCommand:
     @patch("src.cli.commands.models.get_available_models_with_error")
     @patch("src.cli.commands.models.check_ollama_with_error")
     @patch("src.cli.commands.models.console")
+    # * Verify models test success
     def test_models_test_success(
         self,
         mock_console,
@@ -261,9 +268,10 @@ class TestModelsTestCommand:
         success_message = any("fully functional" in str(call) for call in print_calls)
         assert success_message
 
-    # * Test models test command with Ollama server not running
+    # * Test models test command w/ Ollama server not running
     @patch("src.cli.commands.models.check_ollama_with_error")
     @patch("src.cli.commands.models.console")
+    # * Verify models test ollama not running
     def test_models_test_ollama_not_running(
         self, mock_console, mock_check_ollama, runner
     ):
@@ -273,7 +281,7 @@ class TestModelsTestCommand:
 
         assert (
             result.exit_code == 0
-        )  # command doesn't exit with error, just reports failure
+        )  # command doesn't exit w/ error, just reports failure
 
         mock_check_ollama.assert_called_once()
 
@@ -287,10 +295,11 @@ class TestModelsTestCommand:
         )
         assert failure_message
 
-    # * Test models test command with model not available
+    # * Test models test command w/ model not available
     @patch("src.cli.commands.models.get_available_models_with_error")
     @patch("src.cli.commands.models.check_ollama_with_error")
     @patch("src.cli.commands.models.console")
+    # * Verify models test model not available
     def test_models_test_model_not_available(
         self, mock_console, mock_check_ollama, mock_get_models, runner
     ):
@@ -312,11 +321,12 @@ class TestModelsTestCommand:
         install_message = any("ollama pull" in str(call) for call in print_calls)
         assert install_message
 
-    # * Test models test command with API call failure
+    # * Test models test command w/ API call failure
     @patch("src.ai.clients.ollama_client.run_generate")
     @patch("src.cli.commands.models.get_available_models_with_error")
     @patch("src.cli.commands.models.check_ollama_with_error")
     @patch("src.cli.commands.models.console")
+    # * Verify models test api call failure
     def test_models_test_api_call_failure(
         self,
         mock_console,
@@ -345,10 +355,11 @@ class TestModelsTestCommand:
         )
         assert api_failure
 
-    # * Test models test command with models retrieval error
+    # * Test models test command w/ models retrieval error
     @patch("src.cli.commands.models.get_available_models_with_error")
     @patch("src.cli.commands.models.check_ollama_with_error")
     @patch("src.cli.commands.models.console")
+    # * Verify models test models retrieval error
     def test_models_test_models_retrieval_error(
         self, mock_console, mock_check_ollama, mock_get_models, runner
     ):
@@ -383,8 +394,9 @@ class TestModelsIntegration:
     def runner(self):
         return CliRunner()
 
-    # * Test integration with get_models_by_provider
+    # * Test integration w/ get_models_by_provider
     @patch("src.cli.commands.models.get_models_by_provider")
+    # * Verify integration with get models by provider
     def test_integration_with_get_models_by_provider(self, mock_get_models, runner):
         # test that the function is called correctly
         mock_get_models.return_value = {}
@@ -394,11 +406,12 @@ class TestModelsIntegration:
         assert result.exit_code == 0
         mock_get_models.assert_called_once_with()
 
-    # * Test integration with Ollama client functions
+    # * Test integration w/ Ollama client functions
     @patch("src.ai.clients.ollama_client.run_generate")
     @patch("src.cli.commands.models.get_available_models_with_error")
     @patch("src.cli.commands.models.check_ollama_with_error")
     @patch("src.cli.commands.models.console")
+    # * Verify integration with ollama functions
     def test_integration_with_ollama_functions(
         self,
         mock_console,
@@ -407,7 +420,7 @@ class TestModelsIntegration:
         mock_run_generate,
         runner,
     ):
-        # test that Ollama functions are called with correct parameters
+        # test that Ollama functions are called w/ correct parameters
         mock_check_ollama.return_value = (True, None)
         mock_get_models.return_value = (["test-model"], None)
         mock_run_generate.return_value = GenerateResult(success=True)
@@ -421,9 +434,9 @@ class TestModelsIntegration:
         mock_get_models.assert_called_once()
         mock_run_generate.assert_called_once()
 
-        # verify run_generate was called with correct parameters
+        # verify run_generate was called w/ correct parameters
         call_args = mock_run_generate.call_args
-        assert len(call_args[0]) == 2  # prompt and model
+        assert len(call_args[0]) == 2  # prompt & model
         assert call_args[0][1] == "test-model"  # model name
         assert "JSON" in call_args[0][0]  # prompt should mention JSON
 
@@ -433,6 +446,7 @@ class TestModelsIntegration:
     @patch("src.cli.commands.models.accent_gradient")
     @patch("src.cli.commands.models.styled_bullet")
     @patch("src.cli.commands.models.console")
+    # * Verify theming integration
     def test_theming_integration(
         self,
         mock_console,
@@ -465,7 +479,7 @@ class TestModelsIntegration:
         mock_styled_bullet.assert_called()
 
 
-# * Test error handling and edge cases
+# * Test error handling & edge cases
 class TestModelsEdgeCases:
 
     @pytest.fixture
@@ -475,6 +489,7 @@ class TestModelsEdgeCases:
     # * Test empty models response
     @patch("src.cli.commands.models.get_models_by_provider")
     @patch("src.cli.commands.models.console")
+    # * Verify empty models response
     def test_empty_models_response(self, mock_console, mock_get_models, runner):
         mock_get_models.return_value = {}
 
@@ -485,25 +500,27 @@ class TestModelsEdgeCases:
 
     # * Test get_models_by_provider exception handling
     @patch("src.cli.commands.models.get_models_by_provider")
+    # * Verify get models exception
     def test_get_models_exception(self, mock_get_models, runner):
         mock_get_models.side_effect = Exception("Provider error")
 
-        # should not crash, may exit with error or handle gracefully
+        # should not crash, may exit w/ error or handle gracefully
         result = runner.invoke(app, ["models"])
 
         # the exact behavior depends on implementation
-        # main goal is that it doesn't crash with unhandled exception
+        # main goal is that it doesn't crash w/ unhandled exception
 
-    # * Test models test with empty model name
+    # * Test models test w/ empty model name
     def test_models_test_empty_model_name(self, runner):
         result = runner.invoke(app, ["models", "test", ""])
 
         # should handle empty string gracefully
         # may show validation error or attempt the test
 
-    # * Test models test with special characters in model name
+    # * Test models test w/ special characters in model name
     @patch("src.cli.commands.models.check_ollama_with_error")
     @patch("src.cli.commands.models.console")
+    # * Verify models test special characters
     def test_models_test_special_characters(
         self, mock_console, mock_check_ollama, runner
     ):

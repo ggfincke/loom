@@ -186,7 +186,7 @@ class DiffStateManager:
 
 
 class DiffAIProcessor:
-    """AI callback orchestration for interactive diff review UI."""
+    # AI callback orchestration for interactive diff review UI.
 
     def __init__(
         self,
@@ -299,7 +299,7 @@ class DiffAIProcessor:
 
 
 def get_default_prompt_callback() -> PromptCallback:
-    """Return the default prompt callback for AI regeneration."""
+    # Return the default prompt callback for AI regeneration.
     return _default_prompt_callback
 
 
@@ -310,7 +310,7 @@ def _default_prompt_callback(
     sections_json: str | None,
     model: str,
 ) -> bool:
-    """Default callback that uses pipeline.process_prompt_operation."""
+    # Default callback that uses pipeline.process_prompt_operation.
     # ! import here to avoid tight coupling at module level
     from ...core.pipeline import process_prompt_operation
     from ...core.exceptions import AIError, EditError

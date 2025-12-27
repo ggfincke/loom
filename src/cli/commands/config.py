@@ -147,7 +147,9 @@ def set_cmd(key: str, value: str) -> None:
 
     except Exception as e:
         raise typer.BadParameter(str(e))
-    console.print(*styled_success_line(f"Set {key}", f"[loom.accent2]{json.dumps(coerced)}[/]"))
+    console.print(
+        *styled_success_line(f"Set {key}", f"[loom.accent2]{json.dumps(coerced)}[/]")
+    )
 
 
 # * Reset all settings to defaults
@@ -165,7 +167,8 @@ def path() -> None:
 
 # * Explicit 'list' command to show current settings
 @config_app.command()
-def list() -> None:  # noqa: A003 - allow command name 'list'
+# noqa: A003 - allow command name 'list'
+def list() -> None:
     _print_current_settings()
 
 
@@ -183,7 +186,9 @@ def themes() -> None:
         refresh_theme()
 
         console.print()
-        console.print(*styled_success_line("Theme set to", f"[loom.accent2]{selected_theme}[/]"))
+        console.print(
+            *styled_success_line("Theme set to", f"[loom.accent2]{selected_theme}[/]")
+        )
 
         # show banner w/ new theme
         console.print("\n[loom.accent]New theme preview:[/]")

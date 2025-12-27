@@ -140,7 +140,7 @@ def test_banner_display_before_workflow():
             progress.advance(task)
 
         output = extract_plain_text(console)
-        # verify both banner and progress elements appear
+        # verify both banner & progress elements appear
         assert "██╗" in output or "LOOM" in output, "Banner should appear"
         assert "Working" in output, "Progress should appear"
 

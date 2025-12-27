@@ -415,7 +415,7 @@ def test_tailor_apply_missing_edits_json_error(isolate_config, sample_files):
         )
 
 
-# * Test plan command with missing arguments
+# * Test plan command w/ missing arguments
 def test_plan_missing_arguments_error(isolate_config):
     from src.cli.app import app
 
@@ -439,7 +439,7 @@ def test_plan_missing_arguments_error(isolate_config):
         )
 
 
-# * Test config command with invalid subcommand
+# * Test config command w/ invalid subcommand
 def test_config_invalid_subcommand_error(isolate_config):
     from src.cli.app import app
 

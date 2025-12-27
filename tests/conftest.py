@@ -63,6 +63,12 @@ def isolate_config(tmp_path, monkeypatch):
 
     reset_dev_mode_cache()
 
+    # ! reset & disable response cache to prevent caching during tests
+    from src.ai.response_cache import reset_response_cache, disable_cache_for_invocation
+
+    reset_response_cache()
+    disable_cache_for_invocation()
+
     return fake_home
 
 
@@ -274,7 +280,7 @@ def mock_ai_failure_response():
 
 @pytest.fixture
 def dev_mode_enabled(isolate_config):
-    """Enable dev_mode for tests that require it."""
+    # Enable dev_mode for tests that require it.
     config_file = isolate_config / ".loom" / "config.json"
 
     with open(config_file, "r") as f:

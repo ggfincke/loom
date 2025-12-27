@@ -101,7 +101,7 @@ class TestInteractiveDiffWorkflow:
 
         display(mock_ctx, help=False)
 
-        # verify display loop was called with operations
+        # verify display loop was called w/ operations
         mock_display_loop.assert_called_once()
         call_args = mock_display_loop.call_args[0]
         operations = call_args[0]
@@ -137,7 +137,7 @@ class TestInteractiveDiffWorkflow:
         from src.ui.diff_resolution.diff_display import InteractiveDiffResolver
         from src.core.constants import EditOperation
 
-        # create resolver and call render_screen method
+        # create resolver & call render_screen method
         op = EditOperation(operation="replace_line", line_number=1, content="test")
         resolver = InteractiveDiffResolver([op], filename="test.txt")
         resolver.render_screen()

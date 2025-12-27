@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 # * Centralized styles for diff rendering - avoids hardcoded strings throughout
 @dataclass
 class DiffStyles:
-    """Theme-aware styles for diff rendering."""
+    # Theme-aware styles for diff rendering.
 
     # operation display
     header: str = "bold loom.accent"
@@ -109,9 +109,17 @@ class DiffRenderer:
             original = (
                 edit_op.original_content if edit_op.original_content else "[no content]"
             )
-            lines.append(Text(f"- Line {edit_op.line_number}: {original}", style=self.styles.deletion))
             lines.append(
-                Text(f"+ Line {edit_op.line_number}: {edit_op.content}", style=self.styles.addition)
+                Text(
+                    f"- Line {edit_op.line_number}: {original}",
+                    style=self.styles.deletion,
+                )
+            )
+            lines.append(
+                Text(
+                    f"+ Line {edit_op.line_number}: {edit_op.content}",
+                    style=self.styles.addition,
+                )
             )
         elif edit_op.operation == "replace_range":
             original = (
@@ -131,7 +139,10 @@ class DiffRenderer:
             )
         elif edit_op.operation == "insert_after":
             lines.append(
-                Text(f"Insert after line {edit_op.line_number}:", style=self.styles.context)
+                Text(
+                    f"Insert after line {edit_op.line_number}:",
+                    style=self.styles.context,
+                )
             )
             lines.append(Text(f"+ {edit_op.content}", style=self.styles.addition))
         elif edit_op.operation == "delete_range":
@@ -158,11 +169,15 @@ class DiffRenderer:
         # header
         if state.text_input_mode == "modify":
             lines.append(Text("MODIFY OPERATION", style=self.styles.warning))
-            lines.append(Text("Edit the suggested content below:", style=self.styles.dim))
+            lines.append(
+                Text("Edit the suggested content below:", style=self.styles.dim)
+            )
         elif state.text_input_mode == "prompt":
             lines.append(Text("PROMPT LLM", style=self.styles.prompt_header))
             lines.append(
-                Text("Enter additional instructions for the LLM:", style=self.styles.dim)
+                Text(
+                    "Enter additional instructions for the LLM:", style=self.styles.dim
+                )
             )
 
         lines.append(Text(""))
@@ -198,7 +213,9 @@ class DiffRenderer:
 
         lines.append(Text(""))
         lines.append(
-            Text("Press [Enter] to submit, [Esc] to cancel", style=self.styles.dim_italic)
+            Text(
+                "Press [Enter] to submit, [Esc] to cancel", style=self.styles.dim_italic
+            )
         )
         return lines
 
@@ -234,7 +251,9 @@ class DiffRenderer:
                     if len(state.current_operation.prompt_instruction) > 80
                     else state.current_operation.prompt_instruction
                 )
-                lines.append(Text(f"  Instruction: {instruction_preview}", style=self.styles.dim))
+                lines.append(
+                    Text(f"  Instruction: {instruction_preview}", style=self.styles.dim)
+                )
             lines.append(Text(""))
 
         # loading indicator w/ animated spinner
@@ -257,7 +276,9 @@ class DiffRenderer:
                 style=self.styles.dim_italic,
             )
         )
-        lines.append(Text("Press [Esc] to cancel if needed.", style=self.styles.dim_italic))
+        lines.append(
+            Text("Press [Esc] to cancel if needed.", style=self.styles.dim_italic)
+        )
 
         # error display if present
         if state.prompt_error:
@@ -266,7 +287,10 @@ class DiffRenderer:
             lines.append(Text(str(state.prompt_error), style=self.styles.error_text))
             lines.append(Text(""))
             lines.append(
-                Text("Press [Enter] to continue with original edit", style=self.styles.dim_italic)
+                Text(
+                    "Press [Enter] to continue with original edit",
+                    style=self.styles.dim_italic,
+                )
             )
 
         return Group(*lines)
@@ -288,7 +312,9 @@ class DiffRenderer:
         header_table.add_column(no_wrap=True, justify="right")
         header_table.add_row(left_text, right_text)
 
-        return Panel(header_table, border_style=self.styles.header_border, padding=(0, 1))
+        return Panel(
+            header_table, border_style=self.styles.header_border, padding=(0, 1)
+        )
 
     def render_footer(
         self, operations: list["EditOperation"], current_index: int
@@ -310,7 +336,11 @@ class DiffRenderer:
             style=self.styles.context,
         )
 
-        return Panel(Align.center(summary_text), border_style=self.styles.header_border, padding=(0, 1))
+        return Panel(
+            Align.center(summary_text),
+            border_style=self.styles.header_border,
+            padding=(0, 1),
+        )
 
     # ===== BODY CONTENT ROUTING =====
 

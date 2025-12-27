@@ -6,10 +6,11 @@ from unittest.mock import patch, MagicMock
 
 
 class TestPrintSuccessLine:
-    """Tests for _print_success_line() helper."""
+    # Tests for _print_success_line() helper.
 
+    # * Verify prints w/ path
     def test_prints_with_path(self):
-        """With path, should print 4 elements."""
+        # With path, should print 4 elements.
         with patch("src.ui.display.reporting.console") as mock_console:
             from src.ui.display.reporting import _print_success_line
 
@@ -18,8 +19,9 @@ class TestPrintSuccessLine:
             args = mock_console.print.call_args[0]
             assert len(args) == 4  # checkmark, gradient, arrow, path
 
+    # * Verify prints without path
     def test_prints_without_path(self):
-        """Without path, should print 2 elements."""
+        # Without path, should print 2 elements.
         with patch("src.ui.display.reporting.console") as mock_console:
             from src.ui.display.reporting import _print_success_line
 
@@ -28,8 +30,9 @@ class TestPrintSuccessLine:
             args = mock_console.print.call_args[0]
             assert len(args) == 2  # checkmark, gradient only
 
+    # * Verify path appears in output
     def test_path_appears_in_output(self):
-        """Path should appear in the print args."""
+        # Path should appear in the print args.
         with patch("src.ui.display.reporting.console") as mock_console:
             from src.ui.display.reporting import _print_success_line
 

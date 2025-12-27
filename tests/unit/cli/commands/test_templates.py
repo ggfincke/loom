@@ -42,6 +42,6 @@ def test_templates_shows_template_details():
         pytest.skip("Templates not available in test environment")
 
     # verify output format includes template info
-    # should show: template ID, type, name, and location
+    # should show: template ID, type, name, & location
     stdout_lower = result.stdout.lower()
     assert "swe-latex" in stdout_lower or "available" in stdout_lower

@@ -20,6 +20,7 @@ class TestCaptureBanner:
     @patch("src.ui.theming.theme_selector.refresh_theme")
     @patch("src.ui.theming.theme_selector.console")
     @patch("src.ui.theming.theme_selector.show_loom_art")
+    # * Verify capture banner basic
     def test_capture_banner_basic(
         self, mock_show_art, mock_console, mock_refresh, mock_settings
     ):
@@ -48,6 +49,7 @@ class TestCaptureBanner:
     @patch("src.ui.theming.theme_selector.refresh_theme")
     @patch("src.ui.theming.theme_selector.console")
     @patch("src.ui.theming.theme_selector.show_loom_art")
+    # * Verify capture banner exception cleanup
     def test_capture_banner_exception_cleanup(
         self, mock_show_art, mock_console, mock_refresh, mock_settings
     ):
@@ -75,6 +77,7 @@ class TestInteractiveThemeSelector:
     )
     @patch("src.ui.theming.theme_selector.settings_manager")
     @patch("src.ui.theming.theme_selector.TerminalMenu")
+    # * Verify interactive selector success
     def test_interactive_selector_success(self, mock_menu_class, mock_settings):
         # setup mocks
         mock_settings.get.return_value = "theme2"
@@ -99,6 +102,7 @@ class TestInteractiveThemeSelector:
     @patch("src.ui.theming.theme_selector.THEMES", {"theme1": {}, "theme2": {}})
     @patch("src.ui.theming.theme_selector.settings_manager")
     @patch("src.ui.theming.theme_selector.TerminalMenu")
+    # * Verify interactive selector cancel
     def test_interactive_selector_cancel(self, mock_menu_class, mock_settings):
         # setup mocks
         mock_settings.get.return_value = "theme1"
@@ -114,6 +118,7 @@ class TestInteractiveThemeSelector:
     @patch("src.ui.theming.theme_selector.THEMES", {"theme1": {}, "theme2": {}})
     @patch("src.ui.theming.theme_selector.settings_manager")
     @patch("src.ui.theming.theme_selector.TerminalMenu")
+    # * Verify interactive selector theme not found
     def test_interactive_selector_theme_not_found(self, mock_menu_class, mock_settings):
         # setup mocks
         mock_settings.get.return_value = "unknown_theme"  # not in THEMES
@@ -133,6 +138,7 @@ class TestInteractiveThemeSelector:
     @patch("src.ui.theming.theme_selector.settings_manager")
     @patch("src.ui.theming.theme_selector.TerminalMenu")
     @patch("src.ui.theming.theme_selector._fallback_theme_selector")
+    # * Verify interactive selector oserror fallback
     def test_interactive_selector_oserror_fallback(
         self, mock_fallback, mock_menu_class, mock_settings
     ):
@@ -152,6 +158,7 @@ class TestInteractiveThemeSelector:
     @patch("src.ui.theming.theme_selector.settings_manager")
     @patch("src.ui.theming.theme_selector.TerminalMenu")
     @patch("src.ui.theming.theme_selector._fallback_theme_selector")
+    # * Verify interactive selector exception fallback
     def test_interactive_selector_exception_fallback(
         self, mock_fallback, mock_menu_class, mock_settings
     ):
@@ -177,6 +184,7 @@ class TestFallbackThemeSelector:
     @patch("src.ui.theming.theme_selector.refresh_theme")
     @patch("src.ui.theming.theme_selector.show_loom_art")
     @patch("rich.prompt.Confirm")
+    # * Verify fallback selector success
     def test_fallback_selector_success(
         self, mock_confirm, mock_show_art, mock_refresh, mock_settings, mock_console
     ):
@@ -201,6 +209,7 @@ class TestFallbackThemeSelector:
 
     # * Test user cancels theme selection
     @patch("src.ui.theming.theme_selector.console")
+    # * Verify fallback selector quit
     def test_fallback_selector_quit(self, mock_console):
         mock_console.input.return_value = "q"
 
@@ -211,6 +220,7 @@ class TestFallbackThemeSelector:
 
     # * Test user enters empty input
     @patch("src.ui.theming.theme_selector.console")
+    # * Verify fallback selector empty input
     def test_fallback_selector_empty_input(self, mock_console):
         mock_console.input.return_value = ""
 
@@ -221,6 +231,7 @@ class TestFallbackThemeSelector:
 
     # * Test invalid numeric input (out of range)
     @patch("src.ui.theming.theme_selector.console")
+    # * Verify fallback selector invalid number
     def test_fallback_selector_invalid_number(self, mock_console):
         mock_console.input.return_value = "5"  # > len(theme_names)
 
@@ -238,6 +249,7 @@ class TestFallbackThemeSelector:
 
     # * Test non-numeric input
     @patch("src.ui.theming.theme_selector.console")
+    # * Verify fallback selector non numeric
     def test_fallback_selector_non_numeric(self, mock_console):
         mock_console.input.return_value = "abc"
 
@@ -259,6 +271,7 @@ class TestFallbackThemeSelector:
     @patch("src.ui.theming.theme_selector.refresh_theme")
     @patch("src.ui.theming.theme_selector.show_loom_art")
     @patch("rich.prompt.Confirm")
+    # * Verify fallback selector decline confirmation
     def test_fallback_selector_decline_confirmation(
         self, mock_confirm, mock_show_art, mock_refresh, mock_settings, mock_console
     ):
@@ -275,6 +288,7 @@ class TestFallbackThemeSelector:
 
     # * Test EOFError handling (Ctrl+D)
     @patch("src.ui.theming.theme_selector.console")
+    # * Verify fallback selector eof error
     def test_fallback_selector_eof_error(self, mock_console):
         mock_console.input.side_effect = EOFError()
 
@@ -286,6 +300,7 @@ class TestFallbackThemeSelector:
 
     # * Test KeyboardInterrupt handling (Ctrl+C)
     @patch("src.ui.theming.theme_selector.console")
+    # * Verify fallback selector keyboard interrupt
     def test_fallback_selector_keyboard_interrupt(self, mock_console):
         mock_console.input.side_effect = KeyboardInterrupt()
 

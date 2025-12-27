@@ -29,7 +29,7 @@ def introspect_command_options(command: Any) -> list[IntrospectedOption]:
         if hasattr(param, "opts") and "--help" in param.opts:
             continue
 
-        # extract option names and aliases
+        # extract option names & aliases
         if hasattr(param, "opts") and param.opts:
             primary = param.opts[0]
             aliases = list(param.opts[1:]) if len(param.opts) > 1 else []

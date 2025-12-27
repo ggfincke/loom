@@ -25,8 +25,6 @@ _TEMPLATE_FILENAME = "loom-template.toml"
 _INLINE_TEMPLATE_RE = re.compile(r"%\s*loom-template:\s*(?P<id>[A-Za-z0-9_\-]+)")
 
 
-
-
 @dataclass
 class TemplateSectionRule:
     key: str
@@ -630,16 +628,9 @@ def validate_latex_document(
 def build_latex_context(
     resume_path: Path, lines: Lines, resume_text: str | None = None
 ) -> tuple[TemplateDescriptor | None, str | None, list[str]]:
-    """Build context for LaTeX resume files.
-    
-    Detects template, analyzes sections, & collects notes for LaTeX resume.
-    
-    Returns:
-        Tuple of (descriptor, sections_json, notes) for .tex files,
-        or (None, None, []) for non-LaTeX files.
-    """
+    # Build context for LaTeX resume files. Detects template, analyzes sections, & collects notes for LaTeX resume. Tuple of (descriptor, sections_json, notes) for .tex files, or (None, None, []) for non-LaTeX files.
     import json
-    
+
     descriptor = None
     sections_json = None
     notes: list[str] = []

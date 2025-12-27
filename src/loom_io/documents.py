@@ -9,6 +9,7 @@ from docx.oxml import OxmlElement
 from typing import Dict, Tuple, Any, List, Set
 from .types import Lines
 from ..core.exceptions import LaTeXError
+from ..core.verbose import vlog_file_read, vlog_file_write
 from .generics import ensure_parent
 from .latex_patterns import is_preservable_content, requires_trailing_blank
 
@@ -30,6 +31,7 @@ def read_docx_with_formatting(path: Path) -> Tuple[Lines, Any, Dict[int, Paragra
             paragraph_map[line_number] = p
             line_number += 1
 
+    vlog_file_read(path, path.stat().st_size if path.exists() else None)
     return lines, doc, paragraph_map
 
 
@@ -46,6 +48,7 @@ def read_latex(path: Path, preserve_structure: bool = False) -> Lines:
 
     try:
         text = Path(path).read_text(encoding="utf-8")
+        vlog_file_read(path, len(text))
     except UnicodeDecodeError as e:
         raise LaTeXError(f"Cannot decode LaTeX file {path}: {e}")
     except Exception as e:
@@ -168,6 +171,7 @@ def _apply_edits_in_place(
     # persist modified document
     ensure_parent(output_path)
     doc.save(str(output_path))
+    vlog_file_write(output_path)
 
 
 def _insert_paragraph_after(paragraph: Paragraph, text: str) -> Paragraph:
@@ -341,6 +345,7 @@ def write_docx(lines: Lines, output_path: Path) -> None:
         doc.add_paragraph(lines[line_num])
     ensure_parent(output_path)
     doc.save(str(output_path))
+    vlog_file_write(output_path)
 
 
 # * Write numbered lines to plain text file (.tex or .txt)
@@ -348,8 +353,11 @@ def write_text_lines(lines: Lines, output_path: Path) -> None:
     ordered = "\n".join(f"{text}" for _, text in sorted(lines.items()))
     ensure_parent(output_path)
     Path(output_path).write_text(ordered, encoding="utf-8")
+    vlog_file_write(output_path, len(ordered))
 
 
 # * Read text from file
 def read_text(path: Path) -> str:
-    return Path(path).read_text(encoding="utf-8")
+    text = Path(path).read_text(encoding="utf-8")
+    vlog_file_read(path, len(text))
+    return text
