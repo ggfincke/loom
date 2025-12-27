@@ -197,3 +197,47 @@ def OutputEditsOpt() -> typer.Option:
         help="Path to write processed edits.json; defaults to input edits_json",
         resolve_path=True,
     )
+
+
+def UserPromptOpt() -> typer.Option:
+    return typer.Option(
+        None,
+        "--prompt",
+        "-p",
+        help="Custom instructions for the AI to prioritize during tailoring",
+    )
+
+
+def VerboseOpt() -> typer.Option:
+    return typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Enable verbose logging for debugging & troubleshooting",
+    )
+
+
+def LogFileOpt() -> typer.Option:
+    return typer.Option(
+        None,
+        "--log-file",
+        help="Write verbose logs to file (enables verbose mode automatically)",
+        resolve_path=True,
+    )
+
+
+def NoCacheOpt() -> typer.Option:
+    return typer.Option(
+        False,
+        "--no-cache",
+        help="Bypass AI response cache for this invocation",
+    )
+
+
+def WatchOpt() -> typer.Option:
+    return typer.Option(
+        False,
+        "--watch",
+        "-w",
+        help="Watch input files for changes & re-run automatically",
+    )

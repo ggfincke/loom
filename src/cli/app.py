@@ -7,6 +7,9 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+from typing import Optional
+
 import typer
 from dotenv import load_dotenv
 
@@ -36,6 +39,12 @@ def main_callback(
         False, "--help-raw", help="Show raw Typer help instead of branded help"
     ),
     help: bool = typer.Option(False, "--help", "-h", help="Show help message & exit."),
+    verbose: bool = typer.Option(
+        False, "--verbose", "-v", help="Enable verbose logging for debugging"
+    ),
+    log_file: Optional[Path] = typer.Option(
+        None, "--log-file", help="Write verbose logs to file (enables verbose mode)"
+    ),
 ) -> None:
     # initialize theme at start of each CLI invocation
     from ..ui.theming.console_theme import auto_initialize_theme
@@ -50,6 +59,15 @@ def main_callback(
     # respect injected ctx.obj from tests/embedding; only load if absent
     if getattr(ctx, "obj", None) is None:
         ctx.obj = settings_manager.load()
+
+    # initialize verbose logging if requested
+    # must be after settings load to check dev_mode
+    from ..core.verbose import init_verbose
+
+    # log_file implies verbose mode
+    verbose_enabled = verbose or log_file is not None
+    dev_mode = ctx.obj.dev_mode if hasattr(ctx.obj, "dev_mode") else False
+    init_verbose(enabled=verbose_enabled, log_file=log_file, dev_mode=dev_mode)
 
     if ctx.invoked_subcommand is None:
         if help_raw:
@@ -79,4 +97,6 @@ from .commands import models as _models  # noqa: F401
 from .commands import help as _help  # noqa: F401
 from .commands import templates as _templates  # noqa: F401
 from .commands import init as _init  # noqa: F401
+from .commands import cache as _cache  # noqa: F401
+from .commands import ats as _ats  # noqa: F401
 from .commands.dev import display as _display  # noqa: F401

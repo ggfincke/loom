@@ -24,7 +24,9 @@ from ..params import (
     JobArg,
     ModelOpt,
     SectionsPathOpt,
+    WatchOpt,
 )
+from ..watch import WatchRunner
 from ...config.settings import get_settings
 from ...ui.help.help_data import command_help
 
@@ -43,6 +45,7 @@ from ...ui.help.help_data import command_help
         "loom apply resume.docx --output-resume tailored.docx",
         "loom apply resume.docx --no-preserve-formatting",
         "loom apply resume.docx --risk conservative",
+        "loom apply resume.docx --edits-json edits.json --watch",
     ],
     see_also=["generate", "tailor"],
 )
@@ -60,13 +63,42 @@ def apply(
     job: Optional[Path] = JobArg(),
     model: Optional[str] = ModelOpt(),
     sections_path: Optional[Path] = SectionsPathOpt(),
+    watch: bool = WatchOpt(),
     help: bool = typer.Option(False, "--help", "-h", help="Show help message & exit."),
 ) -> None:
     handle_help_flag(ctx, help, "apply")
 
     # determine interactive mode: use interactive setting unless in test env
+    # watch mode implies non-interactive (auto mode)
     settings = get_settings(ctx)
-    interactive_mode = settings.interactive and not is_test_environment()
+    interactive_mode = settings.interactive and not is_test_environment() and not watch
+
+    # watch mode: wrap execution in file watcher
+    if watch:
+        paths_to_watch = [
+            p for p in [resume, edits_json, sections_path] if p is not None
+        ]
+
+        def run_once():
+            run_tailoring_command(
+                ctx,
+                TailoringMode.APPLY,
+                resume=resume,
+                job=job,
+                model=model,
+                sections_path=sections_path,
+                edits_json=edits_json,
+                output_resume=output_resume,
+                risk=risk,
+                on_error=on_error,
+                preserve_formatting=preserve_formatting,
+                preserve_mode=preserve_mode,
+                interactive=False,
+            )
+
+        runner = WatchRunner(paths_to_watch, run_once, settings.watch_debounce)
+        runner.start()
+        return
 
     run_tailoring_command(
         ctx,

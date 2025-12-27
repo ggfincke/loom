@@ -21,7 +21,11 @@ from ..params import (
     JobArg,
     RiskOpt,
     OnErrorOpt,
+    UserPromptOpt,
+    WatchOpt,
 )
+from ..watch import WatchRunner
+from ...config.settings import get_settings
 from ...ui.help.help_data import command_help
 
 
@@ -39,6 +43,8 @@ from ...ui.help.help_data import command_help
         "loom generate job.txt resume.docx --model gpt-4o",
         "loom generate job.txt resume.docx --edits-json my_edits.json",
         "loom generate job.txt resume.docx --risk high",
+        'loom generate job.txt resume.docx --prompt "Focus on Python and AWS skills"',
+        "loom generate job.txt resume.docx --watch",
     ],
     see_also=["apply", "tailor", "sectionize", "plan"],
 )
@@ -55,11 +61,36 @@ def generate(
     job: Optional[Path] = JobArg(),
     risk: Optional[RiskLevel] = RiskOpt(),
     on_error: Optional[ValidationPolicy] = OnErrorOpt(),
+    user_prompt: Optional[str] = UserPromptOpt(),
+    watch: bool = WatchOpt(),
     help: bool = typer.Option(
         False, "--help", "-h", help="Show help message and exit."
     ),
 ) -> None:
     handle_help_flag(ctx, help, "generate")
+
+    # watch mode: wrap execution in file watcher
+    if watch:
+        settings = get_settings(ctx)
+        paths_to_watch = [p for p in [resume, job, sections_path] if p is not None]
+
+        def run_once():
+            run_tailoring_command(
+                ctx,
+                TailoringMode.GENERATE,
+                resume=resume,
+                job=job,
+                model=model,
+                sections_path=sections_path,
+                edits_json=edits_json,
+                risk=risk,
+                on_error=on_error,
+                user_prompt=user_prompt,
+            )
+
+        runner = WatchRunner(paths_to_watch, run_once, settings.watch_debounce)
+        runner.start()
+        return
 
     run_tailoring_command(
         ctx,
@@ -71,4 +102,5 @@ def generate(
         edits_json=edits_json,
         risk=risk,
         on_error=on_error,
+        user_prompt=user_prompt,
     )

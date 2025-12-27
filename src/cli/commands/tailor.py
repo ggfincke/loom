@@ -25,7 +25,11 @@ from ..params import (
     PreserveFormattingOpt,
     PreserveModeOpt,
     AutoOpt,
+    UserPromptOpt,
+    NoCacheOpt,
+    WatchOpt,
 )
+from ..watch import WatchRunner
 from ...ui.help.help_data import command_help
 from ...config.settings import get_settings
 
@@ -47,6 +51,8 @@ from ...config.settings import get_settings
         "loom tailor job.txt resume.docx --edits-only",
         "loom tailor resume.docx --apply --output-resume tailored.docx",
         "loom tailor job.txt resume.docx --no-preserve-formatting",
+        'loom tailor job.txt resume.docx --prompt "Emphasize leadership experience"',
+        "loom tailor job.txt resume.docx --watch",
     ],
     see_also=["sectionize", "plan"],
 )
@@ -73,9 +79,18 @@ def tailor(
         False, "--apply", help="Apply existing edits JSON to resume"
     ),
     auto: bool = AutoOpt(),
+    user_prompt: Optional[str] = UserPromptOpt(),
+    no_cache: bool = NoCacheOpt(),
+    watch: bool = WatchOpt(),
     help: bool = typer.Option(False, "--help", "-h", help="Show help message & exit."),
 ) -> None:
     handle_help_flag(ctx, help, "tailor")
+
+    # disable cache if --no-cache flag is set
+    if no_cache:
+        from ...ai.response_cache import disable_cache_for_invocation
+
+        disable_cache_for_invocation()
 
     # validate mutually exclusive flags
     if edits_only and apply:
@@ -93,8 +108,37 @@ def tailor(
         mode = TailoringMode.TAILOR
 
     # determine interactive mode: use interactive setting unless --auto or in test env
+    # watch mode implies auto (no interactive prompts on each re-run)
     settings = get_settings(ctx)
+    if watch:
+        auto = True
     interactive_mode = settings.interactive and not auto and not is_test_environment()
+
+    # watch mode: wrap execution in file watcher
+    if watch:
+        paths_to_watch = [p for p in [resume, job, sections_path] if p is not None]
+
+        def run_once():
+            run_tailoring_command(
+                ctx,
+                mode,
+                resume=resume,
+                job=job,
+                model=model,
+                sections_path=sections_path,
+                edits_json=edits_json,
+                output_resume=output_resume,
+                risk=risk,
+                on_error=on_error,
+                preserve_formatting=preserve_formatting,
+                preserve_mode=preserve_mode,
+                interactive=False,
+                user_prompt=user_prompt,
+            )
+
+        runner = WatchRunner(paths_to_watch, run_once, settings.watch_debounce)
+        runner.start()
+        return
 
     run_tailoring_command(
         ctx,
@@ -110,4 +154,5 @@ def tailor(
         preserve_formatting=preserve_formatting,
         preserve_mode=preserve_mode,
         interactive=interactive_mode,
+        user_prompt=user_prompt,
     )

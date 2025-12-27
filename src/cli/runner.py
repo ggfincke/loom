@@ -15,6 +15,7 @@ from typing import Any
 from ..config.settings import LoomSettings
 from ..core.constants import RiskLevel, ValidationPolicy
 from ..core.exceptions import EditError
+from ..core.verbose import vlog_stage, vlog_config, vlog_file_read, vlog_think
 from ..loom_io import read_resume, TemplateDescriptor, build_latex_context
 from ..loom_io.generics import ensure_parent
 from ..loom_io.types import Lines
@@ -42,7 +43,7 @@ class TailoringMode(Enum):
     GENERATE = "generate"  # generate edits only
     APPLY = "apply"  # apply existing edits
     TAILOR = "tailor"  # generate + apply
-    PLAN = "plan"  # generate with planning
+    PLAN = "plan"  # generate w/ planning
 
 
 # context data prepared from resume, job & sections loading
@@ -71,6 +72,7 @@ class TailoringContext:
     preserve_formatting: bool = True
     preserve_mode: str = "in_place"
     interactive: bool = True
+    user_prompt: str | None = None
 
     @property
     def is_latex(self) -> bool:
@@ -173,6 +175,7 @@ def build_tailoring_context(
     preserve_formatting: bool = True,
     preserve_mode: str = "in_place",
     interactive: bool = True,
+    user_prompt: str | None = None,
 ) -> TailoringContext:
     # build TailoringContext w/ resolved arguments via ArgResolver
     common = resolver.resolve_common(
@@ -200,6 +203,7 @@ def build_tailoring_context(
         preserve_formatting=preserve_formatting,
         preserve_mode=preserve_mode,
         interactive=interactive,
+        user_prompt=user_prompt,
     )
 
 
@@ -254,6 +258,16 @@ class TailoringRunner:
         # validate before running
         self.validate()
 
+        # log workflow configuration
+        vlog_stage(f"Starting {self.mode.value} workflow")
+        vlog_config("resume", self.ctx.resume)
+        vlog_config("model", self.ctx.model)
+        vlog_config("risk", self.ctx.risk.value)
+        if self.ctx.job:
+            vlog_config("job", self.ctx.job)
+        if self.ctx.user_prompt:
+            vlog_think(f"User prompt: {self.ctx.user_prompt}")
+
         # calculate steps
         total_steps = self.calculate_total_steps()
 
@@ -274,6 +288,8 @@ class TailoringRunner:
         ):
             self._execute(ui, progress, task)
 
+        vlog_stage(f"Completed {self.mode.value} workflow")
+
         # report results
         self._report()
 
@@ -290,10 +306,18 @@ class TailoringRunner:
 
     # generate mode: create edits.json only
     def _run_generate(self, ui, progress, task) -> None:
+        vlog_stage("Loading resume & job", "Preparing context for generation")
         resume_ctx = prepare_resume_context(self.ctx, ui, progress, task, load_job=True)
         self._resume_ctx = resume_ctx
 
+        vlog_think(f"Resume has {len(resume_ctx.lines)} lines")
+        if resume_ctx.job_text:
+            vlog_think(f"Job description: {len(resume_ctx.job_text)} chars")
+        if resume_ctx.sections_json_str:
+            vlog_think("Sections JSON provided for structured context")
+
         # generate edits using core helper
+        vlog_stage("Generating edits", "Calling AI to analyze & suggest edits")
         progress.update(task, description="Generating edits with AI...")
         self._edits = generate_edits_core(
             self.ctx.settings,
@@ -305,17 +329,23 @@ class TailoringRunner:
             self.ctx.on_error,
             ui,
             persist_path=self.ctx.edits_json,
+            user_prompt=self.ctx.user_prompt,
         )
         progress.advance(task)
 
         # persist edits
         if self._edits is None:
             raise EditError("Failed to generate valid edits")
+
+        num_ops = len(self._edits.get("ops", []))
+        vlog_think(f"Generated {num_ops} edit operations")
         persist_edits_json(self._edits, self.ctx.edits_json, progress, task)
 
     # apply mode: apply existing edits to resume
     def _run_apply(self, ui, progress, task) -> None:
         from pathlib import Path
+
+        vlog_stage("Loading resume", "Preparing context for apply")
 
         # use shared context preparation (without loading job initially)
         resume_ctx = prepare_resume_context(
@@ -328,12 +358,17 @@ class TailoringRunner:
             progress.update(task, description="Reading job description...")
             if Path(self.ctx.job).exists():
                 job_text = Path(self.ctx.job).read_text(encoding="utf-8")
+                vlog_file_read(self.ctx.job, len(job_text))
             progress.advance(task)
 
         # load edits
+        vlog_stage("Loading edits", f"From {self.ctx.edits_json}")
         edits_obj = load_edits_json(self.ctx.edits_json, progress, task)
+        num_ops = len(edits_obj.get("ops", []))
+        vlog_think(f"Loaded {num_ops} edit operations to apply")
 
         # apply edits using core helper
+        vlog_stage("Applying edits", "Processing each edit operation")
         progress.update(task, description="Applying edits...")
         self._new_lines = apply_edits_core(
             self.ctx.settings,
@@ -364,6 +399,7 @@ class TailoringRunner:
         )
 
         # write output w/ diff generation
+        vlog_stage("Writing output", f"To {self.ctx.output_resume}")
         write_output_with_diff(
             self.ctx.settings,
             self.ctx.resume,
@@ -378,10 +414,16 @@ class TailoringRunner:
 
     # tailor mode: generate edits then apply
     def _run_full_tailor(self, ui, progress, task) -> None:
+        vlog_stage("Loading resume & job", "Preparing context for full tailor")
         resume_ctx = prepare_resume_context(self.ctx, ui, progress, task, load_job=True)
         self._resume_ctx = resume_ctx
 
+        vlog_think(f"Resume has {len(resume_ctx.lines)} lines")
+        if resume_ctx.job_text:
+            vlog_think(f"Job description: {len(resume_ctx.job_text)} chars")
+
         # generate edits using core helper
+        vlog_stage("Generating edits", "Calling AI to analyze & suggest edits")
         progress.update(task, description="Generating edits with AI...")
         self._edits = generate_edits_core(
             self.ctx.settings,
@@ -393,16 +435,21 @@ class TailoringRunner:
             self.ctx.on_error,
             ui,
             persist_path=self.ctx.edits_json,
+            user_prompt=self.ctx.user_prompt,
         )
         progress.advance(task)
 
         if self._edits is None:
             raise EditError("Failed to generate valid edits")
 
+        num_ops = len(self._edits.get("ops", []))
+        vlog_think(f"Generated {num_ops} edit operations")
+
         # persist edits (for inspection / re-run)
         persist_edits_json(self._edits, self.ctx.edits_json, progress, task)
 
         # apply edits using core helper
+        vlog_stage("Applying edits", "Processing each edit operation")
         progress.update(task, description="Applying edits...")
         self._new_lines = apply_edits_core(
             self.ctx.settings,
@@ -423,6 +470,7 @@ class TailoringRunner:
         progress.advance(task)
 
         # write output w/ diff generation
+        vlog_stage("Writing output", f"To {self.ctx.output_resume}")
         write_output_with_diff(
             self.ctx.settings,
             self.ctx.resume,
