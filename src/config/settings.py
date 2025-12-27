@@ -44,8 +44,16 @@ class LoomSettings:
     # dev mode setting (enables access to development commands)
     dev_mode: bool = False
 
+    # cache settings for AI response caching
+    cache_enabled: bool = True
+    cache_ttl_days: int = 7
+    cache_dir: str = ".loom/cache"
+
+    # watch mode settings
+    watch_debounce: float = 1.0
+
     def __post_init__(self) -> None:
-        """Validate settings values after initialization."""
+        # Validate settings values after initialization.
         # Temperature validation (OpenAI/Anthropic range: 0.0-2.0)
         if not isinstance(self.temperature, (int, float)):
             raise ValueError(
@@ -71,6 +79,28 @@ class LoomSettings:
             raise ValueError(
                 f"interactive must be a boolean (true/false), "
                 f"got {type(self.interactive).__name__}"
+            )
+
+        # cache_enabled strict bool validation
+        if not isinstance(self.cache_enabled, bool):
+            raise ValueError(
+                f"cache_enabled must be a boolean (true/false), "
+                f"got {type(self.cache_enabled).__name__}"
+            )
+
+        # cache_ttl_days validation (must be positive integer)
+        if not isinstance(self.cache_ttl_days, int) or self.cache_ttl_days < 1:
+            raise ValueError(
+                f"cache_ttl_days must be a positive integer, got {self.cache_ttl_days}"
+            )
+
+        # watch_debounce validation (must be >= 0.1 seconds)
+        if (
+            not isinstance(self.watch_debounce, (int, float))
+            or self.watch_debounce < 0.1
+        ):
+            raise ValueError(
+                f"watch_debounce must be >= 0.1 seconds, got {self.watch_debounce}"
             )
 
     @property
@@ -138,7 +168,7 @@ class SettingsManager:
         self._notify_settings_changed()
 
     def _notify_settings_changed(self) -> None:
-        """Notify dependent caches of settings change."""
+        # Notify dependent caches of settings change.
         try:
             from ..ai.cache import AICache
 
@@ -153,6 +183,14 @@ class SettingsManager:
             reset_dev_mode_cache()
         except ImportError:
             pass  # dev_mode module not loaded yet
+
+        # Reset response cache (in case cache settings changed)
+        try:
+            from ..ai.response_cache import reset_response_cache
+
+            reset_response_cache()
+        except ImportError:
+            pass  # response_cache module not loaded yet
 
     # get a specific setting value
     def get(self, key: str) -> Any:
