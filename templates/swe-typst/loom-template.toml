@@ -1,0 +1,36 @@
+[template]
+id = "swe-typst"
+type = "resume"
+name = "Software Engineering Typst Resume"
+version = "1.0.0"
+
+[sections.summary]
+pattern = "=\\s*Professional Summary"
+pattern_type = "regex"
+split_items = false
+optional = true
+
+[sections.skills]
+pattern = "=\\s*Technical Skills"
+pattern_type = "regex"
+split_items = false
+optional = false
+
+[sections.experience]
+pattern = "=\\s*Professional Experience"
+pattern_type = "regex"
+split_items = true
+optional = false
+
+[sections.education]
+pattern = "=\\s*Education"
+pattern_type = "regex"
+split_items = true
+optional = false
+
+[frozen]
+paths = []
+patterns = ["#set", "#show", "#import", "#let"]
+
+[custom]
+main_file = "resume.typ"

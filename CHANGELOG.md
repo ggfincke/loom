@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.4-nightly.20251227] - 2025-12-27
+
+### Added
+- **Typst file format support**: Complete .typ resume support w/ template detection & section analysis
+- **Typst handler & patterns**: Syntax recognition, safe edit filtering & I/O infrastructure
+- **SWE Typst template**: Bundled template w/ metadata & example resume fixture
+
+### Changed
+- **CLI integration**: Full Typst workflow support in sectionize, tailor, generate & apply commands
+- **Edit filtering**: Generalized safety checks for both LaTeX & Typst formats
+- **Test coverage**: Comprehensive unit & integration tests for Typst functionality
+
+---
+
 ## [1.3.3-nightly.20251227] - 2025-12-27
 
 ### Added
