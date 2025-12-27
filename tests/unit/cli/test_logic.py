@@ -119,11 +119,13 @@ class TestArgResolver:
 # * Test _resolve utility function
 class TestResolveUtility:
 
+    # * Verify resolve returns default when provided is none
     def test_resolve_returns_default_when_provided_is_none(self):
         assert _resolve(None, "default") == "default"
         assert _resolve(None, 42) == 42
         assert _resolve(None, Path("default.txt")) == Path("default.txt")
 
+    # * Verify resolve returns provided when not none
     def test_resolve_returns_provided_when_not_none(self):
         assert _resolve("provided", "default") == "provided"
         assert _resolve(100, 42) == 100
@@ -131,6 +133,7 @@ class TestResolveUtility:
             "provided.txt"
         )
 
+    # * Verify resolve handles falsy non none values
     def test_resolve_handles_falsy_non_none_values(self):
         assert _resolve("", "default") == ""
         assert _resolve(0, 42) == 0
@@ -212,6 +215,7 @@ class TestOrchestrationPipeline:
     @patch("src.cli.logic.generate_edits")
     @patch("src.cli.logic.validate_edits")
     @patch("src.cli.logic.handle_validation_error")
+    # * Verify generate edits core happy path
     def test_generate_edits_core_happy_path(
         self,
         mock_handle_validation,
@@ -250,6 +254,7 @@ class TestOrchestrationPipeline:
             job_text=sample_job_text,
             sections_json=sample_sections_json,
             model="gpt-4o",
+            user_prompt=None,
         )
 
         # verify edits were persisted to disk
@@ -270,6 +275,7 @@ class TestOrchestrationPipeline:
     @patch("src.cli.logic.generate_corrected_edits")
     @patch("src.cli.logic.validate_edits")
     @patch("src.cli.logic.handle_validation_error")
+    # * Verify generate edits core with validation errors
     def test_generate_edits_core_with_validation_errors(
         self,
         mock_handle_validation,
@@ -321,6 +327,7 @@ class TestOrchestrationPipeline:
     @patch("src.cli.logic.validate_edits")
     @patch("src.cli.logic.handle_validation_error")
     @patch("src.cli.logic.apply_edits")
+    # * Verify apply edits core success
     def test_apply_edits_core_success(
         self,
         mock_apply,
@@ -372,6 +379,7 @@ class TestOrchestrationPipeline:
     @patch("src.cli.logic.generate_edits")
     @patch("src.cli.logic.validate_edits")
     @patch("src.cli.logic.handle_validation_error")
+    # * Verify file persistence during generation
     def test_file_persistence_during_generation(
         self,
         mock_handle_validation,
@@ -418,6 +426,7 @@ class TestOrchestrationPipeline:
 
     # * Test error handling when edits file doesn't exist for correction
     @patch("src.cli.logic.generate_corrected_edits")
+    # * Verify edit correction missing file error
     def test_edit_correction_missing_file_error(
         self, _mock_generate_corrected, mock_settings
     ):
@@ -467,7 +476,7 @@ class TestOrchestrationPipeline:
                 ui=mock_ui,
             )
 
-            # verify it returns a reasonable result even with errors
+            # verify it returns a reasonable result even w/ errors
             assert result is not None
 
 
@@ -495,6 +504,7 @@ class TestIntegrationScenarios:
     @patch("src.cli.logic.apply_edits")
     @patch("src.cli.logic.validate_edits")
     @patch("src.cli.logic.handle_validation_error")
+    # * Verify complete workflow input to output
     def test_complete_workflow_input_to_output(
         self,
         mock_handle_validation,
@@ -582,6 +592,7 @@ class TestIntegrationScenarios:
             job_text=job_text,
             sections_json=sections_json,
             model="gpt-4o",
+            user_prompt=None,
         )
         mock_apply.assert_called_once_with(resume_lines, edits)
 
@@ -640,7 +651,7 @@ class TestCLIHelpers:
 
     # * Test validate_required_args handles falsy values correctly
     def test_validate_required_args_falsy_values(self):
-        # False, 0, and empty collections should be considered missing
+        # False, 0, & empty collections should be considered missing
         with pytest.raises(typer.BadParameter, match="Boolean flag is required"):
             validate_required_args(flag=(False, "Boolean flag"))
 
@@ -650,7 +661,7 @@ class TestCLIHelpers:
         with pytest.raises(typer.BadParameter, match="List value is required"):
             validate_required_args(items=([], "List value"))
 
-    # * Test validate_required_args with mixed present & missing args
+    # * Test validate_required_args w/ mixed present & missing args
     def test_validate_required_args_mixed_scenario(self):
         # first missing arg should raise error
         with pytest.raises(typer.BadParameter, match="Missing arg is required"):
@@ -660,9 +671,9 @@ class TestCLIHelpers:
                 also_present=("another value", "Also present arg"),
             )
 
-    # * Test validate_required_args with no arguments
+    # * Test validate_required_args w/ no arguments
     def test_validate_required_args_no_arguments(self):
-        # should pass with no arguments to validate
+        # should pass w/ no arguments to validate
         validate_required_args()
 
     # * Test validate_required_args error message formatting
@@ -840,9 +851,9 @@ class TestOutputDirectoryHandling:
         assert test_file1.exists()
         assert test_file2.exists()
 
-    # * Test path composition with custom directories
+    # * Test path composition w/ custom directories
     def test_path_composition_with_custom_directories(self, tmp_path):
-        # test settings with custom directory paths
+        # test settings w/ custom directory paths
         custom_settings = LoomSettings(
             data_dir=str(tmp_path / "custom_data"),
             output_dir=str(tmp_path / "custom_output"),
@@ -863,7 +874,7 @@ class TestOutputDirectoryHandling:
             tmp_path / "custom_loom" / "edits.warnings.txt"
         )
 
-        # test creating directories and files using composed paths
+        # test creating directories & files using composed paths
         custom_settings.sections_path.parent.mkdir(parents=True, exist_ok=True)
         custom_settings.warnings_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -912,7 +923,7 @@ class TestOutputDirectoryHandling:
             (loom_dir / filename).write_text(f"content of {filename}")
             assert (loom_dir / filename).exists()
 
-        # verify all files can be created and accessed
+        # verify all files can be created & accessed
         assert len(list(output_dir.iterdir())) == len(output_files)
         assert len(list(loom_dir.iterdir())) == len(loom_files)
 
@@ -973,7 +984,7 @@ class TestEditConversion:
             ],
         }
 
-    # * Test convert_dict_edits_to_operations with various operation types
+    # * Test convert_dict_edits_to_operations w/ various operation types
     def test_convert_dict_edits_to_operations_replace_line(
         self, sample_resume_lines, sample_dict_edits
     ):
@@ -997,6 +1008,7 @@ class TestEditConversion:
         assert len(replace_op.before_context) > 0
         assert len(replace_op.after_context) > 0
 
+    # * Verify convert dict edits to operations replace range
     def test_convert_dict_edits_to_operations_replace_range(
         self, sample_resume_lines, sample_dict_edits
     ):
@@ -1016,6 +1028,7 @@ class TestEditConversion:
         assert "Built web applications" in range_op.original_content
         assert "Led team of 3 developers" in range_op.original_content
 
+    # * Verify convert dict edits to operations insert after
     def test_convert_dict_edits_to_operations_insert_after(
         self, sample_resume_lines, sample_dict_edits
     ):
@@ -1030,6 +1043,7 @@ class TestEditConversion:
         assert insert_op.reasoning == "Add relevant technical achievement"
         assert insert_op.confidence == 0.8
 
+    # * Verify convert dict edits to operations delete range
     def test_convert_dict_edits_to_operations_delete_range(
         self, sample_resume_lines, sample_dict_edits
     ):
@@ -1045,11 +1059,13 @@ class TestEditConversion:
         assert delete_op.reasoning == "Remove outdated skills section"
         assert delete_op.confidence == 0.7
 
+    # * Verify convert dict edits to operations empty ops
     def test_convert_dict_edits_to_operations_empty_ops(self, sample_resume_lines):
         empty_edits = {"version": 1, "meta": {}, "ops": []}
         operations = convert_dict_edits_to_operations(empty_edits, sample_resume_lines)
         assert len(operations) == 0
 
+    # * Verify convert dict edits to operations invalid op type
     def test_convert_dict_edits_to_operations_invalid_op_type(
         self, sample_resume_lines
     ):
@@ -1063,6 +1079,7 @@ class TestEditConversion:
         )
         assert len(operations) == 0  # invalid operations are skipped
 
+    # * Verify convert dict edits to operations missing lines
     def test_convert_dict_edits_to_operations_missing_lines(self, sample_resume_lines):
         edits_with_missing_line = {
             "version": 1,
@@ -1082,7 +1099,7 @@ class TestEditConversion:
         assert len(operations) == 1
         assert operations[0].original_content == ""  # missing line returns empty string
 
-    # * Test convert_operations_to_dict_edits with approved operations
+    # * Test convert_operations_to_dict_edits w/ approved operations
     def test_convert_operations_to_dict_edits_approved_only(self, sample_resume_lines):
         operations = [
             EditOperation(
@@ -1132,6 +1149,7 @@ class TestEditConversion:
         assert delete_op["start"] == 9
         assert delete_op["end"] == 10
 
+    # * Verify convert operations to dict edits replace range
     def test_convert_operations_to_dict_edits_replace_range(self):
         operations = [
             EditOperation(
@@ -1156,6 +1174,7 @@ class TestEditConversion:
         assert range_op["end"] == 7
         assert range_op["text"] == "Range replacement content"
 
+    # * Verify convert operations to dict edits no approved operations
     def test_convert_operations_to_dict_edits_no_approved_operations(self):
         operations = [
             EditOperation(
@@ -1206,6 +1225,7 @@ class TestSpecialOperations:
     # * Test MODIFY operations processing
     @patch("src.cli.logic.process_modify_operation")
     @patch("src.loom_io.console.console")
+    # * Verify process special operations modify
     def test_process_special_operations_modify(
         self, mock_console, mock_process_modify, sample_resume_lines
     ):
@@ -1227,6 +1247,7 @@ class TestSpecialOperations:
     # * Test PROMPT operations processing
     @patch("src.cli.logic.process_prompt_operation")
     @patch("src.loom_io.console.console")
+    # * Verify process special operations prompt
     def test_process_special_operations_prompt(
         self,
         mock_console,
@@ -1263,8 +1284,9 @@ class TestSpecialOperations:
         )
         assert len(result) == 1
 
-    # * Test PROMPT operations with missing requirements
+    # * Test PROMPT operations w/ missing requirements
     @patch("src.loom_io.console.console")
+    # * Verify process special operations prompt missing requirements
     def test_process_special_operations_prompt_missing_requirements(
         self, mock_console, sample_resume_lines
     ):
@@ -1278,7 +1300,7 @@ class TestSpecialOperations:
             )
         ]
 
-        # call without job_text and model
+        # call without job_text & model
         result = process_special_operations(operations, sample_resume_lines)
 
         # verify error message was printed
@@ -1287,8 +1309,9 @@ class TestSpecialOperations:
         assert "requires job text and model" in error_call
         assert len(result) == 1
 
-    # * Test MODIFY operations with missing content
+    # * Test MODIFY operations w/ missing content
     @patch("src.loom_io.console.console")
+    # * Verify process special operations modify no content
     def test_process_special_operations_modify_no_content(
         self, mock_console, sample_resume_lines
     ):
@@ -1309,8 +1332,9 @@ class TestSpecialOperations:
         assert "has no content - skipping" in warning_call
         assert len(result) == 1
 
-    # * Test PROMPT operations with missing prompt_instruction
+    # * Test PROMPT operations w/ missing prompt_instruction
     @patch("src.loom_io.console.console")
+    # * Verify process special operations prompt no instruction
     def test_process_special_operations_prompt_no_instruction(
         self, mock_console, sample_resume_lines, sample_job_text
     ):
@@ -1337,6 +1361,7 @@ class TestSpecialOperations:
     # * Test error handling in special operations
     @patch("src.cli.logic.process_modify_operation")
     @patch("src.loom_io.console.console")
+    # * Verify process special operations error handling
     def test_process_special_operations_error_handling(
         self, mock_console, mock_process_modify, sample_resume_lines
     ):
@@ -1354,7 +1379,7 @@ class TestSpecialOperations:
 
         result = process_special_operations(operations, sample_resume_lines)
 
-        # verify error was caught and logged
+        # verify error was caught & logged
         mock_console.print.assert_called()
         error_call = mock_console.print.call_args[0][0]
         assert "Error processing modify operation" in error_call
@@ -1365,6 +1390,7 @@ class TestSpecialOperations:
     @patch("src.cli.logic.process_modify_operation")
     @patch("src.cli.logic.process_prompt_operation")
     @patch("src.loom_io.console.console")
+    # * Verify process special operations mixed operations
     def test_process_special_operations_mixed_operations(
         self,
         mock_console,
@@ -1431,10 +1457,11 @@ class TestComplexOrchestrationScenarios:
             risk="ask",  # valid risk policy value (ask, skip, abort, auto)
         )
 
-    # * Test orchestration with validation policy enforcement
+    # * Test orchestration w/ validation policy enforcement
     @patch("src.core.validation.validate_edits")
     @patch("src.loom_io.read_resume")
     @patch("src.core.pipeline.run_generate")
+    # * Verify orchestration validation policy enforcement
     def test_orchestration_validation_policy_enforcement(
         self,
         mock_run_generate,
@@ -1480,14 +1507,14 @@ class TestComplexOrchestrationScenarios:
         job_file = tmp_path / "data" / "job.txt"
         job_file.write_text("Job description")
 
-        # test generation with validation errors - simplified test
+        # test generation w/ validation errors - simplified test
         from src.cli.logic import generate_edits_core
         from src.core.constants import RiskLevel, ValidationPolicy
         from src.ui.core.ui import UI
 
         mock_ui = Mock(spec=UI)
 
-        # Trigger validation error through the CLI logic with FAIL_HARD policy
+        # Trigger validation error through the CLI logic w/ FAIL_HARD policy
         result = generate_edits_core(
             settings=complex_settings,
             resume_lines=mock_read_resume.return_value,
@@ -1499,9 +1526,9 @@ class TestComplexOrchestrationScenarios:
             ui=mock_ui,
         )
 
-        # Test that the function completed successfully with mocked components
+        # Test that the function completed successfully w/ mocked components
         # The main goal is to ensure the mock setup prevents network calls
-        # and the function name for validate_edits is correct
+        # & the function name for validate_edits is correct
         assert (
             result is not None or result is None
         )  # Either outcome is acceptable for this test
@@ -1509,6 +1536,7 @@ class TestComplexOrchestrationScenarios:
     # * Test error recovery during AI client failures
     @patch("src.loom_io.read_resume")
     @patch("src.core.pipeline.run_generate")
+    # * Verify orchestration ai client failures
     def test_orchestration_ai_client_failures(
         self,
         mock_run_generate,
@@ -1550,10 +1578,11 @@ class TestComplexOrchestrationScenarios:
                 model="gpt-4o",
             )
 
-    # * Test validation scenarios with convert operations
+    # * Test validation scenarios w/ convert operations
     @patch("src.core.validation.validate_edits")
+    # * Verify validation scenarios
     def test_validation_scenarios(self, mock_validate, complex_settings, tmp_path):
-        # test validation with warnings
+        # test validation w/ warnings
         mock_validate.return_value = ["Warning: High-risk operation detected"]
 
         # create test operations
@@ -1567,7 +1596,7 @@ class TestComplexOrchestrationScenarios:
             )
         ]
 
-        # test conversion functions work with validation
+        # test conversion functions work w/ validation
         edits_data = {
             "version": 1,
             "meta": {"model": "gpt-4o"},
@@ -1591,9 +1620,10 @@ class TestComplexOrchestrationScenarios:
         result_dict = convert_operations_to_dict_edits(operations, edits_data)
         assert len(result_dict["ops"]) == 1
 
-    # * Test orchestration with missing optional parameters
+    # * Test orchestration w/ missing optional parameters
     @patch("src.loom_io.read_resume")
     @patch("src.core.pipeline.run_generate")
+    # * Verify orchestration missing optional params
     def test_orchestration_missing_optional_params(
         self,
         mock_run_generate,
@@ -1628,9 +1658,9 @@ class TestComplexOrchestrationScenarios:
         # should complete successfully without sections - the main goal is no network calls
         assert result is not None  # Test passes if no network errors occur
 
-    # * Test resolver edge cases with complex paths
+    # * Test resolver edge cases w/ complex paths
     def test_resolver_complex_path_handling(self, tmp_path):
-        # create settings with complex path structures
+        # create settings w/ complex path structures
         complex_data_dir = tmp_path / "nested" / "data" / "directory"
         complex_output_dir = tmp_path / "deeply" / "nested" / "output" / "path"
 
@@ -1649,7 +1679,7 @@ class TestComplexOrchestrationScenarios:
         assert result["job"] == complex_data_dir / "job-description_v2.txt"
         assert result["sections_path"] == complex_data_dir / "sections.json"
 
-    # * Test argument resolution with edge case values
+    # * Test argument resolution w/ edge case values
     def test_resolver_edge_case_values(self):
         settings = LoomSettings(
             model="",  # empty string
@@ -1664,17 +1694,17 @@ class TestComplexOrchestrationScenarios:
         assert result["model"] == ""
         assert (
             result["resume"] == Path(".") / "resume.docx"
-        )  # default filename with current dir
+        )  # default filename w/ current dir
 
 
-# * Test error handling and recovery mechanisms
+# * Test error handling & recovery mechanisms
 
 
 class TestErrorHandlingRecovery:
 
     # * Test conversion error handling
     def test_conversion_error_handling(self):
-        # test dict to operations conversion with malformed data
+        # test dict to operations conversion w/ malformed data
         malformed_edits = {
             "version": 1,
             "ops": [
@@ -1696,7 +1726,7 @@ class TestErrorHandlingRecovery:
 
     # * Test operations to dict conversion edge cases
     def test_operations_to_dict_edge_cases(self):
-        # test conversion with various operation statuses
+        # test conversion w/ various operation statuses
         operations = [
             EditOperation(
                 operation="replace_line",
@@ -1732,13 +1762,14 @@ class TestErrorHandlingRecovery:
 
         result = convert_operations_to_dict_edits(operations, original_edits)
 
-        # should only include approved operations with high confidence
+        # should only include approved operations w/ high confidence
         assert len(result["ops"]) == 1  # only the first operation should be included
         assert result["ops"][0]["line"] == 1
         assert result["ops"][0]["text"] == "test1"
 
-    # * Test special operations with missing contexts
+    # * Test special operations w/ missing contexts
     @patch("src.cli.logic.process_modify_operation")
+    # * Verify special operations missing context
     def test_special_operations_missing_context(self, mock_process_modify):
         operations = [
             EditOperation(
@@ -1750,7 +1781,7 @@ class TestErrorHandlingRecovery:
             )
         ]
 
-        # test with minimal context (no job text, sections, etc.)
+        # test w/ minimal context (no job text, sections, etc.)
         result = process_special_operations(
             operations,
             resume_lines={1: "original"},

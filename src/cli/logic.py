@@ -93,6 +93,7 @@ def generate_edits_core(
     policy: ValidationPolicy,
     ui,
     persist_path: Path | None = None,
+    user_prompt: str | None = None,
 ) -> dict | None:
     # create initial edits using AI
     json_error_warning = None
@@ -102,6 +103,7 @@ def generate_edits_core(
             job_text=job_text,
             sections_json=sections_json,
             model=model,
+            user_prompt=user_prompt,
         )
     except JSONParsingError as e:
         # convert JSON parsing error to validation warnings for interactive handling

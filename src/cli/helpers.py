@@ -102,13 +102,9 @@ def run_tailoring_command(
     preserve_formatting: bool = True,
     preserve_mode: str = "in_place",
     interactive: bool = True,
+    user_prompt: str | None = None,
 ) -> None:
-    """
-    Unified command execution for generate/apply/tailor/plan.
-
-    Resolves arguments via settings & ArgResolver, builds TailoringContext,
-    and executes via TailoringRunner.
-    """
+    # Unified command execution for generate/apply/tailor/plan. Resolves arguments via settings & ArgResolver, builds TailoringContext, & executes via TailoringRunner.
     from .logic import ArgResolver
     from .runner import TailoringRunner, build_tailoring_context
     from ..config.settings import get_settings
@@ -130,6 +126,7 @@ def run_tailoring_command(
         preserve_formatting=preserve_formatting,
         preserve_mode=preserve_mode,
         interactive=interactive,
+        user_prompt=user_prompt,
     )
 
     runner = TailoringRunner(mode, tailoring_ctx)
