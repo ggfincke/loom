@@ -8,7 +8,7 @@ from docx.text.run import Run
 from docx.oxml import OxmlElement
 from typing import Dict, Tuple, Any, List, Set
 from .types import Lines
-from ..core.exceptions import LaTeXError
+from ..core.exceptions import LaTeXError, TypstError
 from ..core.verbose import vlog_file_read, vlog_file_write
 from .generics import ensure_parent
 from .latex_patterns import is_preservable_content, requires_trailing_blank
@@ -87,11 +87,63 @@ def read_latex(path: Path, preserve_structure: bool = False) -> Lines:
     return lines
 
 
-# * Read resume by file extension (.docx or .tex)
+# * Read Typst (.typ) file as numbered lines
+def read_typst(path: Path, preserve_structure: bool = False) -> Lines:
+    # ! Lazy import to avoid circular dependency
+    from .typst_handler import validate_basic_typst_syntax
+    from .typst_patterns import (
+        is_preservable_content as typst_is_preservable,
+        requires_trailing_blank as typst_requires_trailing_blank,
+    )
+
+    try:
+        text = Path(path).read_text(encoding="utf-8")
+        vlog_file_read(path, len(text))
+    except UnicodeDecodeError as e:
+        raise TypstError(f"Cannot decode Typst file {path}: {e}")
+    except Exception as e:
+        raise TypstError(f"Cannot read Typst file {path}: {e}")
+
+    # validate basic Typst syntax
+    if not validate_basic_typst_syntax(text):
+        raise TypstError(f"Invalid Typst syntax detected in {path}")
+
+    lines: Lines = {}
+    line_number = 1
+
+    if preserve_structure:
+        # Structured mode: preserve comments, commands, strategic empty lines
+        for raw in text.splitlines():
+            t = raw.strip()
+
+            # Preserve important Typst constructs
+            if typst_is_preservable(t):
+                lines[line_number] = t
+                line_number += 1
+            # Preserve strategic empty lines after structural commands
+            elif raw == "" and line_number > 1:
+                prev_line = lines.get(line_number - 1, "")
+                if typst_requires_trailing_blank(prev_line):
+                    lines[line_number] = ""
+                    line_number += 1
+    else:
+        # Basic mode: strip whitespace, keep only non-empty content
+        for raw in text.splitlines():
+            t = raw.strip()
+            if t:
+                lines[line_number] = t
+                line_number += 1
+
+    return lines
+
+
+# * Read resume by file extension (.docx, .tex, or .typ)
 def read_resume(path: Path, preserve_structure: bool = False) -> Lines:
     suffix = path.suffix.lower()
     if suffix == ".tex":
         return read_latex(path, preserve_structure=preserve_structure)
+    if suffix == ".typ":
+        return read_typst(path, preserve_structure=preserve_structure)
     # use DOCX handling as default
     return read_docx(path)
 
