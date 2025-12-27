@@ -5,6 +5,50 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.3-nightly.20251227] - 2025-12-27
+
+### Added
+- **ATS analysis system**: Applicant Tracking System analysis command & scoring engine
+- **Response caching**: AI response caching system for improved performance
+- **Watch mode**: Auto-recompilation workflow support
+- **Cache management**: CLI command for cache control operations
+- **Verbose mode**: Enhanced verbose logging support across core modules
+
+### Changed
+- **Test coverage**: Enhanced test suite for ATS & caching features
+- **Integration tests**: Updated prompt/modify operation tests
+- **CLI extensibility**: Improved runner & logic for new feature support
+
+---
+
+## [1.3.2-nightly.20251226] - 2025-12-26
+
+### Added
+- **Base client architecture**: Template class w/ registry pattern for AI providers
+- **Provider validation**: Environment & provider validation modules
+- **Testing utilities**: AI client mocking & testing support infrastructure
+
+### Changed
+- **AI client migration**: Unified base class architecture for all providers
+- **Models catalog**: Simplified catalog & streamlined client API
+- **Diff resolution**: Consolidated logic & removed ai_processor module
+- **CLI validation**: Updated commands to use new validation API
+- **LaTeX handling**: Enhanced pattern extraction & processing
+
+---
+
+## [1.3.1-nightly.20251226] - 2025-12-26
+
+### Changed
+- **Prompt optimization**: Token-efficient keys & normalization system
+- **Diff display**: Modularized into state, renderer & display components
+- **Theme system**: Automatic initialization at startup & enhanced engine
+- **File operations**: Consolidated utilities in loom_io module
+- **Help system**: Added option introspection capabilities
+- **Code cleanup**: Removed deprecated edit_helpers module
+
+---
+
 ## [1.3.0] - 2025-12-20
 
 ### Added
