@@ -52,7 +52,7 @@ def _normalize_validation_policy(value: str | None) -> ValidationPolicy:
 def ResumeArg() -> typer.Argument:
     return typer.Argument(
         None,
-        help="Path to resume (.docx or .tex)",
+        help="Path to resume (.docx, .tex, or .typ)",
         exists=True,
         file_okay=True,
         dir_okay=False,
@@ -176,7 +176,7 @@ def OutputResumeOpt() -> typer.Option:
         None,
         "--output-resume",
         "-r",
-        help="Path to write tailored resume (.docx or .tex); defaults to <output_dir>/tailored_resume.docx",
+        help="Path to write tailored resume (.docx, .tex, or .typ); defaults to <output_dir>/tailored_resume.<ext>",
         resolve_path=True,
     )
 
