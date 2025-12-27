@@ -56,6 +56,11 @@ class LaTeXError(LoomError):
     pass
 
 
+# * Typst-specific errors
+class TypstError(LoomError):
+    pass
+
+
 # * Dev mode access control errors
 class DevModeError(LoomError):
     pass
@@ -99,6 +104,9 @@ def handle_loom_error(func: F) -> F:
             raise SystemExit(1)
         except LaTeXError as e:
             console.print(format_error_message("LaTeX Error", str(e)))
+            raise SystemExit(1)
+        except TypstError as e:
+            console.print(format_error_message("Typst Error", str(e)))
             raise SystemExit(1)
         except DevModeError as e:
             console.print(format_error_message("Dev Mode Error", str(e)))
