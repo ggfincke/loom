@@ -16,7 +16,9 @@ from ..config.settings import LoomSettings
 from ..core.constants import RiskLevel, ValidationPolicy
 from ..core.exceptions import EditError
 from ..core.verbose import vlog_stage, vlog_config, vlog_file_read, vlog_think
-from ..loom_io import read_resume, TemplateDescriptor, build_latex_context
+import json
+from ..loom_io import read_resume, TemplateDescriptor, build_latex_context, build_typst_context
+from ..loom_io.typst_handler import sections_to_payload as typst_sections_to_payload
 from ..loom_io.generics import ensure_parent
 from ..loom_io.types import Lines
 from ..ui.core.progress import (
@@ -77,6 +79,10 @@ class TailoringContext:
     @property
     def is_latex(self) -> bool:
         return self.resume is not None and self.resume.suffix.lower() == ".tex"
+
+    @property
+    def is_typst(self) -> bool:
+        return self.resume is not None and self.resume.suffix.lower() == ".typ"
 
 
 # validation requirements per mode
@@ -142,10 +148,26 @@ def prepare_resume_context(
             for note in template_notes:
                 ui.print(f" - {note}")
 
-    # resolve sections (explicit path takes precedence over auto-LaTeX)
+    elif ctx.is_typst:
+        progress.update(task, description="Analyzing Typst structure...")
+        resume_text = ctx.resume.read_text(encoding="utf-8")
+        descriptor, analysis = build_typst_context(ctx.resume, lines, resume_text)
+        auto_sections_json = json.dumps(typst_sections_to_payload(analysis))
+        template_notes = analysis.notes
+        progress.advance(task)
+
+        # display Typst info
+        if descriptor:
+            ui.print(f"[green]Detected Typst template:[/] {descriptor.id}")
+        if template_notes:
+            ui.print("[yellow]Template notes:[/]")
+            for note in template_notes:
+                ui.print(f" - {note}")
+
+    # resolve sections (explicit path takes precedence over auto-detected)
     if ctx.sections_path:
         sections_json_str = load_sections(ctx.sections_path, progress, task)
-    elif ctx.is_latex:
+    elif ctx.is_latex or ctx.is_typst:
         sections_json_str = auto_sections_json
     else:
         sections_json_str = None
@@ -239,8 +261,8 @@ class TailoringRunner:
 
         total = base_steps[self.mode]
 
-        # add optional LaTeX step (all modes use LaTeX analysis)
-        if self.ctx.is_latex:
+        # add optional LaTeX/Typst step (all modes use format-specific analysis)
+        if self.ctx.is_latex or self.ctx.is_typst:
             total += 1
 
         # add optional job step (apply only - job is optional for PROMPT support)

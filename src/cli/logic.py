@@ -16,6 +16,7 @@ from ..loom_io.generics import ensure_parent, write_json_safe
 from ..loom_io.types import Lines
 from ..loom_io import (
     filter_latex_edits,
+    filter_typst_edits,
     TemplateDescriptor,
     build_latex_context,
 )
@@ -62,7 +63,7 @@ class ArgResolver:
 
     def resolve_paths(self, resume_path: Path | None = None, **kwargs) -> dict:
         # determine default output extension based on resume file type
-        if resume_path and resume_path.suffix.lower() in [".tex", ".docx"]:
+        if resume_path and resume_path.suffix.lower() in [".tex", ".typ", ".docx"]:
             default_extension = resume_path.suffix.lower()
         else:
             default_extension = ".docx"  # fallback
@@ -381,16 +382,21 @@ def apply_edits_core(
     resume_path: Path | None = None,
     descriptor: TemplateDescriptor | None = None,
 ) -> Lines:
-    latex_notes: list[str] = []
+    filter_notes: list[str] = []
     resume_suffix = resume_path.suffix.lower() if resume_path else ""
     is_latex = resume_suffix == ".tex"
+    is_typst = resume_suffix == ".typ"
 
     def sanitize_edits(data: dict) -> dict:
         if not isinstance(data, dict):
             return data
         if is_latex:
             filtered, notes = filter_latex_edits(data, resume_lines, descriptor)
-            latex_notes.extend(notes)
+            filter_notes.extend(notes)
+            return filtered
+        if is_typst:
+            filtered, notes = filter_typst_edits(data, resume_lines, descriptor)
+            filter_notes.extend(notes)
             return filtered
         return data
 
@@ -467,10 +473,10 @@ def apply_edits_core(
                 write_json_safe(complete_edits, edits_json_path)
                 ui.print(f"[green]Updated edits saved to {edits_json_path}[/]")
 
-    # re-run LaTeX safety checks before applying edits
+    # re-run safety checks before applying edits
     current[0] = sanitize_edits(current[0])
-    if latex_notes and ui:
-        for note in sorted(set(latex_notes)):
+    if filter_notes and ui:
+        for note in sorted(set(filter_notes)):
             ui.print(f"[yellow]{note}[/]")
 
     # execute edit application w/ approved operations only
