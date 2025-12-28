@@ -117,11 +117,26 @@ class BulkRunner:
         self.config = config
         self.settings = settings
         self.resolver = ArgResolver(settings)
+        # cached sections JSON string for analyze_edits
+        self._sections_json: Optional[str] = None
 
         # callbacks for progress reporting
         self.on_job_start: Optional[Callable[[JobSpec, int, int], None]] = None
         self.on_job_complete: Optional[Callable[[JobResult, int, int], None]] = None
         self.on_retry: Optional[Callable[[str], None]] = None
+
+    # * Load sections JSON if sections_path is configured
+    def _load_sections_json(self) -> Optional[str]:
+        if self._sections_json is not None:
+            return self._sections_json
+
+        if self.config.sections_path and self.config.sections_path.exists():
+            try:
+                self._sections_json = self.config.sections_path.read_text(encoding="utf-8")
+            except OSError:
+                self._sections_json = None
+
+        return self._sections_json
 
     # execute bulk processing & return aggregated results
     def run(self) -> BulkResult:
@@ -311,7 +326,8 @@ class BulkRunner:
 
             # analyze results
             edits = read_json_safe(edits_path)
-            result.edits = analyze_edits(edits)
+            sections_json = self._load_sections_json()
+            result.edits = analyze_edits(edits, sections_json=sections_json)
 
             # read resume for validation & coverage analysis
             resume_lines = read_resume(self.config.resume)

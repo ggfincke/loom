@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from collections import Counter
 
@@ -69,6 +70,37 @@ def calculate_fit_score(result: JobResult) -> float:
     return max(0.0, min(1.0, raw_score - validation_penalty))
 
 
+# * Map line numbers to section names using sections.json structure
+def _map_lines_to_sections(lines_touched: set[int], sections_json: str) -> list[str]:
+    try:
+        data = json.loads(sections_json)
+    except (json.JSONDecodeError, TypeError):
+        return []
+
+    touched_sections: set[str] = set()
+    sections = data.get("sections", [])
+
+    def check_section(section: dict) -> None:
+        # check if any touched line falls within this section's range
+        start = section.get("start_line", 0)
+        end = section.get("end_line", 0)
+        name = section.get("name", "UNKNOWN")
+
+        for line in lines_touched:
+            if start <= line <= end:
+                touched_sections.add(name)
+                break
+
+        # also check subsections (e.g., individual jobs within EXPERIENCE)
+        for subsection in section.get("subsections", []):
+            check_section(subsection)
+
+    for section in sections:
+        check_section(section)
+
+    return sorted(touched_sections)
+
+
 # * Analyze edits dict to produce EditBreakdown
 # extract edit statistics from edits.json structure
 def analyze_edits(edits: dict, sections_json: str | None = None) -> EditBreakdown:
@@ -107,8 +139,10 @@ def analyze_edits(edits: dict, sections_json: str | None = None) -> EditBreakdow
                 if start and end:
                     lines_touched.update(range(start, end + 1))
 
-    # todo: map lines to sections if sections_json provided
+    # map lines to sections if sections_json provided
     sections_touched: list[str] = []
+    if sections_json:
+        sections_touched = _map_lines_to_sections(lines_touched, sections_json)
 
     return EditBreakdown(
         total_count=len(ops),
