@@ -1,25 +1,17 @@
 # src/core/validation.py
-# Strategy pattern implementation for validation error handling
+# Pure validation logic for edit operations (no I/O)
 
-import sys
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import List, Callable, Any, Optional
+from typing import List, Any, Optional
 from .constants import (
-    ValidationPolicy,
     RiskLevel,
     OP_REPLACE_LINE,
     OP_REPLACE_RANGE,
     OP_INSERT_AFTER,
     OP_DELETE_RANGE,
 )
-from .exceptions import ValidationError
-from ..ai.models import SUPPORTED_MODELS, OPENAI_MODELS, get_model_description
-from ..ai.provider_validator import validate_model
-from ..config.settings import settings_manager, LoomSettings
 
-# ? Pragmatic exception: Lines is a pure type alias (no I/O operations)
-from ..loom_io.types import Lines
+from .types import Lines
 from .edit_helpers import check_line_exists, check_range_exists, count_text_lines
 
 
@@ -92,13 +84,11 @@ def check_range_usage(
 ) -> List[str]:
     warnings: List[str] = []
 
-    # check for duplicates first
     for line in range(start, end + 1):
         if line in line_usage:
             warnings.append(f"Op {op_index}: duplicate operation on line {line}")
-            break  # only report first duplicate
+            break
 
-    # mark all lines as used regardless
     for line in range(start, end + 1):
         line_usage[line] = op_type
 
@@ -109,7 +99,6 @@ def check_range_usage(
 def validate_operation_interactions(ops: List[dict]) -> List[str]:
     warnings: List[str] = []
 
-    # 1. Check for insert_after on lines being deleted
     delete_ranges = [
         (op["start"], op["end"])
         for op in ops
@@ -123,7 +112,6 @@ def validate_operation_interactions(ops: List[dict]) -> List[str]:
                     f"Op {i}: insert_after on line {ln} that is deleted by a delete_range"
                 )
 
-    # 2. Check for delete_range overlapping replace_range
     replace_ranges = [
         (op["start"], op["end"])
         for op in ops
@@ -137,7 +125,6 @@ def validate_operation_interactions(ops: List[dict]) -> List[str]:
                     f"Op {i}: delete_range overlaps a replace_range; split or reorder ops"
                 )
 
-    # 3. Check for multiple insert_after on same line
     seen_inserts: set[int] = set()
     for i, op in enumerate(ops):
         if op.get("op") == OP_INSERT_AFTER and "line" in op:
@@ -157,223 +144,7 @@ class ValidationOutcome:
     should_continue: bool = False
 
 
-# * Base class for validation strategies
-class ValidationStrategy(ABC):
-    # Base class for validation strategies.
-
-    def ensure_interactive(self, mode_name: str, warnings: List[str]) -> None:
-        # Ensure running in interactive terminal.
-        if not sys.stdin.isatty():
-            error_warnings = [
-                f"{mode_name} not available - non-interactive terminal"
-            ] + warnings
-            raise ValidationError(error_warnings, recoverable=False)
-
-    @abstractmethod
-    def handle(self, warnings: List[str], ui, settings=None) -> ValidationOutcome:
-        raise NotImplementedError
-
-
-# * Interactive strategy that prompts user for choice
-class AskStrategy(ValidationStrategy):
-    def handle(self, warnings: List[str], ui, settings=None) -> ValidationOutcome:
-        self.ensure_interactive("Ask mode", warnings)
-
-        # display warnings to user
-        ui.print()
-        ui.print("Validation errors found:")
-        for warning in warnings:
-            ui.print(f"   {warning}")
-
-        while True:
-            ui.print()
-            with ui.input_mode():
-                choice = (
-                    ui.ask(
-                        "Choose: [bold white](s)[/]oft-fail, [bold white](h)[/]ard-fail, [bold white](m)[/]anual, [bold white](r)[/]etry, [bold white](c)[/]hange-model: "
-                    )
-                    .lower()
-                    .strip()
-                )
-
-            if choice in ["s", "soft", "fail:soft"]:
-                return FailSoftStrategy().handle(warnings, ui, settings)
-            elif choice in ["h", "hard", "fail:hard"]:
-                return FailHardStrategy().handle(warnings, ui, settings)
-            elif choice in ["m", "manual"]:
-                return ManualStrategy().handle(warnings, ui, settings)
-            elif choice in ["r", "retry"]:
-                return RetryStrategy().handle(warnings, ui, settings)
-            elif choice in ["c", "change", "change-model", "different", "model"]:
-                return ModelRetryStrategy().handle(warnings, ui, settings)
-            else:
-                ui.print("Invalid choice. Please enter s, h, m, r, or c.")
-
-
-# * Retry strategy that signals to re-run validation
-class RetryStrategy(ValidationStrategy):
-    def handle(self, warnings: List[str], ui, settings=None) -> ValidationOutcome:
-        return ValidationOutcome(success=False, should_continue=True, value=warnings)
-
-
-# * Manual strategy that returns control for user intervention
-class ManualStrategy(ValidationStrategy):
-    def handle(self, warnings: List[str], ui, settings=None) -> ValidationOutcome:
-        self.ensure_interactive("Manual mode", warnings)
-        return ValidationOutcome(success=False, should_continue=False)
-
-
-# * Fail soft strategy that quits cleanly leaving files intact
-class FailSoftStrategy(ValidationStrategy):
-    def handle(self, warnings: List[str], ui, settings=None) -> ValidationOutcome:
-        if ui:
-            ui.print(
-                "🔶 Validation failed (soft fail) - leaving files intact for inspection:"
-            )
-            for warning in warnings:
-                ui.print(f"   {warning}")
-            if settings:
-                ui.print(f"   Edits: {settings.edits_path}")
-                if settings.diff_path.exists():
-                    ui.print(f"   Diff: {settings.diff_path}")
-                if settings.plan_path.exists():
-                    ui.print(f"   Plan: {settings.plan_path}")
-
-        raise SystemExit(0)
-
-
-# * Model retry strategy that prompts user to select different model
-class ModelRetryStrategy(ValidationStrategy):
-    def handle(self, warnings: List[str], ui, settings=None) -> ValidationOutcome:
-        self.ensure_interactive("Model change", warnings)
-
-        # Build model options from source of truth (OpenAI only for now)
-        model_options = [
-            (str(i + 1), model, get_model_description(model))
-            for i, model in enumerate(OPENAI_MODELS)
-        ]
-        max_option = len(model_options)
-
-        ui.print()
-        ui.print("📋 Select a different model to retry with:")
-        for num, model, desc in model_options:
-            ui.print(f"   {num}) {model} - {desc}")
-
-        while True:
-            ui.print()
-            with ui.input_mode():
-                choice = ui.ask(
-                    f"Enter model number (1-{max_option}) or model name: "
-                ).strip()
-
-            # convert user choice to model name
-            selected_model = None
-
-            # check numeric selection
-            if choice.isdigit():
-                idx = int(choice)
-                if 1 <= idx <= max_option:
-                    selected_model = model_options[idx - 1][1]
-                else:
-                    ui.print(
-                        f"Invalid choice. Please enter a number (1-{max_option}) or valid model name."
-                    )
-                    continue
-            elif choice in OPENAI_MODELS:
-                # direct model name for OpenAI models
-                selected_model = choice
-            elif choice.startswith("gpt-"):
-                # validate model against supported list
-                valid, _ = validate_model(choice)
-                if valid:
-                    selected_model = choice
-                else:
-                    ui.print(
-                        f"Model '{choice}' is not supported. Supported models: {', '.join(OPENAI_MODELS)}"
-                    )
-                    continue
-            else:
-                ui.print(
-                    f"Invalid choice. Please enter a number (1-{max_option}) or valid model name."
-                )
-                continue
-
-            # update settings w/ new model
-            if settings:
-                current_settings = settings_manager.load()
-                current_settings.model = selected_model
-                settings_manager.save(current_settings)
-                ui.print(f"✅ Model changed to {selected_model}, retrying...")
-
-            return ValidationOutcome(
-                success=False, should_continue=True, value=selected_model
-            )
-
-
-# * Fail hard strategy that deletes progress files & exits
-class FailHardStrategy(ValidationStrategy):
-    def handle(self, warnings: List[str], ui, settings=None) -> ValidationOutcome:
-        if ui:
-            ui.print("🔴 Validation failed (hard fail) - cleaning up progress files:")
-            for warning in warnings:
-                ui.print(f"   {warning}")
-
-        # clean up progress files
-        deleted_files = []
-        if settings:
-            files_to_delete = [
-                settings.edits_path,
-                settings.diff_path,
-                settings.plan_path,
-                settings.warnings_path,
-            ]
-
-            for file_path in files_to_delete:
-                if file_path.exists():
-                    try:
-                        file_path.unlink()
-                        deleted_files.append(str(file_path))
-                    except Exception as e:
-                        if ui:
-                            ui.print(f"   Could not delete {file_path}: {e}")
-
-            if ui and deleted_files:
-                ui.print("   Deleted files:")
-                for deleted in deleted_files:
-                    ui.print(f"     - {deleted}")
-
-        raise SystemExit(1)
-
-
-# * Validate using strategy pattern
-def validate(
-    validate_fn: Callable[[], List[str]], policy: ValidationPolicy, ui, settings=None
-) -> ValidationOutcome:
-    # convert policies to strategy instances
-    strategies = {
-        ValidationPolicy.ASK: AskStrategy(),
-        ValidationPolicy.RETRY: RetryStrategy(),
-        ValidationPolicy.MANUAL: ManualStrategy(),
-        ValidationPolicy.FAIL_SOFT: FailSoftStrategy(),
-        ValidationPolicy.FAIL_HARD: FailHardStrategy(),
-    }
-
-    strategy = strategies.get(policy, AskStrategy())
-
-    # execute validation function
-    warnings = validate_fn()
-
-    # return success if no warnings found
-    if not warnings:
-        return ValidationOutcome(success=True)
-
-    # process warnings using selected strategy
-    return strategy.handle(warnings, ui, settings)
-
-
 # * Edit JSON validation logic (moved from pipeline.py)
-
-
 def validate_edits(
     edits: dict, resume_lines: dict[int, str], risk: RiskLevel
 ) -> List[str]:
@@ -405,7 +176,6 @@ def validate_edits(
             continue
 
         if op_type == OP_REPLACE_LINE:
-            # Required fields check
             is_valid, error = validate_required_fields(
                 op, ["line", "text"], "replace_line", i
             )
@@ -413,14 +183,12 @@ def validate_edits(
                 warnings.append(error)
                 continue
 
-            # Line number validation
             line = op["line"]
             is_valid, error = validate_line_number(line, i)
             if not is_valid:
                 warnings.append(error)
                 continue
 
-            # Text validation (no newlines for replace_line)
             is_valid, error = validate_text_field(
                 op["text"], allow_newlines=False, op_index=i
             )
@@ -428,18 +196,15 @@ def validate_edits(
                 warnings.append(error)
                 continue
 
-            # Bounds check
             if not check_line_exists(line, resume_lines):
                 warnings.append(f"Op {i}: line {line} not in resume bounds")
                 continue
 
-            # Duplicate check
             if line in line_usage:
                 warnings.append(f"Op {i}: duplicate operation on line {line}")
             line_usage[line] = op_type
 
         elif op_type == OP_REPLACE_RANGE:
-            # Required fields check
             is_valid, error = validate_required_fields(
                 op, ["start", "end", "text"], "replace_range", i
             )
@@ -447,14 +212,12 @@ def validate_edits(
                 warnings.append(error)
                 continue
 
-            # Range bounds validation
             start, end = op["start"], op["end"]
             is_valid, error = validate_range_bounds(start, end, i)
             if not is_valid:
                 warnings.append(error)
                 continue
 
-            # Text validation
             is_valid, error = validate_text_field(
                 op["text"], allow_newlines=True, op_index=i
             )
@@ -462,13 +225,11 @@ def validate_edits(
                 warnings.append(error)
                 continue
 
-            # Range exists check
             exists, missing_line = check_range_exists(start, end, resume_lines)
             if not exists:
                 warnings.append(f"Op {i}: line {missing_line} not in resume bounds")
                 continue
 
-            # Line count mismatch check
             text_line_count = count_text_lines(op["text"])
             range_line_count = end - start + 1
             if text_line_count != range_line_count:
@@ -478,12 +239,10 @@ def validate_edits(
                 else:
                     warnings.append(msg)
 
-            # Duplicate check (uses shared helper)
             dup_warnings = check_range_usage(start, end, line_usage, op_type, i)
             warnings.extend(dup_warnings)
 
         elif op_type == OP_INSERT_AFTER:
-            # Required fields check
             is_valid, error = validate_required_fields(
                 op, ["line", "text"], "insert_after", i
             )
@@ -491,14 +250,12 @@ def validate_edits(
                 warnings.append(error)
                 continue
 
-            # Line number validation
             line = op["line"]
             is_valid, error = validate_line_number(line, i)
             if not is_valid:
                 warnings.append(error)
                 continue
 
-            # Text validation
             is_valid, error = validate_text_field(
                 op["text"], allow_newlines=True, op_index=i
             )
@@ -506,13 +263,11 @@ def validate_edits(
                 warnings.append(error)
                 continue
 
-            # Bounds check
             if not check_line_exists(line, resume_lines):
                 warnings.append(f"Op {i}: line {line} not in resume bounds")
                 continue
 
         elif op_type == OP_DELETE_RANGE:
-            # Required fields check
             is_valid, error = validate_required_fields(
                 op, ["start", "end"], "delete_range", i
             )
@@ -520,27 +275,23 @@ def validate_edits(
                 warnings.append(error)
                 continue
 
-            # Range bounds validation
             start, end = op["start"], op["end"]
             is_valid, error = validate_range_bounds(start, end, i)
             if not is_valid:
                 warnings.append(error)
                 continue
 
-            # Range exists check
             exists, missing_line = check_range_exists(start, end, resume_lines)
             if not exists:
                 warnings.append(f"Op {i}: line {missing_line} not in resume bounds")
                 continue
 
-            # Duplicate check (uses shared helper)
             dup_warnings = check_range_usage(start, end, line_usage, op_type, i)
             warnings.extend(dup_warnings)
 
         else:
             warnings.append(f"Op {i}: unknown operation type '{op_type}'")
 
-    # Cross-operation conflict detection (uses shared helper)
     warnings.extend(validate_operation_interactions(ops))
 
     return warnings

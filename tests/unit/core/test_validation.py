@@ -8,6 +8,10 @@ from unittest.mock import patch, MagicMock
 from src.core.validation import (
     validate_edits,
     ValidationOutcome,
+)
+from src.cli.validation_handlers import (
+    handle_validation_error,
+    validate,
     ValidationStrategy,
     AskStrategy,
     RetryStrategy,
@@ -15,16 +19,14 @@ from src.core.validation import (
     FailSoftStrategy,
     FailHardStrategy,
     ModelRetryStrategy,
-    validate,
 )
-from src.cli.validation_handlers import handle_validation_error
 from src.loom_io.latex_handler import (
     validate_latex_compilation,
     validate_basic_latex_syntax,
 )
 from src.core.constants import RiskLevel, ValidationPolicy
 from src.core.exceptions import ValidationError
-from src.loom_io.types import Lines
+from src.core.types import Lines
 
 
 # * Fixtures for validation testing
@@ -385,7 +387,7 @@ class TestValidationStrategies:
         mock_plan_path.unlink.assert_called_once()
         mock_warnings_path.unlink.assert_called_once()
 
-    @patch("src.core.validation.settings_manager")
+    @patch("src.cli.validation_handlers.settings_manager")
     # * Test ModelRetryStrategy updates model & returns should_continue
     def test_model_retry_strategy_interactive(self, mock_settings_manager):
         strategy = ModelRetryStrategy()
@@ -416,7 +418,7 @@ class TestValidationStrategies:
             assert not exc_info.value.recoverable
             assert "non-interactive" in str(exc_info.value)
 
-    @patch("src.core.validation.settings_manager")
+    @patch("src.cli.validation_handlers.settings_manager")
     # * Test ModelRetryStrategy w/ invalid choice (covers lines 140-142)
     def test_model_retry_strategy_invalid_choice(self, mock_settings_manager):
         strategy = ModelRetryStrategy()
@@ -483,7 +485,7 @@ class TestValidationFlow:
 
         mock_ui = MagicMock()
 
-        with patch("src.core.validation.AskStrategy", return_value=mock_strategy):
+        with patch("src.cli.validation_handlers.AskStrategy", return_value=mock_strategy):
             outcome = validate(mock_validate_fn, ValidationPolicy.ASK, mock_ui)
 
         assert outcome == mock_outcome
@@ -799,7 +801,7 @@ class TestEnsureInteractive:
 class TestModelRetrySourceOfTruth:
 
     # * Test model options come from ai/models.py, not hardcoded
-    @patch("src.core.validation.settings_manager")
+    @patch("src.cli.validation_handlers.settings_manager")
     # * Verify model options from models module
     def test_model_options_from_models_module(self, mock_settings_manager):
         from src.ai.models import OPENAI_MODELS
@@ -816,7 +818,7 @@ class TestModelRetrySourceOfTruth:
         assert outcome.value == OPENAI_MODELS[0]
 
     # * Test model options don't include Claude/Ollama models
-    @patch("src.core.validation.settings_manager")
+    @patch("src.cli.validation_handlers.settings_manager")
     # * Verify model options openai only
     def test_model_options_openai_only(self, mock_settings_manager):
         strategy = ModelRetryStrategy()
@@ -837,7 +839,7 @@ class TestModelRetrySourceOfTruth:
         assert "gpt" in output.lower()
 
     # * Test all OPENAI_MODELS are available as options
-    @patch("src.core.validation.settings_manager")
+    @patch("src.cli.validation_handlers.settings_manager")
     # * Verify all openai models available
     def test_all_openai_models_available(self, mock_settings_manager):
         from src.ai.models import OPENAI_MODELS
@@ -868,7 +870,7 @@ class TestModelRetrySourceOfTruth:
             ("3", 2),
         ],
     )
-    @patch("src.core.validation.settings_manager")
+    @patch("src.cli.validation_handlers.settings_manager")
     # * Verify numeric selection order
     def test_numeric_selection_order(
         self, mock_settings_manager, choice, expected_index
@@ -886,7 +888,7 @@ class TestModelRetrySourceOfTruth:
         assert outcome.value == OPENAI_MODELS[expected_index]
 
     # * Test direct model name input works
-    @patch("src.core.validation.settings_manager")
+    @patch("src.cli.validation_handlers.settings_manager")
     # * Verify direct model name input
     def test_direct_model_name_input(self, mock_settings_manager):
         from src.ai.models import OPENAI_MODELS

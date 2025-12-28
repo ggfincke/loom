@@ -11,15 +11,15 @@ from tests.test_support.rich_capture import (
     extract_plain_text,
 )
 
-from src.core.validation import (
+from src.cli.validation_handlers import (
     AskStrategy,
     RetryStrategy,
     ManualStrategy,
     FailSoftStrategy,
     ModelRetryStrategy,
-    ValidationOutcome,
-    ValidationError,
 )
+from src.core.validation import ValidationOutcome
+from src.core.exceptions import ValidationError
 from src.config.settings import LoomSettings
 
 

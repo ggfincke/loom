@@ -1,17 +1,12 @@
 # src/core/exceptions.py
-# Custom exception hierarchy & centralized error handling for Loom
+# Custom exception hierarchy for Loom (pure - no I/O operations)
 
-import functools
-from typing import List, Callable, TypeVar, Any, cast
-import typer
-
-# type var for decorator typing
-F = TypeVar("F", bound=Callable[..., Any])
+from pathlib import Path
+from typing import List, Any
 
 
 # * Format error message for display (pure string formatting, no I/O)
 def format_error_message(error_type: str, message: str) -> str:
-    # Format error message w/ consistent Rich markup styling.
     return f"[red]{error_type}:[/] {message}"
 
 
@@ -25,14 +20,46 @@ class ValidationError(LoomError):
     def __init__(self, warnings: List[str], recoverable: bool = True):
         self.warnings = warnings
         self.recoverable = recoverable
-        # include warning details in message for clearer error context
         details = "; ".join(warnings) if warnings else "no details"
         message = f"Validation failed with {len(warnings)} warnings: {details}"
         super().__init__(message)
 
 
+# * Edit operation validation failed (e.g., invalid line numbers, conflicts)
+class EditValidationError(ValidationError):
+    pass
+
+
 # * AI-related exceptions
 class AIError(LoomError):
+    pass
+
+
+# * Provider-specific error (API errors, rate limits)
+class ProviderError(AIError):
+    def __init__(self, message: str, provider: str):
+        super().__init__(message)
+        self.provider = provider
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({self.args[0]!r}, provider={self.provider!r})"
+
+
+# * API rate limit exceeded
+class RateLimitError(ProviderError):
+    def __init__(self, message: str, provider: str, retry_after: int | None = None):
+        super().__init__(message, provider)
+        self.retry_after = retry_after
+
+    def __repr__(self) -> str:
+        return (
+            f"{self.__class__.__name__}({self.args[0]!r}, "
+            f"provider={self.provider!r}, retry_after={self.retry_after!r})"
+        )
+
+
+# * Requested model not found or unsupported
+class ModelNotFoundError(AIError):
     pass
 
 
@@ -46,9 +73,67 @@ class ConfigurationError(LoomError):
     pass
 
 
+# * Settings value validation failed
+class SettingsValidationError(ConfigurationError):
+    def __init__(self, message: str, setting_name: str, value: Any):
+        super().__init__(message)
+        self.setting_name = setting_name
+        self.value = value
+
+    def __repr__(self) -> str:
+        return (
+            f"{self.__class__.__name__}({self.args[0]!r}, "
+            f"setting_name={self.setting_name!r}, value={self.value!r})"
+        )
+
+
+# * Required API key not found
+class MissingAPIKeyError(ConfigurationError):
+    def __init__(self, message: str, provider: str, env_var: str):
+        super().__init__(message)
+        self.provider = provider
+        self.env_var = env_var
+
+    def __repr__(self) -> str:
+        return (
+            f"{self.__class__.__name__}({self.args[0]!r}, "
+            f"provider={self.provider!r}, env_var={self.env_var!r})"
+        )
+
+
 # * JSON parsing errors
 class JSONParsingError(LoomError):
     pass
+
+
+# * Base error for document processing
+class DocumentError(LoomError):
+    pass
+
+
+# * Failed to parse document structure
+class DocumentParseError(DocumentError):
+    pass
+
+
+# * Document format not supported
+class UnsupportedFormatError(DocumentError):
+    def __init__(self, message: str, format: str):
+        super().__init__(message)
+        self.format = format
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({self.args[0]!r}, format={self.format!r})"
+
+
+# * Requested section not found in document
+class SectionNotFoundError(DocumentError):
+    def __init__(self, message: str, section_name: str):
+        super().__init__(message)
+        self.section_name = section_name
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({self.args[0]!r}, section_name={self.section_name!r})"
 
 
 # * LaTeX-specific errors
@@ -61,6 +146,75 @@ class TypstError(LoomError):
     pass
 
 
+# * Base error for template loading & validation
+class TemplateError(LoomError):
+    pass
+
+
+# * Template descriptor not found
+class TemplateNotFoundError(TemplateError):
+    pass
+
+
+# * Template descriptor parsing failed
+class TemplateParseError(TemplateError):
+    pass
+
+
+# * Base error for cache operations
+class CacheError(LoomError):
+    pass
+
+
+# * Cache data corrupted
+class CacheCorruptError(CacheError):
+    pass
+
+
+# * Base error for bulk processing
+class BulkProcessingError(LoomError):
+    pass
+
+
+# * Failed to discover jobs
+class JobDiscoveryError(BulkProcessingError):
+    pass
+
+
+# * Max retries exceeded for operation
+class RetryExhaustedError(BulkProcessingError):
+    def __init__(self, message: str, job_id: str, attempts: int):
+        super().__init__(message)
+        self.job_id = job_id
+        self.attempts = attempts
+
+    def __repr__(self) -> str:
+        return (
+            f"{self.__class__.__name__}({self.args[0]!r}, "
+            f"job_id={self.job_id!r}, attempts={self.attempts!r})"
+        )
+
+
+# * Base error for file I/O operations
+class FileOperationError(LoomError):
+    def __init__(self, message: str, path: Path | str):
+        super().__init__(message)
+        self.path = Path(path) if isinstance(path, str) else path
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({self.args[0]!r}, path={self.path!r})"
+
+
+# * Failed to read file
+class FileReadError(FileOperationError):
+    pass
+
+
+# * Failed to write file
+class FileWriteError(FileOperationError):
+    pass
+
+
 # * Dev mode access control errors
 class DevModeError(LoomError):
     pass
@@ -69,77 +223,3 @@ class DevModeError(LoomError):
 # * ATS compatibility check errors
 class ATSError(LoomError):
     pass
-
-
-# * Decorator for handling Loom errors in CLI commands
-# ? Pragmatic exception: This decorator needs console output for error display.
-# ? Lazy import pattern used to avoid circular dependencies while keeping
-# ? error handling centralized in the core layer.
-# todo: Move this decorator to cli/ layer to honor "core is pure (no I/O)" rule.
-# todo: The I/O (console.print + SystemExit) belongs at the CLI boundary, not core.
-def handle_loom_error(func: F) -> F:
-    @functools.wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        from ..loom_io.console import console
-
-        try:
-            return func(*args, **kwargs)
-        except ValidationError as e:
-            if not e.recoverable:
-                console.print(format_error_message("Validation Error", str(e)))
-                raise SystemExit(1)
-            # allow function to continue for recoverable errors
-            return None
-        except JSONParsingError as e:
-            console.print(format_error_message("JSON Parsing Error", str(e)))
-            raise SystemExit(1)
-        except AIError as e:
-            console.print(format_error_message("AI Error", str(e)))
-            raise SystemExit(1)
-        except EditError as e:
-            console.print(format_error_message("Edit Error", str(e)))
-            raise SystemExit(1)
-        except ConfigurationError as e:
-            console.print(format_error_message("Configuration Error", str(e)))
-            raise SystemExit(1)
-        except LaTeXError as e:
-            console.print(format_error_message("LaTeX Error", str(e)))
-            raise SystemExit(1)
-        except TypstError as e:
-            console.print(format_error_message("Typst Error", str(e)))
-            raise SystemExit(1)
-        except DevModeError as e:
-            console.print(format_error_message("Dev Mode Error", str(e)))
-            raise SystemExit(1)
-        except ATSError as e:
-            console.print(format_error_message("ATS Error", str(e)))
-            raise SystemExit(1)
-        except LoomError as e:
-            console.print(format_error_message("Error", str(e)))
-            raise SystemExit(1)
-        except Exception as e:
-            console.print(format_error_message("Unexpected Error", str(e)))
-            raise SystemExit(1)
-
-    return cast(F, wrapper)
-
-
-# * Decorator to require dev mode for development commands
-def require_dev_mode(func: F) -> F:
-    @functools.wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        # ! Lazy import to avoid circular dependencies
-        from ..config.dev_mode import is_dev_mode_enabled
-
-        # extract ctx from args (first positional arg is always typer.Context)
-        ctx = args[0] if args and isinstance(args[0], typer.Context) else None
-
-        # use unified dev mode check w/ ctx for test injection support
-        if not is_dev_mode_enabled(ctx):
-            raise DevModeError(
-                "Development mode required. Enable with: loom config set dev_mode true"
-            )
-
-        return func(*args, **kwargs)
-
-    return cast(F, wrapper)
