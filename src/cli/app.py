@@ -86,7 +86,7 @@ def main_callback(
         ctx.exit()
 
 
-# ! import command modules here to avoid circular import (need 'app' object defined above)
+# ! import command modules here to avoid circular import w/ app object
 from .commands import sectionize as _sectionize  # noqa: F401
 from .commands import generate as _generate  # noqa: F401
 from .commands import apply as _apply  # noqa: F401
@@ -99,4 +99,5 @@ from .commands import templates as _templates  # noqa: F401
 from .commands import init as _init  # noqa: F401
 from .commands import cache as _cache  # noqa: F401
 from .commands import ats as _ats  # noqa: F401
+from .commands import bulk as _bulk  # noqa: F401
 from .commands.dev import display as _display  # noqa: F401

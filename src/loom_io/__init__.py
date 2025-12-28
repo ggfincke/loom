@@ -37,6 +37,14 @@ from .typst_handler import (
     TypstSection,
     TypstAnalysis,
 )
+from .bulk_io import (
+    discover_jobs,
+    deduplicate_job_specs,
+    create_bulk_output_layout,
+    write_run_metadata,
+    write_job_artifacts,
+    write_matrix_files,
+)
 
 __all__ = [
     # Document I/O
@@ -71,4 +79,11 @@ __all__ = [
     "filter_typst_edits",
     "TypstSection",
     "TypstAnalysis",
+    # Bulk I/O
+    "discover_jobs",
+    "deduplicate_job_specs",
+    "create_bulk_output_layout",
+    "write_run_metadata",
+    "write_job_artifacts",
+    "write_matrix_files",
 ]
