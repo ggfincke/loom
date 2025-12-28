@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.5-nightly.20251227] - 2025-12-27
+
+### Added
+- **Bulk processing system**: Multi-job processing w/ parallel execution, retry logic & fail-fast support
+- **Comparison matrix engine**: Fit scoring, keyword extraction/coverage, validation aggregation & stuffing detection
+- **`loom bulk` command**: Process resume against multiple jobs w/ ranked results & matrix output (JSON/markdown)
+
+### Changed
+- **Bulk I/O infrastructure**: Job discovery from directories/manifests/globs, output layout & metadata persistence
+- **CLI integration**: Registered bulk command w/ full ArgResolver & exported bulk I/O functions
+- **Test coverage**: Comprehensive unit tests for bulk types, scoring & I/O operations (900 lines)
+
+---
+
 ## [1.3.4-nightly.20251227] - 2025-12-27
 
 ### Added
