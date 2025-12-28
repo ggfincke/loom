@@ -317,3 +317,124 @@ class TestCountUnsafeClaims:
         count = count_unsafe_claims(edits)
 
         assert count == 0
+
+
+class TestSectionsTouched:
+    # * Maps lines to correct sections
+    def test_maps_lines_to_sections(self):
+        sections_json = """{
+            "sections": [
+                {"name": "EXPERIENCE", "start_line": 10, "end_line": 25, "subsections": []},
+                {"name": "SKILLS", "start_line": 30, "end_line": 40, "subsections": []}
+            ]
+        }"""
+        edits = {
+            "ops": [
+                {"op": "replace_line", "line": 15, "text": "new text"},
+                {"op": "replace_line", "line": 35, "text": "more text"},
+            ]
+        }
+
+        breakdown = analyze_edits(edits, sections_json=sections_json)
+
+        assert "EXPERIENCE" in breakdown.sections_touched
+        assert "SKILLS" in breakdown.sections_touched
+        assert len(breakdown.sections_touched) == 2
+
+    # * Single section touched
+    def test_single_section_touched(self):
+        sections_json = """{
+            "sections": [
+                {"name": "EXPERIENCE", "start_line": 10, "end_line": 25, "subsections": []},
+                {"name": "SKILLS", "start_line": 30, "end_line": 40, "subsections": []}
+            ]
+        }"""
+        edits = {
+            "ops": [{"op": "replace_line", "line": 15, "text": "new text"}]
+        }
+
+        breakdown = analyze_edits(edits, sections_json=sections_json)
+
+        assert breakdown.sections_touched == ["EXPERIENCE"]
+
+    # * Lines outside all sections not mapped
+    def test_no_overlap(self):
+        sections_json = """{
+            "sections": [
+                {"name": "EXPERIENCE", "start_line": 10, "end_line": 25, "subsections": []}
+            ]
+        }"""
+        edits = {
+            "ops": [{"op": "replace_line", "line": 50, "text": "new text"}]
+        }
+
+        breakdown = analyze_edits(edits, sections_json=sections_json)
+
+        assert breakdown.sections_touched == []
+
+    # * Handles nested subsections
+    def test_handles_subsections(self):
+        sections_json = """{
+            "sections": [
+                {
+                    "name": "EXPERIENCE",
+                    "start_line": 10,
+                    "end_line": 50,
+                    "subsections": [
+                        {"name": "JOB", "start_line": 15, "end_line": 25},
+                        {"name": "JOB", "start_line": 30, "end_line": 40}
+                    ]
+                }
+            ]
+        }"""
+        edits = {
+            "ops": [{"op": "replace_line", "line": 20, "text": "new text"}]
+        }
+
+        breakdown = analyze_edits(edits, sections_json=sections_json)
+
+        # should match both parent EXPERIENCE and nested JOB
+        assert "EXPERIENCE" in breakdown.sections_touched
+        assert "JOB" in breakdown.sections_touched
+
+    # * Graceful handling of invalid JSON
+    def test_invalid_json_returns_empty(self):
+        sections_json = "not valid json {{{"
+        edits = {
+            "ops": [{"op": "replace_line", "line": 15, "text": "new text"}]
+        }
+
+        breakdown = analyze_edits(edits, sections_json=sections_json)
+
+        assert breakdown.sections_touched == []
+
+    # * No sections_json returns empty list
+    def test_no_sections_json_returns_empty(self):
+        edits = {
+            "ops": [{"op": "replace_line", "line": 15, "text": "new text"}]
+        }
+
+        breakdown = analyze_edits(edits, sections_json=None)
+
+        assert breakdown.sections_touched == []
+
+    # * Results are sorted alphabetically
+    def test_results_sorted(self):
+        sections_json = """{
+            "sections": [
+                {"name": "SKILLS", "start_line": 10, "end_line": 20, "subsections": []},
+                {"name": "EDUCATION", "start_line": 25, "end_line": 35, "subsections": []},
+                {"name": "EXPERIENCE", "start_line": 40, "end_line": 50, "subsections": []}
+            ]
+        }"""
+        edits = {
+            "ops": [
+                {"op": "replace_line", "line": 15, "text": "skills edit"},
+                {"op": "replace_line", "line": 30, "text": "edu edit"},
+                {"op": "replace_line", "line": 45, "text": "exp edit"},
+            ]
+        }
+
+        breakdown = analyze_edits(edits, sections_json=sections_json)
+
+        assert breakdown.sections_touched == ["EDUCATION", "EXPERIENCE", "SKILLS"]

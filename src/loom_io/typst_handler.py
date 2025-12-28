@@ -124,6 +124,21 @@ def detect_template(resume_path: Path, content: str) -> TemplateDescriptor | Non
 
     if descriptor_path:
         return load_descriptor(descriptor_path, inline_marker)
+
+    # fallback: create minimal descriptor from inline marker if present
+    if inline_marker:
+        return TemplateDescriptor(
+            id=inline_marker,
+            name=inline_marker,
+            type="resume",
+            version=None,
+            sections={},
+            frozen=FrozenRules(),
+            custom={},
+            inline_marker=inline_marker,
+            inline_only=True,
+        )
+
     return None
 
 
@@ -522,6 +537,58 @@ def validate_typst_compilation(content: str) -> Tuple[bool, str]:
             temp_path.unlink(missing_ok=True)
 
 
+# * Check availability of Typst compiler
+def check_typst_availability() -> Dict[str, bool]:
+    result = {"typst": False}
+    try:
+        subprocess.run(
+            ["typst", "--version"],
+            capture_output=True,
+            timeout=5,
+        )
+        result["typst"] = True
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+    return result
+
+
+# * Validate Typst document w/ optional compilation check
+def validate_typst_document(
+    content: str, check_compilation: bool = True
+) -> Dict[str, Any]:
+    result: Dict[str, Any] = {
+        "syntax_valid": False,
+        "compilation_checked": False,
+        "compilation_success": False,
+        "errors": [],
+        "warnings": [],
+    }
+
+    # check basic syntax first
+    if validate_basic_typst_syntax(content):
+        result["syntax_valid"] = True
+    else:
+        result["errors"].append("Typst syntax validation failed (unbalanced delimiters or unterminated string)")
+        return result
+
+    # optionally check compilation
+    if check_compilation:
+        availability = check_typst_availability()
+        if availability["typst"]:
+            try:
+                success, message = validate_typst_compilation(content)
+                result["compilation_checked"] = True
+                result["compilation_success"] = success
+                if not success:
+                    result["errors"].append(message)
+            except Exception as e:
+                result["errors"].append(f"Compilation validation error: {e}")
+        else:
+            result["warnings"].append("Typst compiler not available; skipping compilation check")
+
+    return result
+
+
 # * Build context tuple for Typst document (similar to LaTeX)
 def build_typst_context(
     resume_path: Path, lines: Lines, text: str
@@ -548,5 +615,7 @@ __all__ = [
     "filter_typst_edits",
     "validate_basic_typst_syntax",
     "validate_typst_compilation",
+    "check_typst_availability",
+    "validate_typst_document",
     "build_typst_context",
 ]

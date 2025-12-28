@@ -12,6 +12,8 @@ from src.loom_io.typst_handler import (
     find_frozen_ranges,
     is_in_frozen_range,
     validate_basic_typst_syntax,
+    validate_typst_document,
+    check_typst_availability,
     build_typst_context,
 )
 from src.loom_io.documents import read_typst
@@ -216,3 +218,87 @@ def test_filter_typst_edits_respects_frozen_ranges():
     remaining_lines = [op["line"] for op in filtered["ops"]]
     assert 5 in remaining_lines
     assert 2 not in remaining_lines
+
+
+# * Test check_typst_availability returns dict structure
+def test_check_typst_availability_returns_dict():
+    result = check_typst_availability()
+    assert isinstance(result, dict)
+    assert "typst" in result
+    assert isinstance(result["typst"], bool)
+
+
+# * Test validate_typst_document with valid syntax
+def test_validate_typst_document_valid_syntax():
+    valid_typst = """
+#set page(margin: 1in)
+#let entry(title) = {
+  text(title)
+}
+= Experience
+- Bullet point
+"""
+    result = validate_typst_document(valid_typst, check_compilation=False)
+
+    assert result["syntax_valid"] is True
+    assert result["compilation_checked"] is False
+    assert result["errors"] == []
+
+
+# * Test validate_typst_document with invalid syntax (early return)
+def test_validate_typst_document_invalid_syntax():
+    invalid_typst = """
+#set page(margin: 1in
+= Experience
+"""
+    result = validate_typst_document(invalid_typst, check_compilation=True)
+
+    assert result["syntax_valid"] is False
+    assert result["compilation_checked"] is False  # skipped due to syntax failure
+    assert len(result["errors"]) > 0
+    assert "syntax" in result["errors"][0].lower() or "unbalanced" in result["errors"][0].lower()
+
+
+# * Test validate_typst_document result structure
+def test_validate_typst_document_result_structure():
+    result = validate_typst_document("= Test", check_compilation=False)
+
+    assert "syntax_valid" in result
+    assert "compilation_checked" in result
+    assert "compilation_success" in result
+    assert "errors" in result
+    assert "warnings" in result
+    assert isinstance(result["errors"], list)
+    assert isinstance(result["warnings"], list)
+
+
+# * Test detect_template returns inline-only descriptor when marker exists but no TOML
+def test_detect_template_inline_only_fallback(tmp_path):
+    # Create a Typst file with inline marker but no loom-template.toml
+    typst_content = """// loom-template: my-custom-template
+#set page(margin: 1in)
+= Experience
+"""
+    typst_file = tmp_path / "resume.typ"
+    typst_file.write_text(typst_content, encoding="utf-8")
+
+    descriptor = detect_template(typst_file, typst_content)
+
+    assert descriptor is not None
+    assert descriptor.id == "my-custom-template"
+    assert descriptor.inline_marker == "my-custom-template"
+    assert descriptor.inline_only is True
+    assert descriptor.sections == {}
+
+
+# * Test detect_template returns None when no marker and no TOML
+def test_detect_template_returns_none_without_marker(tmp_path):
+    typst_content = """#set page(margin: 1in)
+= Experience
+"""
+    typst_file = tmp_path / "resume.typ"
+    typst_file.write_text(typst_content, encoding="utf-8")
+
+    descriptor = detect_template(typst_file, typst_content)
+
+    assert descriptor is None

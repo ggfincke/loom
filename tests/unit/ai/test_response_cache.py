@@ -303,3 +303,130 @@ class TestCacheKeyGeneration(TestResponseCache):
         # should be 16 char hex string (first 16 chars of SHA256)
         assert len(key) == 16
         assert all(c in "0123456789abcdef" for c in key)
+
+
+class TestCacheLimits(TestResponseCache):
+    # Test LRU eviction & size limits.
+
+    # * Verify max entries eviction
+    def test_max_entries_eviction(self, temp_cache_dir, sample_result):
+        cache = ResponseCache(
+            cache_dir=temp_cache_dir, ttl_days=7, enabled=True, max_entries=3
+        )
+
+        # add 5 entries (exceeds limit of 3)
+        for i in range(5):
+            cache.set(f"prompt{i}", "gpt-4", 0.2, sample_result)
+
+        # should only have 3 entries (oldest 2 evicted)
+        stats = cache.stats()
+        assert stats["entries"] == 3
+
+    # * Verify max size eviction
+    def test_max_size_eviction(self, temp_cache_dir, sample_result):
+        # use a very small size limit (1 KB)
+        cache = ResponseCache(
+            cache_dir=temp_cache_dir,
+            ttl_days=7,
+            enabled=True,
+            max_entries=0,  # no entry limit
+            max_size_mb=0,  # we'll set bytes manually for testing
+        )
+
+        # add entries
+        cache.set("prompt1", "gpt-4", 0.2, sample_result)
+        cache.set("prompt2", "gpt-4", 0.2, sample_result)
+
+        # manually override size limit to something smaller than current size
+        cache._max_size_mb = 1  # 1 MB (entries are ~200 bytes each, so won't evict)
+        cache._enforce_limits()
+
+        # entries should still be there (under 1MB)
+        stats = cache.stats()
+        assert stats["entries"] == 2
+
+    # * Verify corrupted entries evicted first
+    def test_corrupted_entries_evicted_first(self, temp_cache_dir, sample_result):
+        cache = ResponseCache(
+            cache_dir=temp_cache_dir, ttl_days=7, enabled=True, max_entries=2
+        )
+
+        # add valid entry
+        cache.set("prompt1", "gpt-4", 0.2, sample_result)
+
+        # create corrupted entry manually
+        corrupted_path = temp_cache_dir / "corrupted.json"
+        corrupted_path.write_text("not valid json {{{")
+
+        # add another valid entry (should evict corrupted first)
+        cache.set("prompt2", "gpt-4", 0.2, sample_result)
+
+        # corrupted entry should be gone, both valid entries remain
+        assert not corrupted_path.exists()
+        stats = cache.stats()
+        assert stats["entries"] == 2
+
+    # * Verify stats include limits
+    def test_stats_include_limits(self, temp_cache_dir):
+        cache = ResponseCache(
+            cache_dir=temp_cache_dir, ttl_days=7, enabled=True, max_entries=100, max_size_mb=50
+        )
+
+        stats = cache.stats()
+        assert stats["max_entries"] == 100
+        assert stats["max_size_mb"] == 50
+
+    # * Verify unlimited limits shown as string
+    def test_stats_unlimited_limits(self, temp_cache_dir):
+        cache = ResponseCache(
+            cache_dir=temp_cache_dir, ttl_days=7, enabled=True, max_entries=0, max_size_mb=0
+        )
+
+        stats = cache.stats()
+        assert stats["max_entries"] == "unlimited"
+        assert stats["max_size_mb"] == "unlimited"
+
+
+class TestCacheThreadSafety(TestResponseCache):
+    # Test thread-local disable override.
+
+    def setup_method(self):
+        reset_response_cache()
+
+    def teardown_method(self):
+        reset_response_cache()
+
+    # * Verify thread local disable works
+    def test_thread_local_disable(self):
+        import threading
+
+        results = {}
+
+        def thread_fn(name, should_disable):
+            if should_disable:
+                disable_cache_for_invocation()
+            cache = get_response_cache()
+            results[name] = cache.enabled
+
+        # main thread: cache enabled
+        cache = get_response_cache()
+        assert cache.enabled is True
+
+        # thread 1: disable cache
+        t1 = threading.Thread(target=thread_fn, args=("t1", True))
+        t1.start()
+        t1.join()
+
+        # thread 2: don't disable (fresh thread-local state)
+        t2 = threading.Thread(target=thread_fn, args=("t2", False))
+        t2.start()
+        t2.join()
+
+        # t1 should have disabled, t2 should not
+        assert results["t1"] is False
+        assert results["t2"] is True
+
+        # main thread should still be enabled
+        reset_response_cache()
+        cache = get_response_cache()
+        assert cache.enabled is True

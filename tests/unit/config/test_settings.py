@@ -321,6 +321,8 @@ class TestSettingsManager:
             "cache_enabled",
             "cache_ttl_days",
             "cache_dir",
+            "cache_max_entries",
+            "cache_max_size_mb",
             "watch_debounce",
         }
         assert set(all_settings.keys()) == expected_keys
