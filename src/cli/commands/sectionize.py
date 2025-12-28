@@ -16,11 +16,11 @@ from ...loom_io import (
     detect_template,
     analyze_latex,
     sections_to_payload,
-    number_lines,
 )
-from ...core.exceptions import handle_loom_error
+from ...core.types import number_lines
 
 from ..app import app
+from ..decorators import handle_loom_error
 from ..helpers import handle_help_flag, validate_required_args
 from ...ui.core.progress import setup_ui_with_progress
 from ...ui.display.reporting import report_result
@@ -140,7 +140,7 @@ def sectionize(
             prompt = build_sectionizer_prompt(numbered)
             result = run_generate(prompt, model=model)
 
-            # handle JSON parsing errors
+            # Handle JSON parsing errors
             if not result.success:
                 from ...core.exceptions import AIError
 
@@ -150,7 +150,7 @@ def sectionize(
 
             data = result.data
             assert data is not None, "Expected non-None data from successful AI result"
-            # normalize short keys (k->kind, h->heading_text, etc.) to full keys
+            # Normalize short keys (k->kind, h->heading_text, etc.) to full keys
             data = normalize_sections_response(data)
             progress.advance(task)
 

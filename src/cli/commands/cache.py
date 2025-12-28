@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import typer
 
-from ...ai.response_cache import get_response_cache
+from ...ai.cache import get_response_cache
 from ...loom_io.console import console
 from ...ui.theming.theme_engine import (
     styled_checkmark,
@@ -34,7 +34,7 @@ def _print_cache_stats() -> None:
     console.print(accent_gradient("Cache Statistics"))
     console.print()
 
-    # display each stat w/ styled formatting
+    # Display each stat w/ styled formatting
     stat_lines = [
         ("enabled", "Yes" if stats["enabled"] else "No"),
         ("cache_dir", stats["cache_dir"]),

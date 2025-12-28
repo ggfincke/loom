@@ -8,9 +8,9 @@ from typing import Optional
 import typer
 
 from ...core.constants import RiskLevel, ValidationPolicy
-from ...core.exceptions import handle_loom_error
 
 from ..app import app
+from ..decorators import handle_loom_error, run_with_watch
 from ..helpers import handle_help_flag, run_tailoring_command
 from ..runner import TailoringMode
 from ..params import (
@@ -24,7 +24,6 @@ from ..params import (
     UserPromptOpt,
     WatchOpt,
 )
-from ..watch import WatchRunner
 from ...config.settings import get_settings
 from ...ui.help.help_data import command_help
 
@@ -69,13 +68,12 @@ def generate(
 ) -> None:
     handle_help_flag(ctx, help, "generate")
 
-    # watch mode: wrap execution in file watcher
+    # Watch mode: wrap execution in file watcher
     if watch:
         settings = get_settings(ctx)
-        paths_to_watch = [p for p in [resume, job, sections_path] if p is not None]
-
-        def run_once():
-            run_tailoring_command(
+        run_with_watch(
+            paths=[resume, job, sections_path],
+            run_func=lambda: run_tailoring_command(
                 ctx,
                 TailoringMode.GENERATE,
                 resume=resume,
@@ -86,10 +84,9 @@ def generate(
                 risk=risk,
                 on_error=on_error,
                 user_prompt=user_prompt,
-            )
-
-        runner = WatchRunner(paths_to_watch, run_once, settings.watch_debounce)
-        runner.start()
+            ),
+            debounce=settings.watch_debounce,
+        )
         return
 
     run_tailoring_command(

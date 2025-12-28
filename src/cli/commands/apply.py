@@ -8,9 +8,9 @@ from typing import Optional
 import typer
 
 from ...core.constants import RiskLevel, ValidationPolicy
-from ...core.exceptions import handle_loom_error
 
 from ..app import app
+from ..decorators import handle_loom_error, run_with_watch
 from ..helpers import handle_help_flag, is_test_environment, run_tailoring_command
 from ..runner import TailoringMode
 from ..params import (
@@ -26,7 +26,6 @@ from ..params import (
     SectionsPathOpt,
     WatchOpt,
 )
-from ..watch import WatchRunner
 from ...config.settings import get_settings
 from ...ui.help.help_data import command_help
 
@@ -68,19 +67,16 @@ def apply(
 ) -> None:
     handle_help_flag(ctx, help, "apply")
 
-    # determine interactive mode: use interactive setting unless in test env
-    # watch mode implies non-interactive (auto mode)
+    # Determine interactive mode: use interactive setting unless in test env
+    # Watch mode implies non-interactive (auto mode)
     settings = get_settings(ctx)
     interactive_mode = settings.interactive and not is_test_environment() and not watch
 
-    # watch mode: wrap execution in file watcher
+    # Watch mode: wrap execution in file watcher
     if watch:
-        paths_to_watch = [
-            p for p in [resume, edits_json, sections_path] if p is not None
-        ]
-
-        def run_once():
-            run_tailoring_command(
+        run_with_watch(
+            paths=[resume, edits_json, sections_path],
+            run_func=lambda: run_tailoring_command(
                 ctx,
                 TailoringMode.APPLY,
                 resume=resume,
@@ -94,10 +90,9 @@ def apply(
                 preserve_formatting=preserve_formatting,
                 preserve_mode=preserve_mode,
                 interactive=False,
-            )
-
-        runner = WatchRunner(paths_to_watch, run_once, settings.watch_debounce)
-        runner.start()
+            ),
+            debounce=settings.watch_debounce,
+        )
         return
 
     run_tailoring_command(

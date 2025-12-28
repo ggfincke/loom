@@ -8,9 +8,9 @@ from typing import Optional
 import typer
 
 from ...core.constants import RiskLevel, ValidationPolicy
-from ...core.exceptions import handle_loom_error
 
 from ..app import app
+from ..decorators import handle_loom_error
 from ..helpers import handle_help_flag, run_tailoring_command
 from ..runner import TailoringMode
 from ..params import (
@@ -61,7 +61,7 @@ def plan(
 ) -> None:
     handle_help_flag(ctx, help, "plan")
 
-    # unused but planned
+    # Unused but planned
     _ = plan
 
     run_tailoring_command(

@@ -11,10 +11,10 @@ import typer
 from ...config.settings import get_settings
 from ...core.bulk_types import JobStatus
 from ...core.constants import RiskLevel, ValidationPolicy
-from ...core.exceptions import handle_loom_error
 from ...loom_io.console import console
 
 from ..app import app
+from ..decorators import handle_loom_error
 from ..bulk_runner import BulkRunner, BulkConfig
 from ..params import (
     ResumeArg,
@@ -82,10 +82,10 @@ def bulk(
     preserve_formatting: bool = PreserveFormattingOpt(),
     preserve_mode: str = PreserveModeOpt(),
 ) -> None:
-    # resolve settings
+    # Resolve settings
     settings = get_settings(ctx)
 
-    # resolve defaults
+    # Resolve defaults
     if resume is None:
         resume = settings.resume_path
     if model is None:
@@ -95,10 +95,10 @@ def bulk(
     if risk is None:
         risk = RiskLevel.MED
     if on_error is None:
-        # bulk defaults to fail_soft (non-interactive)
+        # Bulk defaults to fail_soft (non-interactive)
         on_error = ValidationPolicy.FAIL_SOFT
 
-    # validate required args
+    # Validate required args
     if resume is None or not resume.exists():
         console.print("[red]Error: Resume file not found[/]")
         raise typer.Exit(1)
@@ -106,7 +106,7 @@ def bulk(
         console.print("[red]Error: Model required (--model or set in config)[/]")
         raise typer.Exit(1)
 
-    # build config
+    # Build config
     config = BulkConfig(
         resume=resume,
         jobs_path=Path(jobs) if not any(c in jobs for c in "*?[") else jobs,
@@ -121,10 +121,10 @@ def bulk(
         preserve_mode=preserve_mode,
     )
 
-    # create runner with progress callbacks
+    # Create runner w/ progress callbacks
     runner = BulkRunner(config, settings)
 
-    # progress callbacks
+    # Progress callbacks
     def on_start(spec, current, total):
         name = spec.name or spec.id
         console.print(f"[dim]({current}/{total})[/] Processing [cyan]{name}[/]...")
@@ -146,7 +146,7 @@ def bulk(
     runner.on_job_complete = on_complete
     runner.on_retry = on_retry
 
-    # header
+    # Header
     console.print()
     console.print("[bold]Bulk Processing[/]")
     console.print(f"  Jobs: {jobs}")
@@ -155,10 +155,10 @@ def bulk(
     console.print(f"  Workers: {parallel}")
     console.print()
 
-    # run
+    # Run
     result = runner.run()
 
-    # summary
+    # Summary
     console.print()
     console.print("[bold]Results[/]")
     console.print(f"  Total: {len(result.jobs)}")
@@ -172,7 +172,7 @@ def bulk(
     console.print(f"  Output: {result.output_dir}")
     console.print(f"  Matrix: {result.output_dir / 'matrix.md'}")
 
-    # show top 3
+    # Show top 3
     ranked = result.ranked_jobs()[:3]
     if ranked:
         console.print()

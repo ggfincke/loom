@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import typer
 
-from ....core.exceptions import handle_loom_error, require_dev_mode
+from ...decorators import handle_loom_error, require_dev_mode
 from ....core.constants import EditOperation
 from ....ui.diff_resolution.diff_display import main_display_loop
 from ....ui.help.help_data import command_help
@@ -35,10 +35,10 @@ def display(
         False, "--help", "-h", help="Show help message and exit."
     ),
 ) -> None:
-    # detect help flag & display custom help
+    # Detect help flag & display custom help
     handle_help_flag(ctx, help, "display")
 
-    # create sample edit operations for testing
+    # Create sample edit operations for testing
     sample_operations = [
         EditOperation(
             operation="replace_line",
@@ -80,5 +80,5 @@ def display(
         ),
     ]
 
-    # run the display diff interface w/ sample operations
+    # Run the display diff interface w/ sample operations
     main_display_loop(sample_operations)

@@ -1,8 +1,8 @@
 # src/cli/app.py
 # Root Typer application & command registration
-#
+
 # ! High import count is intentional: app.py is the CLI entry point that must
-# ! register all commands at module load time. This is standard Typer architecture.
+# ! Register all commands at module load time. This is standard Typer architecture.
 # ! Command imports at bottom of file are deferred to avoid circular dependencies.
 
 from __future__ import annotations
@@ -42,6 +42,9 @@ def main_callback(
     verbose: bool = typer.Option(
         False, "--verbose", "-v", help="Enable verbose logging for debugging"
     ),
+    quiet: bool = typer.Option(
+        False, "--quiet", "-q", help="Suppress all output except errors"
+    ),
     log_file: Optional[Path] = typer.Option(
         None, "--log-file", help="Write verbose logs to file (enables verbose mode)"
     ),
@@ -60,14 +63,28 @@ def main_callback(
     if getattr(ctx, "obj", None) is None:
         ctx.obj = settings_manager.load()
 
-    # initialize verbose logging if requested
+    # initialize unified output manager
     # must be after settings load to check dev_mode
-    from ..core.verbose import init_verbose
+    from ..core.output import OutputLevel, set_output_manager
+    from .output_manager import OutputManager
 
-    # log_file implies verbose mode
-    verbose_enabled = verbose or log_file is not None
+    # determine requested output level
+    if log_file is not None or verbose:
+        requested_level = OutputLevel.VERBOSE
+    else:
+        requested_level = OutputLevel.NORMAL
+
     dev_mode = ctx.obj.dev_mode if hasattr(ctx.obj, "dev_mode") else False
-    init_verbose(enabled=verbose_enabled, log_file=log_file, dev_mode=dev_mode)
+
+    # create, initialize & register output manager
+    output_manager = OutputManager()
+    output_manager.initialize(
+        requested_level=requested_level,
+        dev_mode=dev_mode,
+        quiet=quiet,
+        log_file=log_file,
+    )
+    set_output_manager(output_manager)
 
     if ctx.invoked_subcommand is None:
         if help_raw:

@@ -10,7 +10,8 @@ import typer
 
 from ...ai.prompts import build_ats_prompt
 from ...ai.clients import run_generate
-from ...loom_io import read_resume, write_json_safe, number_lines
+from ...loom_io import read_resume, write_json_safe
+from ...core.types import number_lines
 from ...core.ats_analyzer import (
     ATSReport,
     ATSIssue,
@@ -20,9 +21,10 @@ from ...core.ats_analyzer import (
     calculate_score,
     generate_recommendations,
 )
-from ...core.exceptions import handle_loom_error, ATSError
+from ...core.exceptions import ATSError
 
 from ..app import app
+from ..decorators import handle_loom_error
 from ..helpers import handle_help_flag, validate_required_args
 from ...ui.core.progress import setup_ui_with_progress
 from ...ui.display.ats_report import render_ats_report, render_ats_summary
@@ -197,11 +199,11 @@ def ats(
             "LaTeX files don't have the same structural issues (tables, columns, etc.)."
         )
 
-    # validate fail_on value
+    # Validate fail_on value
     if fail_on and fail_on.lower() not in ("critical", "warning"):
         raise ATSError("--fail-on must be 'critical' or 'warning'")
 
-    # determine number of steps
+    # Determine number of steps
     total_steps = 2 if no_ai else 4
 
     with setup_ui_with_progress(
@@ -211,12 +213,12 @@ def ats(
         progress,
         task,
     ):
-        # step 1: structural analysis
+        # Step 1: structural analysis
         progress.update(task, description="Scanning document structure...")
         report = analyze_resume_ats(resume_path)
         progress.advance(task)
 
-        # step 2: AI content analysis (optional)
+        # Step 2: AI content analysis (optional)
         if not no_ai:
             assert model is not None
 
@@ -231,7 +233,7 @@ def ats(
 
             if result.success and result.data:
                 ai_issues = _parse_ai_issues(result.data)
-                # merge AI issues into report
+                # Merge AI issues into report
                 report.issues.extend(ai_issues)
                 report.score = calculate_score(report.issues)
                 report.recommendations = generate_recommendations(report.issues)
@@ -247,20 +249,20 @@ def ats(
 
             progress.advance(task)
 
-        # step 3: output
+        # Step 3: output
         progress.update(task, description="Generating report...")
         if out_json:
             write_json_safe(report.to_dict(), out_json)
         progress.advance(task)
 
-    # render report to console
+    # Render report to console
     render_ats_report(report)
 
-    # show JSON path if written
+    # Show JSON path if written
     if out_json:
         render_ats_summary(report, str(out_json))
 
-    # handle --fail-on exit codes
+    # Handle --fail-on exit codes
     if fail_on:
         fail_level = fail_on.lower()
         if fail_level == "critical" and report.critical_count > 0:

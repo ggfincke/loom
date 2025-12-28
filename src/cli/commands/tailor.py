@@ -8,9 +8,9 @@ from typing import Optional
 import typer
 
 from ...core.constants import RiskLevel, ValidationPolicy
-from ...core.exceptions import handle_loom_error
 
 from ..app import app
+from ..decorators import handle_loom_error, run_with_watch
 from ..helpers import handle_help_flag, is_test_environment, run_tailoring_command
 from ..runner import TailoringMode
 from ..params import (
@@ -29,7 +29,6 @@ from ..params import (
     NoCacheOpt,
     WatchOpt,
 )
-from ..watch import WatchRunner
 from ...ui.help.help_data import command_help
 from ...config.settings import get_settings
 
@@ -86,20 +85,20 @@ def tailor(
 ) -> None:
     handle_help_flag(ctx, help, "tailor")
 
-    # disable cache if --no-cache flag is set
+    # Disable cache if --no-cache flag is set
     if no_cache:
-        from ...ai.response_cache import disable_cache_for_invocation
+        from ...ai.cache import disable_cache_for_invocation
 
         disable_cache_for_invocation()
 
-    # validate mutually exclusive flags
+    # Validate mutually exclusive flags
     if edits_only and apply:
         from ...loom_io.console import console
 
         console.print("[red]Error: --edits-only & --apply are mutually exclusive[/]")
         ctx.exit(1)
 
-    # determine mode
+    # Determine mode
     if apply:
         mode = TailoringMode.APPLY
     elif edits_only:
@@ -107,19 +106,18 @@ def tailor(
     else:
         mode = TailoringMode.TAILOR
 
-    # determine interactive mode: use interactive setting unless --auto or in test env
-    # watch mode implies auto (no interactive prompts on each re-run)
+    # Determine interactive mode: use interactive setting unless --auto or in test env
+    # Watch mode implies auto (no interactive prompts on each re-run)
     settings = get_settings(ctx)
     if watch:
         auto = True
     interactive_mode = settings.interactive and not auto and not is_test_environment()
 
-    # watch mode: wrap execution in file watcher
+    # Watch mode: wrap execution in file watcher
     if watch:
-        paths_to_watch = [p for p in [resume, job, sections_path] if p is not None]
-
-        def run_once():
-            run_tailoring_command(
+        run_with_watch(
+            paths=[resume, job, sections_path],
+            run_func=lambda: run_tailoring_command(
                 ctx,
                 mode,
                 resume=resume,
@@ -134,10 +132,9 @@ def tailor(
                 preserve_mode=preserve_mode,
                 interactive=False,
                 user_prompt=user_prompt,
-            )
-
-        runner = WatchRunner(paths_to_watch, run_once, settings.watch_debounce)
-        runner.start()
+            ),
+            debounce=settings.watch_debounce,
+        )
         return
 
     run_tailoring_command(
