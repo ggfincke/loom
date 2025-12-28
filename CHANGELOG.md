@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.6-nightly.20251227] - 2025-12-27
+
+### Added
+- **Section mapping**: Edit analysis w/ sections.json integration
+- **Cache LRU eviction**: Max entries & size limits w/ thread-local disable
+- **Typst validation**: Compiler availability checks & inline-only descriptor fallback
+
+---
+
 ## [1.3.5-nightly.20251227] - 2025-12-27
 
 ### Added
