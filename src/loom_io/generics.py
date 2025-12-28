@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Any, Union
 import json
 
-from .types import Lines
 from ..core.verbose import vlog_file_read, vlog_file_write
 
 
@@ -61,8 +60,3 @@ def exit_with_error(msg: str, code: int = 1) -> None:
     typer.echo(msg, err=True)
     raise typer.Exit(code)
 
-
-# * Format resume lines w/ right-aligned 4-char line numbers
-def number_lines(resume: Lines) -> str:
-    # Format resume lines w/ right-aligned 4-char line numbers.
-    return "\n".join(f"{i:>4} {text}" for i, text in sorted(resume.items()))

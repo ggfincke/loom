@@ -17,9 +17,7 @@ from .generics import (
     read_json_safe,
     ensure_parent,
     exit_with_error,
-    number_lines,
 )
-from .types import Lines
 from .latex_handler import (
     detect_template,
     analyze_latex,
@@ -62,8 +60,6 @@ __all__ = [
     "read_json_safe",
     "ensure_parent",
     "exit_with_error",
-    "number_lines",
-    "Lines",
     # LaTeX
     "detect_template",
     "analyze_latex",
