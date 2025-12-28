@@ -21,7 +21,7 @@ from .diff_renderer import DiffRenderer, OPTIONS, MIN_W, MAX_W, MIN_H, MAX_H, _c
 from .diff_input import DiffInputHandler
 
 if TYPE_CHECKING:
-    from ...loom_io.types import Lines
+    from ...core.types import Lines
     from ...core.constants import EditOperation
 
 from ...loom_io.console import console

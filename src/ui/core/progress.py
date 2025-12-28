@@ -9,7 +9,7 @@ from typing import Generator, Any
 from .rich_components import Progress
 
 from ...loom_io import read_resume, read_text, read_json_safe
-from ...loom_io.types import Lines
+from ...core.types import Lines
 from .ui import UI
 
 

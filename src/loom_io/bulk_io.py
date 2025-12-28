@@ -13,14 +13,14 @@ from typing import Any
 
 from .generics import ensure_parent, write_json_safe
 from ..core.bulk_types import JobSpec, BulkResult
+from ..core.exceptions import JobDiscoveryError, ConfigurationError
 
 
-# * Discover jobs from path (directory, manifest, or glob pattern)
-# discover jobs from directory (glob *.txt & *.md), manifest file (.yaml/.json), or glob pattern (*, ?, [)
+# * Discover jobs from directory (glob *.txt & *.md), manifest file (.yaml/.json), or glob pattern (*, ?, [)
 def discover_jobs(jobs_path: Path | str) -> list[JobSpec]:
     path_str = str(jobs_path)
 
-    # check for glob characters
+    # Check for glob characters
     if any(c in path_str for c in "*?["):
         return _discover_from_glob(path_str)
 
@@ -31,13 +31,13 @@ def discover_jobs(jobs_path: Path | str) -> list[JobSpec]:
     elif path.suffix.lower() in (".yaml", ".yml", ".json"):
         return _discover_from_manifest(path)
     elif path.is_file():
-        # single file - treat as single job
+        # Single file - treat as single job
         return [JobSpec.from_path(path)]
     else:
         raise FileNotFoundError(f"Jobs path not found: {jobs_path}")
 
 
-# discover job files from directory (*.txt, *.md)
+# Discover job files from directory (*.txt, *.md)
 def _discover_from_directory(directory: Path) -> list[JobSpec]:
     jobs: list[JobSpec] = []
     for pattern in ("*.txt", "*.md"):
@@ -46,15 +46,22 @@ def _discover_from_directory(directory: Path) -> list[JobSpec]:
     return jobs
 
 
-# expand glob pattern to job specs
+# Expand glob pattern to job specs
 def _discover_from_glob(pattern: str) -> list[JobSpec]:
     paths = sorted(Path(p) for p in glob_module.glob(pattern))
     return [JobSpec.from_path(p) for p in paths if p.is_file()]
 
 
-# parse manifest file (YAML or JSON) for job specs
+# Parse manifest file (YAML or JSON) for job specs
 def _discover_from_manifest(manifest_path: Path) -> list[JobSpec]:
-    content = manifest_path.read_text(encoding="utf-8")
+    try:
+        content = manifest_path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        raise JobDiscoveryError(f"Manifest file not found: {manifest_path}")
+    except UnicodeDecodeError as e:
+        raise JobDiscoveryError(
+            f"Cannot decode manifest file {manifest_path}: {e}"
+        ) from e
 
     if manifest_path.suffix.lower() in (".yaml", ".yml"):
         try:
@@ -62,14 +69,21 @@ def _discover_from_manifest(manifest_path: Path) -> list[JobSpec]:
 
             data = yaml.safe_load(content)
         except ImportError:
-            raise ImportError(
-                "PyYAML required for YAML manifest files.\n"
-                "Options:\n"
-                "  1. Install: pip install pyyaml\n"
-                "  2. Use JSON manifest instead (same schema, .json extension)"
+            raise ConfigurationError(
+                "PyYAML required for YAML manifest files. "
+                "Install with: pip install pyyaml"
             )
+        except yaml.YAMLError as e:
+            raise JobDiscoveryError(
+                f"Invalid YAML in manifest {manifest_path}: {e}"
+            ) from e
     else:
-        data = json.loads(content)
+        try:
+            data = json.loads(content)
+        except json.JSONDecodeError as e:
+            raise JobDiscoveryError(
+                f"Invalid JSON in manifest {manifest_path}: {e}"
+            ) from e
 
     jobs: list[JobSpec] = []
     base_dir = manifest_path.parent
@@ -88,27 +102,27 @@ def _discover_from_manifest(manifest_path: Path) -> list[JobSpec]:
     return jobs
 
 
-# sanitize string for use as directory name
+# Sanitize string for use as directory name
 def _sanitize_dirname(name: str) -> str:
-    # replace unsafe chars w/ underscore
+    # Replace unsafe chars w/ underscore
     safe = re.sub(r'[<>:"/\\|?*\s]+', "_", name)
-    # remove leading/trailing underscores & dots
+    # Remove leading/trailing underscores & dots
     return safe.strip("_.")
 
 
-# ensure unique IDs by sanitizing & truncating to max_len, then suffixing duplicates AFTER truncation to handle prefix collisions
+# Ensure unique IDs by sanitizing & truncating to max_len, then suffixing duplicates AFTER truncation to handle prefix collisions
 def deduplicate_job_specs(job_specs: list[JobSpec], max_len: int = 50) -> list[JobSpec]:
     result: list[JobSpec] = []
     seen: dict[str, int] = {}
 
     for spec in job_specs:
-        # sanitize & truncate first
+        # Sanitize & truncate first
         base_id = _sanitize_dirname(spec.id)[:max_len]
 
-        # now deduplicate
+        # Now deduplicate
         if base_id in seen:
             seen[base_id] += 1
-            # suffix may push over max_len, so re-truncate base
+            # Suffix may push over max_len, so re-truncate base
             suffix = f"_{seen[base_id]}"
             new_id = base_id[: max_len - len(suffix)] + suffix
         else:
@@ -127,8 +141,7 @@ def deduplicate_job_specs(job_specs: list[JobSpec], max_len: int = 50) -> list[J
     return result
 
 
-# * Create output directory structure for bulk run
-# create timestamped output directory w/ per-job subdirs; returns (bulk_output_dir, {job_id: job_output_dir})
+# * Create timestamped output directory w/ per-job subdirs; returns (bulk_output_dir, {job_id: job_output_dir})
 def create_bulk_output_layout(
     base_dir: Path,
     job_specs: list[JobSpec],
@@ -146,8 +159,7 @@ def create_bulk_output_layout(
     return bulk_dir, job_dirs
 
 
-# * Write run.json at bulk root for reproducibility
-# write run.json w/ metadata for reproducibility
+# * Write run.json w/ metadata for reproducibility
 def write_run_metadata(
     bulk_dir: Path,
     resume_path: Path,
@@ -155,14 +167,14 @@ def write_run_metadata(
     settings_snapshot: dict[str, Any],
     job_specs: list[JobSpec],
 ) -> None:
-    # hash each job file
+    # Hash each job file
     job_hashes: dict[str, str] = {}
     for spec in job_specs:
         if spec.path.exists():
             content = spec.path.read_bytes()
             job_hashes[spec.id] = hashlib.sha256(content).hexdigest()[:16]
 
-    # get loom version
+    # Get loom version
     try:
         from importlib.metadata import version
 
@@ -191,8 +203,7 @@ def write_run_metadata(
     write_json_safe(run_meta, bulk_dir / "run.json")
 
 
-# * Write per-job artifacts
-# write per-job metadata & normalized job text
+# * Write per-job metadata & normalized job text
 def write_job_artifacts(
     job_dir: Path,
     spec: JobSpec,
@@ -200,7 +211,7 @@ def write_job_artifacts(
     model: str,
     settings_snapshot: dict[str, Any],
 ) -> None:
-    # job.json - metadata
+    # Job.json - metadata
     write_json_safe(
         {
             "id": spec.id,
@@ -214,12 +225,11 @@ def write_job_artifacts(
         job_dir / "job.json",
     )
 
-    # job.txt - normalized text fed to model
+    # Job.txt - normalized text fed to model
     (job_dir / "job.txt").write_text(job_text, encoding="utf-8")
 
 
-# * Write comparison matrix files
-# write matrix.json & matrix.md to bulk output directory
+# * Write matrix.json & matrix.md to bulk output directory
 def write_matrix_files(bulk_dir: Path, result: BulkResult) -> None:
     # JSON matrix
     write_json_safe(result.to_dict(), bulk_dir / "matrix.json")
@@ -229,7 +239,7 @@ def write_matrix_files(bulk_dir: Path, result: BulkResult) -> None:
     (bulk_dir / "matrix.md").write_text(md_content, encoding="utf-8")
 
 
-# generate human-readable markdown comparison table
+# Generate human-readable markdown comparison table
 def _generate_markdown_matrix(result: BulkResult) -> str:
     lines = [
         "# Bulk Processing Results",
@@ -242,7 +252,7 @@ def _generate_markdown_matrix(result: BulkResult) -> str:
         "",
     ]
 
-    # ranked table
+    # Ranked table
     ranked = result.ranked_jobs()
     if ranked:
         lines.extend(
@@ -261,7 +271,7 @@ def _generate_markdown_matrix(result: BulkResult) -> str:
             )
         lines.append("")
 
-    # detailed results
+    # Detailed results
     lines.extend(["## Detailed Results", ""])
     for job in result.jobs:
         status_emoji = {

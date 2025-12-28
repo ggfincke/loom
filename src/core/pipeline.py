@@ -13,10 +13,7 @@ from ..ai.prompts import (
 from ..ai.clients import run_generate
 from ..ai.utils import process_ai_response
 
-# ? Pragmatic exception: Lines is a pure type alias, number_lines is a pure function
-# ? These don't violate core layer purity as they don't perform I/O
-from ..loom_io.types import Lines
-from ..loom_io import number_lines
+from .types import Lines, number_lines
 from .constants import (
     EditOperation,
     OP_REPLACE_LINE,

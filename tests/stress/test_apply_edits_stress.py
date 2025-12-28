@@ -10,7 +10,7 @@ from typing import List, Dict
 import pytest
 
 from src.core.pipeline import apply_edits
-from src.loom_io.types import Lines
+from src.core.types import Lines
 
 
 # * Random text generator for stress input

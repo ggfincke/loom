@@ -19,7 +19,7 @@ from src.cli.helpers import validate_required_args
 from src.config.settings import LoomSettings
 from src.core.constants import RiskLevel, ValidationPolicy, EditOperation, DiffOp
 from src.core.exceptions import EditError
-from src.loom_io.types import Lines
+from src.core.types import Lines
 import typer
 
 

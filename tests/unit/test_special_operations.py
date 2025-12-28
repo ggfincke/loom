@@ -6,7 +6,7 @@ from unittest.mock import patch, MagicMock
 from src.core.pipeline import process_prompt_operation, process_modify_operation
 from src.core.constants import EditOperation, DiffOp
 from src.core.exceptions import EditError
-from src.loom_io.types import Lines
+from src.core.types import Lines
 
 
 # * Fixtures for special operations testing

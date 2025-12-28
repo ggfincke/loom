@@ -11,7 +11,7 @@ from pathlib import Path
 from src.core.pipeline import apply_edits, generate_edits
 from src.core.constants import EditOperation, DiffOp
 from src.core.exceptions import EditError, AIError
-from src.loom_io.types import Lines
+from src.core.types import Lines
 from src.loom_io.documents import read_resume
 from src.config.settings import SettingsManager
 

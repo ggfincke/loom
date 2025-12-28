@@ -11,7 +11,7 @@ import subprocess
 import tempfile
 import tomllib
 
-from .types import Lines
+from ..core.types import Lines
 from .latex_patterns import (
     STRUCTURAL_PREFIXES,
     is_structural_line,
@@ -19,8 +19,9 @@ from .latex_patterns import (
     SEMANTIC_MATCHERS,
     BULLET_PATTERNS,
 )
+from ..core.exceptions import TemplateNotFoundError, TemplateParseError
 
-# template descriptor constants
+# Template descriptor constants
 _TEMPLATE_FILENAME = "loom-template.toml"
 _INLINE_TEMPLATE_RE = re.compile(r"%\s*loom-template:\s*(?P<id>[A-Za-z0-9_\-]+)")
 
@@ -98,14 +99,22 @@ def detect_inline_marker(text: str) -> str | None:
 def load_descriptor(
     descriptor_path: Path, inline_marker: str | None = None
 ) -> TemplateDescriptor:
-    raw = tomllib.loads(descriptor_path.read_text(encoding="utf-8"))
+    try:
+        raw = tomllib.loads(descriptor_path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise TemplateNotFoundError(f"Template descriptor not found: {descriptor_path}")
+    except tomllib.TOMLDecodeError as e:
+        raise TemplateParseError(
+            f"Invalid TOML in template descriptor {descriptor_path}: {e}"
+        ) from e
+
     template_meta = raw.get("template", {})
     template_id = template_meta.get("id")
     template_type = template_meta.get("type")
     name = template_meta.get("name")
     version = template_meta.get("version")
     if template_id is None or template_type is None:
-        raise ValueError(
+        raise TemplateParseError(
             f"Template descriptor {descriptor_path} missing required template.id or template.type"
         )
 
@@ -190,7 +199,7 @@ def split_preamble_body(lines: Lines) -> tuple[list[int], list[int]]:
         if "\\begin{document}" in stripped:
             seen_document = True
 
-    # if no explicit document markers, treat all as body
+    # If no explicit document markers, treat all as body
     if not seen_document:
         preamble = []
         body = sorted(lines.keys())
@@ -267,7 +276,7 @@ def _detect_template_sections(
 
     sections = _finalize_sections(headings, lines, body_lines)
 
-    # add bullet detection per section rules
+    # Add bullet detection per section rules
     for section in sections:
         rule = descriptor.sections.get(section.key) or descriptor.sections.get(
             section.key.lower()
@@ -328,7 +337,7 @@ def analyze_latex(
     if not sections:
         sections = _detect_generic_sections(lines, body_lines)
         if not sections and body_lines:
-            # fallback body section
+            # Fallback body section
             start_line = body_lines[0]
             end_line = body_lines[-1]
             sections = [
@@ -477,7 +486,7 @@ def filter_latex_edits(
             _extract_commands(replacement_text) if replacement_text else set()
         )
 
-        # ensure bullet commands stick around
+        # Ensure bullet commands stick around
         if (
             any(cmd == "\\item" for cmd in original_commands)
             and "\\item" not in new_commands
@@ -485,7 +494,7 @@ def filter_latex_edits(
             notes.append("Dropped edit removing \\item command")
             continue
 
-        # block edits that erase commands entirely
+        # Block edits that erase commands entirely
         retained = all(
             cmd in new_commands or cmd == "\\item" for cmd in original_commands
         )
@@ -502,7 +511,7 @@ def filter_latex_edits(
 
 # * Validate basic LaTeX syntax (brace balance & document structure)
 def validate_basic_latex_syntax(text: str) -> bool:
-    # check brace balance
+    # Check brace balance
     brace_count = 0
     for char in text:
         if char == "{":
@@ -514,7 +523,7 @@ def validate_basic_latex_syntax(text: str) -> bool:
     if brace_count != 0:
         return False
 
-    # check document structure
+    # Check document structure
     has_begin = r"\begin{document}" in text
     has_end = r"\end{document}" in text
     if not (has_begin and has_end):
@@ -555,7 +564,7 @@ def validate_latex_compilation(
                     proc.stderr or proc.stdout or "Compilation failed"
                 )
 
-            # extract warnings from stdout
+            # Extract warnings from stdout
             for line in proc.stdout.split("\n"):
                 line_stripped = line.strip()
                 if line_stripped and any(
@@ -603,14 +612,14 @@ def validate_latex_document(
         "warnings": [],
     }
 
-    # check syntax first
+    # Check syntax first
     if validate_basic_latex_syntax(content):
         result["syntax_valid"] = True
     else:
         result["errors"].append("LaTeX syntax validation failed")
         return result
 
-    # optionally check compilation
+    # Optionally check compilation
     if check_compilation:
         try:
             comp_result = validate_latex_compilation(content)
@@ -624,11 +633,10 @@ def validate_latex_document(
     return result
 
 
-# * Build LaTeX context (descriptor, sections JSON, notes) for LaTeX resume files
+# * Build context for LaTeX resume files (detects template, analyzes sections, collects notes)
 def build_latex_context(
     resume_path: Path, lines: Lines, resume_text: str | None = None
 ) -> tuple[TemplateDescriptor | None, str | None, list[str]]:
-    # Build context for LaTeX resume files. Detects template, analyzes sections, & collects notes for LaTeX resume. Tuple of (descriptor, sections_json, notes) for .tex files, or (None, None, []) for non-LaTeX files.
     import json
 
     descriptor = None
@@ -636,7 +644,7 @@ def build_latex_context(
     notes: list[str] = []
 
     if resume_path.suffix.lower() == ".tex":
-        # use provided text or read from file
+        # Use provided text or read from file
         if resume_text is None:
             resume_text = resume_path.read_text(encoding="utf-8")
         descriptor = detect_template(resume_path, resume_text)

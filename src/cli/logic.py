@@ -13,7 +13,7 @@ from typing import TypedDict, Any
 
 from ..config.settings import LoomSettings
 from ..loom_io.generics import ensure_parent, write_json_safe
-from ..loom_io.types import Lines
+from ..core.types import Lines
 from ..loom_io import (
     filter_latex_edits,
     filter_typst_edits,

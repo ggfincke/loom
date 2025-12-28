@@ -4,8 +4,7 @@
 
 from typing import Optional, List
 
-# ? Pragmatic exception: Lines is a pure type alias (no I/O operations)
-from ..loom_io.types import Lines
+from .types import Lines
 
 
 # =============================================================================

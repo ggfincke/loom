@@ -14,7 +14,7 @@ from ...loom_io import (
     ensure_parent,
 )
 from ...loom_io.console import console
-from ...loom_io.types import Lines
+from ...core.types import Lines
 from ...core.pipeline import diff_lines
 from ...core.exceptions import LaTeXError
 from ..theming.theme_engine import styled_checkmark, styled_arrow, success_gradient

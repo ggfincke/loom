@@ -17,7 +17,7 @@ from src.cli.runner import (
 from src.cli.logic import ArgResolver
 from src.config.settings import LoomSettings
 from src.core.constants import RiskLevel, ValidationPolicy
-from src.loom_io.types import Lines
+from src.core.types import Lines
 
 
 # * Test TailoringMode enum values

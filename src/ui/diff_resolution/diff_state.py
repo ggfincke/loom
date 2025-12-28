@@ -10,7 +10,7 @@ from typing import Callable, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from rich.live import Live
-    from ...loom_io.types import Lines
+    from ...core.types import Lines
     from ...core.constants import EditOperation
     from .diff_renderer import DiffRenderer
 

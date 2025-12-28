@@ -13,9 +13,8 @@ from src.core.pipeline import (
     process_modify_operation,
     get_operation_line,
 )
-from src.loom_io import number_lines
+from src.core.types import Lines, number_lines
 from src.core.exceptions import EditError, AIError, JSONParsingError
-from src.loom_io.types import Lines
 
 
 # * Fixtures for pipeline testing

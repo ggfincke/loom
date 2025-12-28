@@ -213,12 +213,13 @@ class TestWatchSettings:
         settings = LoomSettings()
         assert settings.watch_debounce == 1.0
 
-    # watch_debounce below 0.1 should raise ValueError.
+    # watch_debounce below 0.1 should raise SettingsValidationError.
     # * Verify watch debounce validation too low
     def test_watch_debounce_validation_too_low(self):
         from src.config.settings import LoomSettings
+        from src.core.exceptions import SettingsValidationError
 
-        with pytest.raises(ValueError, match="watch_debounce must be >= 0.1"):
+        with pytest.raises(SettingsValidationError, match="watch_debounce must be >= 0.1"):
             LoomSettings(watch_debounce=0.05)
 
     # Custom watch_debounce >= 0.1 should be accepted.

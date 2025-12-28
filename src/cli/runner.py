@@ -20,7 +20,7 @@ import json
 from ..loom_io import read_resume, TemplateDescriptor, build_latex_context, build_typst_context
 from ..loom_io.typst_handler import sections_to_payload as typst_sections_to_payload
 from ..loom_io.generics import ensure_parent
-from ..loom_io.types import Lines
+from ..core.types import Lines
 from ..ui.core.progress import (
     setup_ui_with_progress,
     load_resume_and_job,

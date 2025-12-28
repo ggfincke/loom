@@ -12,7 +12,7 @@ import subprocess
 import tempfile
 import tomllib
 
-from .types import Lines
+from ..core.types import Lines
 from .typst_patterns import (
     STRUCTURAL_PREFIXES,
     SECTION_HEADING_RE,
@@ -28,24 +28,25 @@ from .typst_patterns import (
 
 # Reuse template descriptor types from latex_handler
 from .latex_handler import TemplateDescriptor, TemplateSectionRule, FrozenRules
+from ..core.exceptions import TemplateNotFoundError, TemplateParseError
 
 # Template detection constants
 _TEMPLATE_FILENAME = "loom-template.toml"
 _INLINE_MARKER_RE = re.compile(
     r"(?://|/\*)\s*loom-template:\s*(?P<id>[A-Za-z0-9_\-]+)", re.IGNORECASE
 )
-_MARKER_SEARCH_LINES = 30  # Only search first N lines
+_MARKER_SEARCH_LINES = 30
 
 
 @dataclass
 class TypstSection:
-    key: str  # Normalized kind (e.g., "experience")
-    heading_text: str  # Original heading text
+    key: str
+    heading_text: str
     start_line: int
     end_line: int
     confidence: float
-    items: list[int] = field(default_factory=list)  # Line numbers of entry functions
-    source: str = "generic"  # "template", "generic", "semantic", "fallback"
+    items: list[int] = field(default_factory=list)
+    source: str = "generic"
 
 
 @dataclass
@@ -54,8 +55,8 @@ class TypstAnalysis:
     normalized_order: list[str]
     notes: list[str]
     descriptor: TemplateDescriptor | None
-    frozen_ranges: list[Tuple[int, int]]  # (start_line, end_line) of frozen blocks
-    header_lines: list[int]  # Lines before first section heading
+    frozen_ranges: list[Tuple[int, int]]
+    header_lines: list[int]
 
 
 # * Find loom-template.toml by walking up from resume path
@@ -82,8 +83,15 @@ def detect_inline_marker(text: str) -> str | None:
 def load_descriptor(
     descriptor_path: Path, inline_marker: str | None = None
 ) -> TemplateDescriptor:
-    with open(descriptor_path, "rb") as f:
-        data = tomllib.load(f)
+    try:
+        with open(descriptor_path, "rb") as f:
+            data = tomllib.load(f)
+    except FileNotFoundError:
+        raise TemplateNotFoundError(f"Template descriptor not found: {descriptor_path}")
+    except tomllib.TOMLDecodeError as e:
+        raise TemplateParseError(
+            f"Invalid TOML in template descriptor {descriptor_path}: {e}"
+        ) from e
 
     template = data.get("template", {})
     sections_raw = data.get("sections", {})
@@ -125,7 +133,7 @@ def detect_template(resume_path: Path, content: str) -> TemplateDescriptor | Non
     if descriptor_path:
         return load_descriptor(descriptor_path, inline_marker)
 
-    # fallback: create minimal descriptor from inline marker if present
+    # Fallback: create minimal descriptor from inline marker if present
     if inline_marker:
         return TemplateDescriptor(
             id=inline_marker,
@@ -199,7 +207,7 @@ def _detect_sections(
         return sections
 
     # Find all section headings
-    heading_lines: list[Tuple[int, int, str]] = []  # (line_num, level, title)
+    heading_lines: list[Tuple[int, int, str]] = []
     for line_num in sorted_line_nums:
         result = is_section_heading(lines[line_num])
         if result:
@@ -458,7 +466,7 @@ def validate_basic_typst_syntax(text: str) -> bool:
             continue
         if in_string:
             if char == "\\" and i + 1 < len(text):
-                i += 2  # Skip escaped char
+                i += 2
                 continue
             if char == '"':
                 in_string = False
@@ -500,7 +508,7 @@ def validate_basic_typst_syntax(text: str) -> bool:
     return True
 
 
-# * Optional: run `typst compile` if available
+# * Run `typst compile` if available
 def validate_typst_compilation(content: str) -> Tuple[bool, str]:
     typst_path = shutil.which("typst")
     if not typst_path:
@@ -564,14 +572,14 @@ def validate_typst_document(
         "warnings": [],
     }
 
-    # check basic syntax first
+    # Check basic syntax first
     if validate_basic_typst_syntax(content):
         result["syntax_valid"] = True
     else:
         result["errors"].append("Typst syntax validation failed (unbalanced delimiters or unterminated string)")
         return result
 
-    # optionally check compilation
+    # Optionally check compilation
     if check_compilation:
         availability = check_typst_availability()
         if availability["typst"]:
@@ -599,10 +607,8 @@ def build_typst_context(
 
 
 __all__ = [
-    # Dataclasses
     "TypstSection",
     "TypstAnalysis",
-    # Functions
     "find_template_descriptor_path",
     "detect_inline_marker",
     "load_descriptor",
