@@ -35,7 +35,8 @@ class TestAIClientRouting:
                 "src.ai.clients.factory.validate_model", return_value=(True, "openai")
             ),
             patch(
-                "src.ai.clients.factory.resolve_model_alias", return_value="gpt-5-mini"
+                "src.ai.clients.factory.ModelRegistry.resolve_alias",
+                return_value="gpt-5-mini",
             ),
         ):
             result = run_generate("Test prompt", "gpt-5-mini")
@@ -67,7 +68,7 @@ class TestAIClientRouting:
                 return_value=(True, "anthropic"),
             ),
             patch(
-                "src.ai.clients.factory.resolve_model_alias",
+                "src.ai.clients.factory.ModelRegistry.resolve_alias",
                 return_value="claude-sonnet-4-20250514",
             ),
         ):
@@ -97,7 +98,7 @@ class TestAIClientRouting:
                 return_value=(True, "ollama"),
             ),
             patch(
-                "src.ai.clients.factory.resolve_model_alias",
+                "src.ai.clients.factory.ModelRegistry.resolve_alias",
                 return_value="llama3.2",
             ),
         ):
@@ -138,7 +139,8 @@ class TestAIClientRouting:
                 "src.ai.clients.factory.validate_model", return_value=(True, "openai")
             ),
             patch(
-                "src.ai.clients.factory.resolve_model_alias", return_value="gpt-5"
+                "src.ai.clients.factory.ModelRegistry.resolve_alias",
+                return_value="gpt-5",
             ) as resolve_mock,
         ):
             result = run_generate("Test prompt", "gpt5")

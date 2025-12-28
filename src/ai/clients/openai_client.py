@@ -1,29 +1,23 @@
 # src/ai/clients/openai_client.py
 # OpenAI API client for generating JSON responses using the Responses API
 
-from functools import lru_cache
+from __future__ import annotations
 
 from .base import BaseClient
-from ..models import get_default_model
-from ..types import GenerateResult
 from ..utils import APICallContext
-from ...config.env_validator import validate_provider_env, get_missing_env_message
 from ...config.settings import settings_manager
-from ...core.exceptions import AIError, ConfigurationError
+from ...core.exceptions import AIError, ProviderError, RateLimitError
 
 
-# OpenAI API client using the Responses API
+# * OpenAI API client using the Responses API
 class OpenAIClient(BaseClient):
 
     provider_name = "openai"
+    required_env_vars = ["OPENAI_API_KEY"]
 
-    # check if OPENAI_API_KEY is available
-    def validate_credentials(self) -> None:
-        if not validate_provider_env("openai"):
-            raise ConfigurationError(get_missing_env_message("openai"))
-
-    # make OpenAI API call
+    # * Make OpenAI API call using Responses API
     def make_call(self, prompt: str, model: str) -> APICallContext:
+        import openai
         from openai import OpenAI
 
         client = OpenAI()
@@ -38,26 +32,35 @@ class OpenAIClient(BaseClient):
                     model=model, input=prompt, temperature=settings.temperature
                 )
         except Exception as e:
-            raise AIError(f"OpenAI API error: {str(e)}")
+            # Safely check for provider-specific exception types (may not exist in mocks)
+            rate_limit_error = getattr(openai, "RateLimitError", None)
+            api_status_error = getattr(openai, "APIStatusError", None)
+            api_connection_error = getattr(openai, "APIConnectionError", None)
+
+            # Check for rate limit (429)
+            if rate_limit_error and isinstance(e, rate_limit_error):
+                raise RateLimitError(
+                    f"OpenAI rate limit exceeded: {e}",
+                    provider="openai",
+                    retry_after=getattr(e, "retry_after", None),
+                ) from e
+            # Check for API errors (4xx/5xx)
+            if api_status_error and isinstance(e, api_status_error):
+                status_code = getattr(e, "status_code", "unknown")
+                message = getattr(e, "message", str(e))
+                raise ProviderError(
+                    f"OpenAI API error ({status_code}): {message}",
+                    provider="openai",
+                ) from e
+            # Check for connection errors
+            if api_connection_error and isinstance(e, api_connection_error):
+                raise ProviderError(
+                    f"OpenAI connection error: {e}",
+                    provider="openai",
+                ) from e
+            # Fallback for unexpected errors
+            raise AIError(f"OpenAI API error: {e}") from e
 
         return APICallContext(
             raw_text=resp.output_text, provider_name="openai", model=model
         )
-
-
-# =============================================================================
-# Module-level API (backward compatibility + lazy singleton)
-# =============================================================================
-
-
-# get lazily-initialized singleton client
-@lru_cache(maxsize=1)
-def _get_client() -> OpenAIClient:
-    return OpenAIClient()
-
-
-# generate JSON response using OpenAI API
-# returns GenerateResult w/ success/failure status & data
-def run_generate(prompt: str, model: str | None = None) -> GenerateResult:
-    resolved_model = model or get_default_model("openai")
-    return _get_client().run_generate(prompt, resolved_model)

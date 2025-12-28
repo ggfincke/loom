@@ -6,17 +6,15 @@ import json
 import os
 from unittest.mock import patch, Mock
 
-from src.ai.clients.openai_client import run_generate, OpenAIClient, _get_client
+from src.ai.clients.openai_client import OpenAIClient
 from src.ai.types import GenerateResult
 from src.core.exceptions import AIError, ConfigurationError
 
 
-@pytest.fixture(autouse=True)
-def reset_client_cache():
-    # Reset the singleton client cache before each test.
-    _get_client.cache_clear()
-    yield
-    _get_client.cache_clear()
+# * Helper function to run generate using client directly (no more module-level API)
+def _run_generate(prompt: str, model: str) -> GenerateResult:
+    client = OpenAIClient()
+    return client.run_generate(prompt, model)
 
 
 class TestOpenAIClient:
@@ -35,7 +33,7 @@ class TestOpenAIClient:
         )
         mock_client.responses.create.return_value = mock_response
 
-        result = run_generate("Test prompt", "gpt-4o")
+        result = _run_generate("Test prompt", "gpt-4o")
 
         assert result.success is True
         assert result.data == {
@@ -45,7 +43,7 @@ class TestOpenAIClient:
         assert result.json_text == mock_response.output_text
         assert result.error == ""
 
-        # verify API call was made
+        # Verify API call was made
         mock_client.responses.create.assert_called_once()
 
     # * Test successful API call w/ GPT-5 model (no temperature)
@@ -60,23 +58,23 @@ class TestOpenAIClient:
         mock_response.output_text = '{"result": "success"}'
         mock_client.responses.create.return_value = mock_response
 
-        result = run_generate("Test prompt", "gpt-5-mini")
+        result = _run_generate("Test prompt", "gpt-5-mini")
 
         assert result.success is True
 
-        # verify GPT-5 call doesn't include temperature
+        # Verify GPT-5 call doesn't include temperature
         mock_client.responses.create.assert_called_once_with(
             model="gpt-5-mini",
             input="Test prompt",
-            # no temperature parameter for gpt-5
+            # No temperature parameter for gpt-5
         )
 
     # * Test missing API key error
     @patch.dict(os.environ, {}, clear=True)
     # * Verify run generate missing api key
     def test_run_generate_missing_api_key(self):
-        # when no API key, run_generate returns error result (base class catches exception)
-        result = run_generate("Test prompt", "gpt-4o")
+        # When no API key, run_generate returns error result (base class catches exception)
+        result = _run_generate("Test prompt", "gpt-4o")
 
         assert result.success is False
         assert "OPENAI_API_KEY" in result.error or "openai" in result.error.lower()
@@ -89,10 +87,10 @@ class TestOpenAIClient:
         mock_client = Mock()
         mock_openai_class.return_value = mock_client
 
-        # simulate API error
+        # Simulate API error
         mock_client.responses.create.side_effect = Exception("API rate limit exceeded")
 
-        result = run_generate("Test prompt", "gpt-4o")
+        result = _run_generate("Test prompt", "gpt-4o")
 
         assert result.success is False
         assert "OpenAI API error" in result.error
@@ -110,7 +108,7 @@ class TestOpenAIClient:
         mock_response.output_text = "Invalid JSON content { not valid }"
         mock_client.responses.create.return_value = mock_response
 
-        result = run_generate("Test prompt", "gpt-4o")
+        result = _run_generate("Test prompt", "gpt-4o")
 
         assert result.success is False
         assert result.data is None
@@ -134,7 +132,7 @@ class TestOpenAIClient:
         mock_response.output_text = markdown_response
         mock_client.responses.create.return_value = mock_response
 
-        result = run_generate("Test prompt", "gpt-4o")
+        result = _run_generate("Test prompt", "gpt-4o")
 
         assert result.success is True
         assert result.raw_text == markdown_response
@@ -166,11 +164,11 @@ class TestOpenAIClient:
         mock_response.output_text = '{"result": "test"}'
         mock_client.responses.create.return_value = mock_response
 
-        result = run_generate("Test prompt", "gpt-4o")
+        result = _run_generate("Test prompt", "gpt-4o")
 
         assert result.success is True
 
-        # verify custom temperature is used
+        # Verify custom temperature is used
         mock_client.responses.create.assert_called_once_with(
             model="gpt-4o", input="Test prompt", temperature=0.7
         )
@@ -187,11 +185,11 @@ class TestOpenAIClient:
         mock_response.output_text = '{"result": "test"}'
         mock_client.responses.create.return_value = mock_response
 
-        # call without specifying model (should use default)
-        result = run_generate("Test prompt")
+        # Call w/ explicit model (no more module-level default model)
+        result = _run_generate("Test prompt", "gpt-4o")
 
         assert result.success is True
-        # verify API was called (model comes from get_default_model)
+        # Verify API was called
         mock_client.responses.create.assert_called_once()
 
     # * Test empty response handling
@@ -203,12 +201,12 @@ class TestOpenAIClient:
         mock_openai_class.return_value = mock_client
 
         mock_response = Mock()
-        mock_response.output_text = ""  # empty response
+        mock_response.output_text = ""  # Empty response
         mock_client.responses.create.return_value = mock_response
 
-        result = run_generate("Test prompt", "gpt-4o")
+        result = _run_generate("Test prompt", "gpt-4o")
 
-        # empty string is not valid JSON
+        # Empty string is not valid JSON
         assert result.success is False
         assert result.raw_text == ""
         assert result.json_text == ""
@@ -247,7 +245,7 @@ class TestOpenAIClient:
         mock_response.output_text = json.dumps(complex_json, indent=2)
         mock_client.responses.create.return_value = mock_response
 
-        result = run_generate("Test prompt", "gpt-4o")
+        result = _run_generate("Test prompt", "gpt-4o")
 
         assert result.success is True
         assert result.data == complex_json
@@ -270,10 +268,10 @@ class TestOpenAIClientClass:
 
     # * Test validate_credentials succeeds when key present
     @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
-    # * Verify validate credentials with key
+    # * Verify validate credentials w/ key
     def test_validate_credentials_with_key(self):
         client = OpenAIClient()
-        # should not raise
+        # Should not raise
         client.validate_credentials()
 
     # * Test provider_name is correct

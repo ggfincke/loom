@@ -5,7 +5,6 @@ import pytest
 
 from src.ai.utils import (
     APICallContext,
-    process_json_response,
     strip_markdown_code_blocks,
     parse_json,
     validate_and_extract,
@@ -233,66 +232,6 @@ class TestValidateAndExtract:
 
         assert result["ops"][0]["line"] == 5
         assert result["ops"][0]["text"] == "text"
-
-
-# * Test process_json_response
-
-
-class TestProcessJsonResponse:
-    # * Verify success valid json
-    def test_success_valid_json(self):
-        def mock_api_call(prompt: str, model: str) -> APICallContext:
-            return APICallContext(
-                raw_text='{"result": "success"}', provider_name="openai", model=model
-            )
-
-        result = process_json_response(mock_api_call, "test prompt", "gpt-4o")
-
-        assert result.success is True
-        assert result.data == {"result": "success"}
-        assert result.raw_text == '{"result": "success"}'
-        assert result.json_text == '{"result": "success"}'
-        assert result.error == ""
-
-    # * Verify strips markdown code blocks
-    def test_strips_markdown_code_blocks(self):
-        def mock_api_call(prompt: str, model: str) -> APICallContext:
-            return APICallContext(
-                raw_text='```json\n{"result": "success"}\n```',
-                provider_name="claude",
-                model=model,
-            )
-
-        result = process_json_response(mock_api_call, "test prompt", "claude-sonnet-4")
-
-        assert result.success is True
-        assert result.data == {"result": "success"}
-        assert result.raw_text == '```json\n{"result": "success"}\n```'
-        assert result.json_text == '{"result": "success"}'
-
-    # * Verify error includes model & truncation
-    def test_error_includes_model_and_truncation(self):
-        long_invalid_json = "not json " * 50  # >200 chars
-
-        def mock_api_call(prompt: str, model: str) -> APICallContext:
-            return APICallContext(
-                raw_text=long_invalid_json, provider_name="ollama", model=model
-            )
-
-        result = process_json_response(mock_api_call, "test prompt", "llama3.2")
-
-        assert result.success is False
-        assert result.data is None
-        assert "JSON parsing failed" in result.error
-        assert "..." in result.error
-
-    # * Verify api error propagates
-    def test_api_error_propagates(self):
-        def mock_api_call(prompt: str, model: str) -> APICallContext:
-            raise AIError("Connection failed")
-
-        with pytest.raises(AIError, match="Connection failed"):
-            process_json_response(mock_api_call, "test prompt", "gpt-4o")
 
 
 # * Test process_ai_response high-level helper

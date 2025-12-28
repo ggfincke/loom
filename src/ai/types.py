@@ -1,15 +1,17 @@
 # src/ai/types.py
 # Shared types for AI clients & functionality
 
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 # * Result object for AI generation operations
 @dataclass(slots=True)
 class GenerateResult:
     success: bool  # indicates if generation was successful
-    data: Optional[Dict[str, Any]] = None  # parsed JSON payload on success
+    data: dict[str, Any] | None = None  # parsed JSON payload on success
     raw_text: str = ""  # provider raw text (for debugging)
     json_text: str = ""  # extracted JSON text (after any stripping)
     error: str = ""  # error message on failure
@@ -19,5 +21,5 @@ class GenerateResult:
 @dataclass(slots=True)
 class OllamaStatus:
     available: bool  # whether Ollama server is accessible
-    models: List[str]  # list of available model names
+    models: list[str]  # list of available model names
     error: str  # error message if unavailable (empty if success)

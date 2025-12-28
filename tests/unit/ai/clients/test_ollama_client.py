@@ -6,7 +6,7 @@ import sys
 import types
 import pytest
 
-# ensure dummy ollama module exists before importing client
+# Ensure dummy ollama module exists before importing client
 if "ollama" not in sys.modules:
     ollama_module = types.ModuleType("ollama")
     setattr(ollama_module, "list", None)
@@ -17,35 +17,34 @@ from src.ai.clients.ollama_client import (
     run_generate,
     OllamaClient,
     _get_client,
-    reset_cache,
 )
 from src.ai.cache import AICache
 from src.core.exceptions import AIError
 
+def _reset_ollama_state() -> None:
+    AICache.invalidate_provider("ollama")
+    _get_client.cache_clear()
 
 class _FakeModel:
     def __init__(self, name: str) -> None:
         self.model = name
 
-
 class _ListResponse:
     def __init__(self, models):
         self.models = models
 
-
 @pytest.fixture(autouse=True)
 def reset_ollama_cache():
-    # Reset cache before each test to avoid stale data.
-    reset_cache()
+    # Reset cache before each test to avoid stale data
+    _reset_ollama_state()
     AICache.invalidate_all()
     yield
-    reset_cache()
+    _reset_ollama_state()
     AICache.invalidate_all()
-
 
 # * Verify success path & code-fence stripping
 def test_run_generate_success_with_code_fence(monkeypatch):
-    # patch ollama.list to return available model
+    # Patch ollama.list to return available model
     monkeypatch.setattr("ollama.list", lambda: _ListResponse([_FakeModel("llama3.2")]))
 
     def _chat(**_kwargs):
@@ -57,12 +56,12 @@ def test_run_generate_success_with_code_fence(monkeypatch):
     result = run_generate("Parse this resume", model="llama3.2")
     assert result.success is True
     assert result.data == {"sections": [{"name": "SUMMARY"}]}
-    assert result.json_text.strip().startswith("{")  # code fence stripped
-
+    # Code fence stripped
+    assert result.json_text.strip().startswith("{")
 
 # * Verify model-not-found branch lists available models
 def test_run_generate_model_not_found_lists_available(monkeypatch):
-    # model requested is not in available list
+    # Model requested is not in available list
     monkeypatch.setattr("ollama.list", lambda: _ListResponse([_FakeModel("llama3.1")]))
 
     result = run_generate("Prompt", model="llama3.2")
@@ -71,7 +70,6 @@ def test_run_generate_model_not_found_lists_available(monkeypatch):
     error_msg = result.error.lower()
     assert "not found" in error_msg
     assert "available" in error_msg or "llama3.1" in error_msg
-
 
 # * Verify network error on availability check handled
 def test_run_generate_network_error_on_availability_check(monkeypatch):
@@ -86,7 +84,6 @@ def test_run_generate_network_error_on_availability_check(monkeypatch):
     error_msg = result.error.lower()
     assert "connection" in error_msg or "ollama" in error_msg
 
-
 # * Verify thinking tokens are stripped in json_text
 def test_run_generate_strips_thinking_tokens(monkeypatch):
     monkeypatch.setattr("ollama.list", lambda: _ListResponse([_FakeModel("llama3.2")]))
@@ -99,11 +96,10 @@ def test_run_generate_strips_thinking_tokens(monkeypatch):
 
     result = run_generate("Prompt", model="llama3.2")
     assert result.success is True
-    # ensure thinking tokens removed in json_text but present in raw_text
+    # Ensure thinking tokens removed in json_text but present in raw_text
     assert "<think>" not in result.json_text
     assert "</think>" not in result.json_text
     assert "<think>" in result.raw_text
-
 
 # * Verify API error during chat is handled
 def test_run_generate_api_error_during_chat(monkeypatch):
@@ -119,7 +115,6 @@ def test_run_generate_api_error_during_chat(monkeypatch):
     assert result.success is False
     assert "Ollama API error" in result.error
 
-
 # * Test OllamaClient class directly
 class TestOllamaClientClass:
 
@@ -131,5 +126,5 @@ class TestOllamaClientClass:
     # * Verify validate credentials always passes
     def test_validate_credentials_always_passes(self):
         client = OllamaClient()
-        # Ollama doesn't require credentials - should not raise
+        # Ollama doesn't require credentials, should not raise
         client.validate_credentials()

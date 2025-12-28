@@ -1,36 +1,32 @@
 # src/ai/clients/base.py
-# Template-method base client for AI providers
-#
-# This class provides the shared run_generate() orchestration.
-# Subclasses implement:
-# - validate_credentials() - check API key / server availability
-# - make_call() - provider-specific API call
+# Template-method base client for AI providers w/ cache support & credential validation
+
+from __future__ import annotations
 
 import time
 from abc import ABC, abstractmethod
+from typing import ClassVar
 
 from ..types import GenerateResult
 from ..utils import APICallContext, parse_json
-from ..response_cache import get_response_cache
+from ..cache import get_response_cache
 from ...config.settings import settings_manager
+from ...config.env_validator import validate_provider_env, get_missing_env_message
 from ...core.exceptions import AIError, ConfigurationError
 from ...core.verbose import vlog, vlog_ai_request, vlog_ai_response, vlog_think
 
-
-# abstract base class for AI provider clients
-# implements template-method pattern for run_generate():
-# 1. preflight() - credential check & setup (overridable)
-# 2. validate_model() - model validation (overridable)
-# 3. make_call() - provider-specific API call (abstract)
-# 4. parse & return GenerateResult
-# always returns GenerateResult, never raises exceptions to callers
+# * Abstract base class for AI provider clients using template-method pattern
+# Orchestrates: cache check -> preflight -> validate_model -> make_call -> parse -> cache store
+# Always returns GenerateResult, never raises exceptions to callers
 class BaseClient(ABC):
 
     # * Subclasses must set this to their canonical provider ID
     provider_name: str = ""
 
-    # template method - always returns GenerateResult, never raises
-    # orchestrates: cache check -> preflight -> validate_model -> make_call -> parse -> cache store
+    # * Required environment variables for this provider (empty for Ollama)
+    required_env_vars: ClassVar[list[str]] = []
+
+    # * Template method - orchestrate AI generation w/ caching & error handling
     def run_generate(self, prompt: str, model: str) -> GenerateResult:
         # get cache & settings for temperature
         cache = get_response_cache()
@@ -101,32 +97,26 @@ class BaseClient(ABC):
                 success=False, error=f"Unexpected error in {self.provider_name}: {e}"
             )
 
-    # pre-call setup hook (default: validate credentials)
-    # override in subclasses for additional setup (e.g., Ollama server check)
+    # pre-call setup hook (default: validate credentials, override for additional setup)
     def preflight(self) -> None:
         self.validate_credentials()
 
-    @abstractmethod
-    # check if required credentials are available
-    # raises ConfigurationError if credentials are missing
+    # validate API credentials using required_env_vars
     def validate_credentials(self) -> None:
-        pass
+        if self.required_env_vars and self.provider_name:
+            if not validate_provider_env(self.provider_name):
+                raise ConfigurationError(get_missing_env_message(self.provider_name))
 
-    # validate & resolve model name (default: pass through)
-    # override in subclasses that need custom model validation (e.g., Ollama checking against dynamic model list)
-    # returns validated model name (may be resolved from alias)
-    # raises AIError if model is invalid
+    # validate & resolve model name (override in subclasses for custom validation)
     def validate_model(self, model: str) -> str:
         return model
 
+    # * Make provider-specific API call (subclasses must implement)
     @abstractmethod
-    # make provider-specific API call
-    # returns APICallContext w/ raw response
-    # raises AIError on API errors
     def make_call(self, prompt: str, model: str) -> APICallContext:
         pass
 
-    # convert API response to GenerateResult
+    # convert API response to GenerateResult w/ JSON parsing
     def _process_response(self, ctx: APICallContext) -> GenerateResult:
         data, json_text, error = parse_json(ctx.raw_text)
 

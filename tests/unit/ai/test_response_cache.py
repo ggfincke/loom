@@ -1,5 +1,5 @@
 # tests/unit/ai/test_response_cache.py
-# Unit tests for ResponseCache
+# Unit tests for AIResponseCache (consolidated in cache.py)
 
 import pytest
 import json
@@ -7,8 +7,8 @@ import tempfile
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 
-from src.ai.response_cache import (
-    ResponseCache,
+from src.ai.cache import (
+    AIResponseCache,
     get_response_cache,
     reset_response_cache,
     disable_cache_for_invocation,
@@ -16,8 +16,8 @@ from src.ai.response_cache import (
 from src.ai.types import GenerateResult
 
 
-class TestResponseCache:
-    # Test ResponseCache functionality.
+class TestAIResponseCache:
+    # Test AIResponseCache functionality.
 
     @pytest.fixture
     def temp_cache_dir(self):
@@ -28,7 +28,7 @@ class TestResponseCache:
     @pytest.fixture
     def cache(self, temp_cache_dir):
         # Create fresh cache instance for testing.
-        return ResponseCache(cache_dir=temp_cache_dir, ttl_days=7, enabled=True)
+        return AIResponseCache(cache_dir=temp_cache_dir, ttl_days=7, enabled=True)
 
     @pytest.fixture
     def sample_result(self):
@@ -42,7 +42,7 @@ class TestResponseCache:
         )
 
 
-class TestCacheBasicOperations(TestResponseCache):
+class TestCacheBasicOperations(TestAIResponseCache):
     # Test basic cache get/set operations.
 
     # * Verify cache miss returns none
@@ -94,12 +94,12 @@ class TestCacheBasicOperations(TestResponseCache):
         assert cached is None
 
 
-class TestCacheDisabled(TestResponseCache):
+class TestCacheDisabled(TestAIResponseCache):
     # Test cache behavior when disabled.
 
     # * Verify disabled cache does not store
     def test_disabled_cache_does_not_store(self, temp_cache_dir, sample_result):
-        cache = ResponseCache(cache_dir=temp_cache_dir, enabled=False)
+        cache = AIResponseCache(cache_dir=temp_cache_dir, enabled=False)
 
         cache.set("prompt", "gpt-4", 0.2, sample_result)
         cached = cache.get("prompt", "gpt-4", 0.2)
@@ -118,13 +118,13 @@ class TestCacheDisabled(TestResponseCache):
         assert cache.get("prompt", "gpt-4", 0.2) is not None
 
 
-class TestCacheExpiration(TestResponseCache):
+class TestCacheExpiration(TestAIResponseCache):
     # Test TTL & expiration.
 
     # * Verify expired entry returns none
     def test_expired_entry_returns_none(self, temp_cache_dir, sample_result):
         # create cache w/ very short TTL
-        cache = ResponseCache(cache_dir=temp_cache_dir, ttl_days=0)
+        cache = AIResponseCache(cache_dir=temp_cache_dir, ttl_days=0)
 
         cache.set("prompt", "gpt-4", 0.2, sample_result)
 
@@ -151,7 +151,7 @@ class TestCacheExpiration(TestResponseCache):
         assert cached is not None
 
 
-class TestCacheClear(TestResponseCache):
+class TestCacheClear(TestAIResponseCache):
     # Test cache clearing functionality.
 
     # * Verify clear removes all entries
@@ -174,7 +174,7 @@ class TestCacheClear(TestResponseCache):
 
     # * Verify clear expired only removes expired
     def test_clear_expired_only_removes_expired(self, temp_cache_dir, sample_result):
-        cache = ResponseCache(cache_dir=temp_cache_dir, ttl_days=7)
+        cache = AIResponseCache(cache_dir=temp_cache_dir, ttl_days=7)
 
         cache.set("prompt1", "gpt-4", 0.2, sample_result)
         cache.set("prompt2", "gpt-4", 0.2, sample_result)
@@ -195,7 +195,7 @@ class TestCacheClear(TestResponseCache):
         assert stats["entries"] == 1
 
 
-class TestCacheStats(TestResponseCache):
+class TestCacheStats(TestAIResponseCache):
     # Test cache statistics.
 
     # * Verify stats empty cache
@@ -270,7 +270,7 @@ class TestGlobalCache:
         assert cache.enabled is True
 
 
-class TestCacheKeyGeneration(TestResponseCache):
+class TestCacheKeyGeneration(TestAIResponseCache):
     # Test cache key determinism.
 
     # * Verify same inputs same key
@@ -305,12 +305,12 @@ class TestCacheKeyGeneration(TestResponseCache):
         assert all(c in "0123456789abcdef" for c in key)
 
 
-class TestCacheLimits(TestResponseCache):
+class TestCacheLimits(TestAIResponseCache):
     # Test LRU eviction & size limits.
 
     # * Verify max entries eviction
     def test_max_entries_eviction(self, temp_cache_dir, sample_result):
-        cache = ResponseCache(
+        cache = AIResponseCache(
             cache_dir=temp_cache_dir, ttl_days=7, enabled=True, max_entries=3
         )
 
@@ -325,7 +325,7 @@ class TestCacheLimits(TestResponseCache):
     # * Verify max size eviction
     def test_max_size_eviction(self, temp_cache_dir, sample_result):
         # use a very small size limit (1 KB)
-        cache = ResponseCache(
+        cache = AIResponseCache(
             cache_dir=temp_cache_dir,
             ttl_days=7,
             enabled=True,
@@ -347,7 +347,7 @@ class TestCacheLimits(TestResponseCache):
 
     # * Verify corrupted entries evicted first
     def test_corrupted_entries_evicted_first(self, temp_cache_dir, sample_result):
-        cache = ResponseCache(
+        cache = AIResponseCache(
             cache_dir=temp_cache_dir, ttl_days=7, enabled=True, max_entries=2
         )
 
@@ -368,7 +368,7 @@ class TestCacheLimits(TestResponseCache):
 
     # * Verify stats include limits
     def test_stats_include_limits(self, temp_cache_dir):
-        cache = ResponseCache(
+        cache = AIResponseCache(
             cache_dir=temp_cache_dir, ttl_days=7, enabled=True, max_entries=100, max_size_mb=50
         )
 
@@ -378,7 +378,7 @@ class TestCacheLimits(TestResponseCache):
 
     # * Verify unlimited limits shown as string
     def test_stats_unlimited_limits(self, temp_cache_dir):
-        cache = ResponseCache(
+        cache = AIResponseCache(
             cache_dir=temp_cache_dir, ttl_days=7, enabled=True, max_entries=0, max_size_mb=0
         )
 
@@ -387,7 +387,7 @@ class TestCacheLimits(TestResponseCache):
         assert stats["max_size_mb"] == "unlimited"
 
 
-class TestCacheThreadSafety(TestResponseCache):
+class TestCacheThreadSafety(TestAIResponseCache):
     # Test thread-local disable override.
 
     def setup_method(self):
