@@ -48,6 +48,8 @@ class LoomSettings:
     cache_enabled: bool = True
     cache_ttl_days: int = 7
     cache_dir: str = ".loom/cache"
+    cache_max_entries: int = 500  # max cached responses (0 = unlimited)
+    cache_max_size_mb: int = 100  # max cache size in MB (0 = unlimited)
 
     # watch mode settings
     watch_debounce: float = 1.0
@@ -92,6 +94,18 @@ class LoomSettings:
         if not isinstance(self.cache_ttl_days, int) or self.cache_ttl_days < 1:
             raise ValueError(
                 f"cache_ttl_days must be a positive integer, got {self.cache_ttl_days}"
+            )
+
+        # cache_max_entries validation (must be non-negative integer)
+        if not isinstance(self.cache_max_entries, int) or self.cache_max_entries < 0:
+            raise ValueError(
+                f"cache_max_entries must be a non-negative integer, got {self.cache_max_entries}"
+            )
+
+        # cache_max_size_mb validation (must be non-negative integer)
+        if not isinstance(self.cache_max_size_mb, int) or self.cache_max_size_mb < 0:
+            raise ValueError(
+                f"cache_max_size_mb must be a non-negative integer, got {self.cache_max_size_mb}"
             )
 
         # watch_debounce validation (must be >= 0.1 seconds)

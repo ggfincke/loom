@@ -4,9 +4,11 @@
 # * Caches successful AI responses keyed by hash of (prompt + model + temperature)
 # * Supports TTL-based expiration & manual invalidation
 # * Stores entries as JSON files in configurable cache directory
+# * LRU eviction when max_entries or max_size_mb limits exceeded
 
 import hashlib
 import json
+import threading
 from dataclasses import asdict
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -23,10 +25,14 @@ class ResponseCache:
         cache_dir: Optional[Path] = None,
         ttl_days: int = 7,
         enabled: bool = True,
+        max_entries: int = 0,
+        max_size_mb: int = 0,
     ):
         self._cache_dir = cache_dir or Path(".loom") / "cache"
         self._ttl_days = ttl_days
         self._enabled = enabled
+        self._max_entries = max_entries  # 0 = unlimited
+        self._max_size_mb = max_size_mb  # 0 = unlimited
         # runtime stats
         self._hits = 0
         self._misses = 0
@@ -138,6 +144,8 @@ class ResponseCache:
 
         try:
             cache_path.write_text(json.dumps(entry, indent=2), encoding="utf-8")
+            # enforce size/count limits after adding new entry
+            self._enforce_limits()
         except OSError:
             # silently fail on write errors - cache is optional
             pass
@@ -203,6 +211,8 @@ class ResponseCache:
             "enabled": self._enabled,
             "cache_dir": str(self._cache_dir),
             "ttl_days": self._ttl_days,
+            "max_entries": self._max_entries if self._max_entries > 0 else "unlimited",
+            "max_size_mb": self._max_size_mb if self._max_size_mb > 0 else "unlimited",
             "entries": count,
             "expired_entries": expired_count,
             "size_bytes": size,
@@ -221,16 +231,75 @@ class ResponseCache:
             size /= 1024
         return f"{size:.1f} TB"
 
+    # * Get cache files sorted by creation time (oldest first for LRU eviction)
+    def _get_sorted_entries(self) -> list[tuple[Path, int]]:
+        if not self._cache_dir.exists():
+            return []
+
+        entries: list[tuple[str, Path, int]] = []
+        for cache_file in self._cache_dir.glob("*.json"):
+            try:
+                size = cache_file.stat().st_size
+                data = json.loads(cache_file.read_text(encoding="utf-8"))
+                created = data.get("created_at", "")
+                entries.append((created, cache_file, size))
+            except (json.JSONDecodeError, OSError):
+                # corrupted entries sort first (empty string) so they're evicted first
+                entries.append(("", cache_file, 0))
+
+        entries.sort(key=lambda x: x[0])
+        return [(e[1], e[2]) for e in entries]
+
+    # * Evict oldest entries if limits exceeded (LRU eviction)
+    def _enforce_limits(self) -> int:
+        if self._max_entries == 0 and self._max_size_mb == 0:
+            return 0  # no limits configured
+
+        entries = self._get_sorted_entries()
+        evicted = 0
+
+        # evict by entry count
+        if self._max_entries > 0:
+            while len(entries) > self._max_entries:
+                oldest_path, _ = entries.pop(0)
+                try:
+                    oldest_path.unlink(missing_ok=True)
+                    evicted += 1
+                except OSError:
+                    pass
+
+        # evict by total size
+        if self._max_size_mb > 0:
+            max_bytes = self._max_size_mb * 1024 * 1024
+            total_size = sum(size for _, size in entries)
+            while total_size > max_bytes and entries:
+                oldest_path, oldest_size = entries.pop(0)
+                try:
+                    oldest_path.unlink(missing_ok=True)
+                    total_size -= oldest_size
+                    evicted += 1
+                except OSError:
+                    pass
+
+        return evicted
+
 
 # * Global response cache instance (configured lazily from settings)
 _response_cache: Optional[ResponseCache] = None
-# * Temporary override for --no-cache flag (thread-local would be better for concurrency)
-_cache_disabled_override: bool = False
+# * Original enabled state from settings (before any overrides)
+_original_enabled: bool = True
+# * Thread-local storage for per-invocation cache disable (--no-cache flag)
+_cache_disabled_local = threading.local()
+
+
+# * Check if cache is disabled for current thread/invocation
+def _is_cache_disabled() -> bool:
+    return getattr(_cache_disabled_local, "disabled", False)
 
 
 # * Get or create the global response cache instance
 def get_response_cache() -> ResponseCache:
-    global _response_cache
+    global _response_cache, _original_enabled
     if _response_cache is None:
         # lazy import to avoid circular dependency
         from ..config.settings import settings_manager
@@ -239,27 +308,37 @@ def get_response_cache() -> ResponseCache:
         cache_dir = Path(settings.cache_dir) if hasattr(settings, "cache_dir") else None
         ttl = getattr(settings, "cache_ttl_days", 7)
         enabled = getattr(settings, "cache_enabled", True)
+        max_entries = getattr(settings, "cache_max_entries", 500)
+        max_size_mb = getattr(settings, "cache_max_size_mb", 100)
+        _original_enabled = enabled
         _response_cache = ResponseCache(
             cache_dir=cache_dir,
             ttl_days=ttl,
             enabled=enabled,
+            max_entries=max_entries,
+            max_size_mb=max_size_mb,
         )
+        # auto-cleanup expired entries on first access (silent)
+        _response_cache.clear_expired()
 
-    # apply temporary override if set
-    if _cache_disabled_override:
+    # apply thread-local override: disable if flag set, otherwise restore original
+    if _is_cache_disabled():
         _response_cache.enabled = False
+    else:
+        _response_cache.enabled = _original_enabled
 
     return _response_cache
 
 
 # * Reset the global cache instance (for testing or settings changes)
 def reset_response_cache() -> None:
-    global _response_cache, _cache_disabled_override
+    global _response_cache, _original_enabled
     _response_cache = None
-    _cache_disabled_override = False
+    _original_enabled = True
+    # reset thread-local state
+    _cache_disabled_local.disabled = False
 
 
 # * Temporarily disable cache for current invocation (--no-cache flag)
 def disable_cache_for_invocation() -> None:
-    global _cache_disabled_override
-    _cache_disabled_override = True
+    _cache_disabled_local.disabled = True
