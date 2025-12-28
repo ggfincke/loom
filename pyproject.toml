@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "loom"
-version = "1.3.6-nightly.20251227"
+version = "1.3.7-nightly.20251228"
 description = "Tailor resumes using the OpenAI Responses API"
 requires-python = ">=3.12"
 dependencies = [

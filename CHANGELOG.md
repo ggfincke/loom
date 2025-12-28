@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.7-nightly.20251228] - 2025-12-28
+
+### Changed
+- **Core types module**: Move `Lines` type & `number_lines` to `core/types.py` for architectural purity
+- **Output system**: Add unified output management w/ registry pattern separating core from CLI
+- **CLI decorators**: Extract `handle_loom_error`, `require_dev_mode`, `run_with_watch` to `cli/decorators.py`
+- **Validation handlers**: Move validation strategies from core to CLI layer
+- **Exception hierarchy**: Expand exception classes w/ richer context fields
+- **AI cache**: Consolidate `response_cache.py` into `cache.py`
+- **Settings access**: Standardize via `get_settings(ctx)` helper w/ context chain search
+
+### Added
+- **Command authoring docs**: Add patterns section to `docs/contributing.md`
+
+---
+
 ## [1.3.6-nightly.20251227] - 2025-12-27
 
 ### Added
