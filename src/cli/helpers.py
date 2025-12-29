@@ -44,13 +44,15 @@ def handle_help_flag(ctx: typer.Context, help: bool, command_name: str) -> None:
 
 # try to extract command object from Typer context for introspection
 def _get_command_from_context(ctx: typer.Context, command_name: str):
+    from click import Group
+
     # try to get from parent app's commands dict
     if ctx and hasattr(ctx, "parent") and ctx.parent:
         parent = ctx.parent
         if hasattr(parent, "command"):
             app = parent.command
-            # Click apps have a commands dict
-            if hasattr(app, "commands") and command_name in app.commands:
+            # Click Group apps have a commands dict
+            if isinstance(app, Group) and command_name in app.commands:
                 return app.commands[command_name]
 
     # if we're directly on the command context
@@ -104,7 +106,7 @@ def run_tailoring_command(
     interactive: bool = True,
     user_prompt: str | None = None,
 ) -> None:
-    # Unified command execution for generate/apply/tailor/plan. Resolves arguments via settings & ArgResolver, builds TailoringContext, & executes via TailoringRunner.
+    # unified command execution for generate/apply/tailor/plan; resolves arguments via settings & ArgResolver, builds TailoringContext, & executes via TailoringRunner
     from .logic import ArgResolver
     from .runner import TailoringRunner, build_tailoring_context
     from ..config.settings import get_settings

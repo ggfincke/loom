@@ -122,6 +122,7 @@ def sectionize(
 
             progress.update(task, description="Building prompt and calling OpenAI...")
             prompt = build_sectionizer_prompt(numbered)
+            assert model is not None, "Model required for non-LaTeX/Typst resumes"
             result = run_generate(prompt, model=model)
 
             # Handle JSON parsing errors

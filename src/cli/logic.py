@@ -389,6 +389,7 @@ def apply_edits_core(
         if not isinstance(data, dict):
             return data
         if is_latex or is_typst:
+            assert resume_path is not None, "resume_path required for LaTeX/Typst"
             handler = get_handler(resume_path)
             filtered, notes = handler.filter_edits(data, resume_lines, descriptor)
             filter_notes.extend(notes)

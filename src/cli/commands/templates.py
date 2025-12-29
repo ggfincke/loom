@@ -33,7 +33,7 @@ def discover_templates() -> list[tuple[Path, TemplateDescriptor]]:
     root = get_templates_root()
     if root is None:
         return []
-    templates: list[tuple[Path, object]] = []
+    templates: list[tuple[Path, TemplateDescriptor]] = []
     for descriptor_path in sorted(root.rglob("loom-template.toml")):
         try:
             descriptor = load_descriptor(descriptor_path)
