@@ -15,6 +15,17 @@ if TYPE_CHECKING:
     from .diff_renderer import DiffRenderer
 
 
+# menu options for diff review UI
+OPTIONS = [
+    "Approve",
+    "Reject",
+    "Skip",
+    "Modify",
+    "Prompt",
+    "Exit",
+]
+
+
 # UI state enum for mode transitions
 class DiffReviewMode(Enum):
     MENU = "menu"
@@ -238,6 +249,12 @@ class DiffAIProcessor:
         if is_debug_enabled():
             debug_print(f"Calling AI model '{self.context.model}'...", "DIFF")
 
+        # type narrowing: _validate_context() ensures these are not None
+        assert self.state.current_operation is not None
+        assert self.context.resume_lines is not None
+        assert self.context.job_text is not None
+        assert self.context.model is not None
+
         try:
             success = self.callback(
                 self.state.current_operation,
@@ -299,7 +316,7 @@ class DiffAIProcessor:
 
 
 def get_default_prompt_callback() -> PromptCallback:
-    # Return the default prompt callback for AI regeneration.
+    # return the default prompt callback for AI regeneration
     return _default_prompt_callback
 
 

@@ -15,7 +15,6 @@ from .core import (
 # Theming system
 from .theming import (
     THEMES,
-    get_active_theme,
     LoomColors,
     natural_gradient,
     success_gradient,
@@ -55,6 +54,15 @@ from .help import (
 # Quick usage utilities
 from .quick import show_quick_usage
 
+# Diff resolution UI
+from .diff_resolution import (
+    InteractiveDiffResolver,
+    main_display_loop,
+    DiffRenderer,
+    DiffState,
+    DiffReviewMode,
+)
+
 __all__ = [
     # Core
     "UI",
@@ -66,7 +74,6 @@ __all__ = [
     "PausableTimer",
     # Theming
     "THEMES",
-    "get_active_theme",
     "LoomColors",
     "natural_gradient",
     "success_gradient",
@@ -97,4 +104,10 @@ __all__ = [
     "HelpRenderer",
     # Quick
     "show_quick_usage",
+    # Diff resolution
+    "InteractiveDiffResolver",
+    "main_display_loop",
+    "DiffRenderer",
+    "DiffState",
+    "DiffReviewMode",
 ]

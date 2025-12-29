@@ -118,25 +118,25 @@ class TestLineNumberValidation:
     def test_validate_line_number_invalid_type(self):
         is_valid, error = validate_line_number("5")
         assert is_valid is False
-        assert "'line' must be integer >= 1" in error
+        assert error is not None and "'line' must be integer >= 1" in error
 
     # * Verify validate line number zero
     def test_validate_line_number_zero(self):
         is_valid, error = validate_line_number(0)
         assert is_valid is False
-        assert "'line' must be integer >= 1" in error
+        assert error is not None and "'line' must be integer >= 1" in error
 
     # * Verify validate line number negative
     def test_validate_line_number_negative(self):
         is_valid, error = validate_line_number(-1)
         assert is_valid is False
-        assert "'line' must be integer >= 1" in error
+        assert error is not None and "'line' must be integer >= 1" in error
 
     # * Verify validate line number w/ op index
     def test_validate_line_number_with_op_index(self):
         is_valid, error = validate_line_number("5", op_index=2)
         assert is_valid is False
-        assert "Op 2:" in error
+        assert error is not None and "Op 2:" in error
 
 
 class TestRangeBoundsValidation:
@@ -150,37 +150,37 @@ class TestRangeBoundsValidation:
     def test_validate_range_bounds_invalid_type_start(self):
         is_valid, error = validate_range_bounds("1", 5)
         assert is_valid is False
-        assert "start and end must be integers" in error
+        assert error is not None and "start and end must be integers" in error
 
     # * Verify validate range bounds invalid type end
     def test_validate_range_bounds_invalid_type_end(self):
         is_valid, error = validate_range_bounds(1, "5")
         assert is_valid is False
-        assert "start and end must be integers" in error
+        assert error is not None and "start and end must be integers" in error
 
     # * Verify validate range bounds start less than one
     def test_validate_range_bounds_start_less_than_one(self):
         is_valid, error = validate_range_bounds(0, 5)
         assert is_valid is False
-        assert "invalid range 0-5" in error
+        assert error is not None and "invalid range 0-5" in error
 
     # * Verify validate range bounds end less than one
     def test_validate_range_bounds_end_less_than_one(self):
         is_valid, error = validate_range_bounds(1, 0)
         assert is_valid is False
-        assert "invalid range 1-0" in error
+        assert error is not None and "invalid range 1-0" in error
 
     # * Verify validate range bounds start greater than end
     def test_validate_range_bounds_start_greater_than_end(self):
         is_valid, error = validate_range_bounds(5, 3)
         assert is_valid is False
-        assert "invalid range 5-3" in error
+        assert error is not None and "invalid range 5-3" in error
 
     # * Verify validate range bounds w/ op index
     def test_validate_range_bounds_with_op_index(self):
         is_valid, error = validate_range_bounds(5, 3, op_index=7)
         assert is_valid is False
-        assert "Op 7:" in error
+        assert error is not None and "Op 7:" in error
 
 
 class TestRequiredFieldsValidation:
@@ -196,7 +196,7 @@ class TestRequiredFieldsValidation:
         op = {"line": 1}
         is_valid, error = validate_required_fields(op, ["line", "text"], "replace_line")
         assert is_valid is False
-        assert "missing required fields (text)" in error
+        assert error is not None and "missing required fields (text)" in error
 
     # * Verify validate required fields multiple missing
     def test_validate_required_fields_multiple_missing(self):
@@ -205,6 +205,7 @@ class TestRequiredFieldsValidation:
             op, ["start", "end", "text"], "replace_range"
         )
         assert is_valid is False
+        assert error is not None
         assert "missing required fields" in error
         assert "start" in error
         assert "end" in error
@@ -217,7 +218,7 @@ class TestRequiredFieldsValidation:
             op, ["line", "text"], "replace_line", op_index=3
         )
         assert is_valid is False
-        assert "Op 3:" in error
+        assert error is not None and "Op 3:" in error
 
 
 class TestTextFieldValidation:
@@ -231,7 +232,7 @@ class TestTextFieldValidation:
     def test_validate_text_field_invalid_type(self):
         is_valid, error = validate_text_field(123)
         assert is_valid is False
-        assert "'text' must be string" in error
+        assert error is not None and "'text' must be string" in error
 
     # * Verify validate text field newlines allowed
     def test_validate_text_field_newlines_allowed(self):
@@ -243,6 +244,7 @@ class TestTextFieldValidation:
     def test_validate_text_field_newlines_disallowed(self):
         is_valid, error = validate_text_field("line 1\nline 2", allow_newlines=False)
         assert is_valid is False
+        assert error is not None
         assert "contains newline" in error
         assert "use replace_range" in error
 
@@ -250,7 +252,7 @@ class TestTextFieldValidation:
     def test_validate_text_field_with_op_index(self):
         is_valid, error = validate_text_field(123, op_index=5)
         assert is_valid is False
-        assert "Op 5:" in error
+        assert error is not None and "Op 5:" in error
 
 
 class TestGetOperationLine:

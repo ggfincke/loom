@@ -32,11 +32,11 @@ def themed_panel(
     padding: tuple[int, int] = (0, 1),
     **kwargs,
 ) -> Panel:
-    # Create Panel w/ consistent theming.
+    # create Panel w/ consistent theming
     # lazy import to avoid circular dependency
-    from ..theming.theme_engine import get_active_theme
+    from ..theming.theme_engine import LoomColors
 
-    colors = theme_colors or get_active_theme()
+    colors = theme_colors or LoomColors.gradient()
     formatted_title = f"[bold]{title}[/]" if title else None
     return Panel(
         content,
@@ -54,11 +54,11 @@ def themed_table(
     show_header: bool = False,
     **kwargs,
 ) -> Table:
-    # Create Table w/ consistent theming.
+    # create Table w/ consistent theming
     # lazy import to avoid circular dependency
-    from ..theming.theme_engine import get_active_theme
+    from ..theming.theme_engine import LoomColors
 
-    colors = theme_colors or get_active_theme()
+    colors = theme_colors or LoomColors.gradient()
     return Table(
         border_style=kwargs.pop("border_style", colors[2]),
         show_header=show_header,

@@ -18,15 +18,17 @@ from ..core.rich_components import (
     Columns,
 )
 
+from .diff_state import DiffReviewMode, OPTIONS
+
 if TYPE_CHECKING:
-    from .diff_state import DiffState, DiffReviewMode
+    from .diff_state import DiffState
     from ...core.constants import EditOperation, DiffOp
 
 
 # * Centralized styles for diff rendering - avoids hardcoded strings throughout
 @dataclass
 class DiffStyles:
-    # Theme-aware styles for diff rendering.
+    # theme-aware styles for diff rendering
 
     # operation display
     header: str = "bold loom.accent"
@@ -54,16 +56,6 @@ class DiffStyles:
     panel_outer: str = "loom.accent"
     header_border: str = "dim"
 
-
-# menu options
-OPTIONS = [
-    "Approve",
-    "Reject",
-    "Skip",
-    "Modify",
-    "Prompt",
-    "Exit",
-]
 
 MIN_W, MAX_W = 60, 120
 MIN_H, MAX_H = 25, 25
@@ -345,8 +337,6 @@ class DiffRenderer:
     # ===== BODY CONTENT ROUTING =====
 
     def get_body_content(self, state: "DiffState") -> RenderableType:
-        from .diff_state import DiffReviewMode
-
         if state.mode == DiffReviewMode.PROMPT_PROCESSING:
             return self.render_prompt_loading(state)
         elif state.mode == DiffReviewMode.TEXT_INPUT:

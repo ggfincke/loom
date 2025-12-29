@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from ...core.types import Lines
     from ...core.constants import EditOperation
 
-from ...loom_io.console import console
+from ...loom_io.console import console, get_console
 
 FIXED_W = _clamp(console.size.width // 2, MIN_W, MAX_W)
 FIXED_H = _clamp(console.size.height // 2, MIN_H, MAX_H)
@@ -119,7 +119,10 @@ class InteractiveDiffResolver:
         prompt_just_submitted = False
 
         with Live(
-            self.render_screen(), console=console, screen=True, refresh_per_second=30
+            self.render_screen(),
+            console=get_console(),
+            screen=True,
+            refresh_per_second=30,
         ) as live:
             while not self.is_complete:
                 if (

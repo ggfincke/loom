@@ -7,30 +7,16 @@ from typing import TYPE_CHECKING
 
 from readchar import key
 
-if TYPE_CHECKING:
-    from .diff_state import DiffState, DiffStateManager, DiffReviewMode
-
-
-# menu options (must match renderer)
-OPTIONS = [
-    "Approve",
-    "Reject",
-    "Skip",
-    "Modify",
-    "Prompt",
-    "Exit",
-]
+from .diff_state import DiffState, DiffStateManager, DiffReviewMode, OPTIONS
 
 
 class DiffInputHandler:
 
-    def __init__(self, state: "DiffState", state_manager: "DiffStateManager"):
+    def __init__(self, state: DiffState, state_manager: DiffStateManager):
         self.state = state
         self.manager = state_manager
 
     def handle_key(self, k: str) -> bool:
-        from .diff_state import DiffReviewMode
-
         if self.state.mode == DiffReviewMode.TEXT_INPUT:
             return self._handle_text_input_key(k)
         elif self.state.mode == DiffReviewMode.PROMPT_PROCESSING:

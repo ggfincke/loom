@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.9-nightly.20251229] - 2025-12-29
+
+### Changed
+- **Type safety improvements**: Add runtime assertions for required paths in CLI runner & bulk runner
+- **Ollama client refactor**: Remove debug logging & singleton pattern for cleaner architecture
+- **Type hints**: Fix mypy compliance across CLI params, validation, & UI modules
+- **Import organization**: Add Click Group type guard, improve UI module exports & diff resolution init
+
+### Removed
+- **Debug logging**: Remove excessive debug output from OllamaClient API calls
+
+---
+
 ## [1.3.8-nightly.20251229] - 2025-12-29
 
 ### Added

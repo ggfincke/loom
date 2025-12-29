@@ -6,7 +6,7 @@ from __future__ import annotations
 from pathlib import Path
 from ..core.rich_components import Text
 from ...loom_io.console import console
-from ..theming.theme_engine import get_active_theme, natural_gradient
+from ..theming.theme_engine import LoomColors, natural_gradient
 
 
 # * Display the Loom banner w/ smooth gradient styling
@@ -20,14 +20,16 @@ def show_loom_art(theme_colors: list[str] | None = None) -> None:
 
     # choose 3-stop gradient from theme for nice blending
     if theme_colors is not None:
-        theme = theme_colors
+        stops = [c for i, c in enumerate(theme_colors) if i in (0, 2, 4)]
+        if len(stops) < 2:
+            # fallback if theme is short
+            stops = theme_colors[:2]
     else:
-        theme = get_active_theme()
-
-    stops = [c for i, c in enumerate(theme) if i in (0, 2, 4)]
-    if len(stops) < 2:
-        # fallback if theme is short
-        stops = theme[:2]
+        stops = [
+            LoomColors.ACCENT_PRIMARY,
+            LoomColors.ACCENT_SECONDARY,
+            LoomColors.ACCENT_DEEP,
+        ]
 
     if banner_path:
         art = banner_path.read_text(encoding="utf-8").splitlines()

@@ -13,7 +13,6 @@ from ...loom_io.console import console
 from ..theming.theme_engine import (
     LoomColors,
     natural_gradient,
-    get_active_theme,
 )
 
 
@@ -63,8 +62,6 @@ def _score_label(score: int) -> str:
 
 # render ATS compatibility report to console
 def render_ats_report(report: ATSReport) -> None:
-    colors = get_active_theme()
-
     # header panel w/ score
     score_color = _score_color(report.score)
     score_text = Text()
@@ -100,7 +97,7 @@ def render_ats_report(report: ATSReport) -> None:
     header_panel = Panel(
         header_content,
         title=natural_gradient("ATS Compatibility Report"),
-        border_style=colors[2],
+        border_style=LoomColors.ACCENT_SECONDARY,
         padding=(0, 1),
     )
 
@@ -134,7 +131,7 @@ def render_ats_report(report: ATSReport) -> None:
                 desc.append(f" [{issue.location}]", style="dim")
 
             if issue.suggestion:
-                desc.append("\n    -> ", style=colors[2])
+                desc.append("\n    -> ", style=LoomColors.ACCENT_SECONDARY)
                 desc.append(issue.suggestion, style="dim italic")
 
             table.add_row(icon, desc)
@@ -144,9 +141,11 @@ def render_ats_report(report: ATSReport) -> None:
 
     # recommendations
     if report.recommendations:
-        console.print(Text("Recommendations", style=f"bold {colors[0]}"))
+        console.print(
+            Text("Recommendations", style=f"bold {LoomColors.ACCENT_PRIMARY}")
+        )
         for rec in report.recommendations:
-            bullet = Text("  * ", style=colors[2])
+            bullet = Text("  * ", style=LoomColors.ACCENT_SECONDARY)
             console.print(Text.assemble(bullet, Text(rec, style="dim")))
         console.print()
 
