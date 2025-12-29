@@ -422,3 +422,49 @@ def read_text(path: Path) -> str:
     text = Path(path).read_text(encoding="utf-8")
     vlog_file_read(path, len(text))
     return text
+
+
+# === Handler Registry ===
+# Provides unified access to format-specific handlers via get_handler()
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .base_handler import BaseDocumentHandler
+
+# Handler registry - maps file extensions to handler class names
+# Uses strings to avoid circular imports; handlers are imported lazily
+_HANDLER_REGISTRY: dict[str, str] = {
+    ".tex": "latex",
+    ".typ": "typst",
+}
+
+# Cached handler instances (singleton per format)
+_handler_cache: dict[str, "BaseDocumentHandler"] = {}
+
+
+# * Get appropriate handler for document type (uses suffix to determine format)
+def get_handler(path: Path) -> "BaseDocumentHandler":
+    suffix = path.suffix.lower()
+    if suffix not in _HANDLER_REGISTRY:
+        raise DocumentParseError(f"Unsupported format: {suffix}")
+
+    format_key = _HANDLER_REGISTRY[suffix]
+
+    if format_key not in _handler_cache:
+        # Lazy import to avoid circular dependencies
+        if format_key == "latex":
+            from .latex_handler import LatexHandler
+
+            _handler_cache[format_key] = LatexHandler()
+        elif format_key == "typst":
+            from .typst_handler import TypstHandler
+
+            _handler_cache[format_key] = TypstHandler()
+
+    return _handler_cache[format_key]
+
+
+# clear cached handler instances (primarily for testing)
+def clear_handler_cache() -> None:
+    _handler_cache.clear()

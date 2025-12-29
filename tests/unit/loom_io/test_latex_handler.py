@@ -1,16 +1,10 @@
 # tests/unit/loom_io/test_latex_handler.py
-# Unit tests for LaTeX handler utilities & template metadata integration
+# Unit tests for LaTeX handler using new OO API
 
 from pathlib import Path
 import json
 
-from src.loom_io.latex_handler import (
-    analyze_latex,
-    filter_latex_edits,
-    detect_template,
-    sections_to_payload,
-)
-from src.loom_io.documents import read_latex
+from src.loom_io.documents import get_handler, read_latex
 
 
 # * Verify generic LaTeX analysis detects expected sections
@@ -20,7 +14,8 @@ def test_analyze_latex_detects_core_sections():
     sample_path = fixtures_dir / "basic_formatted_resume.tex"
     lines = read_latex(sample_path)
 
-    analysis = analyze_latex(lines)
+    handler = get_handler(sample_path)
+    analysis = handler.analyze(lines)
     section_keys = {section.key for section in analysis.sections}
 
     assert "experience" in section_keys
@@ -48,7 +43,11 @@ def test_filter_latex_edits_enforces_command_preservation():
         ],
     }
 
-    filtered, notes = filter_latex_edits(edits, resume_lines, descriptor=None)
+    # Use handler via get_handler w/ a dummy .tex path
+    from src.loom_io.latex_handler import LatexHandler
+
+    handler = LatexHandler()
+    filtered, notes = handler.filter_edits(edits, resume_lines, descriptor=None)
 
     assert any("structural" in note for note in notes)
     assert any("Dropped edit removing \\item" in note for note in notes)
@@ -62,13 +61,15 @@ def test_detect_template_uses_descriptor_and_inline_marker():
     template_resume = (root / "templates" / "swe-latex" / "resume.tex").resolve()
     content = template_resume.read_text(encoding="utf-8")
 
-    descriptor = detect_template(template_resume, content)
+    handler = get_handler(template_resume)
+    descriptor = handler.detect_template(template_resume, content)
     assert descriptor is not None
     assert descriptor.id == "swe-latex"
     assert descriptor.inline_marker == "swe-latex"
 
     lines = read_latex(template_resume)
-    payload = sections_to_payload(analyze_latex(lines, descriptor))
+    analysis = handler.analyze(lines, descriptor)
+    payload = handler.sections_to_payload(analysis)
 
     assert payload["meta"]["template_id"] == "swe-latex"
     # version/handler fields removed for token efficiency

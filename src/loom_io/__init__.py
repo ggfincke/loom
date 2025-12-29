@@ -11,6 +11,8 @@ from .documents import (
     read_text,
     read_docx_with_formatting,
     apply_edits_to_docx,
+    get_handler,
+    clear_handler_cache,
 )
 from .generics import (
     write_json_safe,
@@ -18,22 +20,36 @@ from .generics import (
     ensure_parent,
     exit_with_error,
 )
-from .latex_handler import (
-    detect_template,
-    analyze_latex,
-    sections_to_payload,
-    filter_latex_edits,
+
+# Shared template & pattern utilities
+from .template_io import (
+    TEMPLATE_FILENAME,
     TemplateDescriptor,
+    TemplateSectionRule,
+    FrozenRules,
+    find_template_descriptor_path,
     load_descriptor,
-    build_latex_context,
 )
+from .shared_patterns import (
+    COMMON_SEMANTIC_MATCHERS,
+    infer_section_kind,
+)
+from .types import (
+    DocumentSection,
+    DocumentAnalysis,
+)
+
+# Base handler class
+from .base_handler import BaseDocumentHandler
+
+# Handler classes (OO API)
+from .latex_handler import LatexHandler
+from .typst_handler import TypstHandler
+
+# Typst frozen range utilities (useful externally)
 from .typst_handler import (
-    build_typst_context,
-    analyze_typst,
-    sections_to_payload as typst_sections_to_payload,
-    filter_typst_edits,
-    TypstSection,
-    TypstAnalysis,
+    find_frozen_ranges,
+    is_in_frozen_range,
 )
 from .bulk_io import (
     discover_jobs,
@@ -55,26 +71,34 @@ __all__ = [
     "read_text",
     "read_docx_with_formatting",
     "apply_edits_to_docx",
+    # Handler registry (primary API)
+    "get_handler",
+    "clear_handler_cache",
     # Generics
     "write_json_safe",
     "read_json_safe",
     "ensure_parent",
     "exit_with_error",
-    # LaTeX
-    "detect_template",
-    "analyze_latex",
-    "sections_to_payload",
-    "filter_latex_edits",
+    # Shared template utilities
+    "TEMPLATE_FILENAME",
     "TemplateDescriptor",
+    "TemplateSectionRule",
+    "FrozenRules",
+    "find_template_descriptor_path",
     "load_descriptor",
-    "build_latex_context",
-    # Typst
-    "build_typst_context",
-    "analyze_typst",
-    "typst_sections_to_payload",
-    "filter_typst_edits",
-    "TypstSection",
-    "TypstAnalysis",
+    # Shared pattern utilities
+    "COMMON_SEMANTIC_MATCHERS",
+    "infer_section_kind",
+    # Unified types
+    "DocumentSection",
+    "DocumentAnalysis",
+    # Handler classes (OO API)
+    "BaseDocumentHandler",
+    "LatexHandler",
+    "TypstHandler",
+    # Typst frozen range utilities
+    "find_frozen_ranges",
+    "is_in_frozen_range",
     # Bulk I/O
     "discover_jobs",
     "deduplicate_job_specs",

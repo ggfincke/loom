@@ -1,22 +1,18 @@
 # tests/unit/loom_io/test_typst_handler.py
-# Unit tests for Typst handler utilities & template metadata integration
+# Unit tests for Typst handler using new OO API
 
 from pathlib import Path
 import json
 
+from src.loom_io.documents import get_handler, read_typst
 from src.loom_io.typst_handler import (
-    analyze_typst,
-    filter_typst_edits,
-    detect_template,
-    sections_to_payload,
     find_frozen_ranges,
     is_in_frozen_range,
     validate_basic_typst_syntax,
     validate_typst_document,
     check_typst_availability,
-    build_typst_context,
+    TypstHandler,
 )
-from src.loom_io.documents import read_typst
 
 
 # * Verify generic Typst analysis detects expected sections
@@ -26,7 +22,8 @@ def test_analyze_typst_detects_core_sections():
     sample_path = fixtures_dir / "basic_formatted_resume.typ"
     lines = read_typst(sample_path)
 
-    analysis = analyze_typst(lines, descriptor=None)
+    handler = get_handler(sample_path)
+    analysis = handler.analyze(lines, descriptor=None)
     section_keys = {section.key for section in analysis.sections}
 
     assert "experience" in section_keys
@@ -53,10 +50,13 @@ def test_filter_typst_edits_enforces_structural_preservation():
         ],
     }
 
-    filtered, notes = filter_typst_edits(edits, resume_lines, descriptor=None)
+    handler = TypstHandler()
+    filtered, notes = handler.filter_edits(edits, resume_lines, descriptor=None)
 
     # Structural lines (1 and 2) should be skipped - filtered as "frozen" or "structural"
-    assert any("frozen" in note.lower() or "structural" in note.lower() for note in notes)
+    assert any(
+        "frozen" in note.lower() or "structural" in note.lower() for note in notes
+    )
     # Non-structural lines should pass through
     remaining_lines = [op.get("line") for op in filtered["ops"]]
     assert 5 in remaining_lines  # content line should pass
@@ -69,14 +69,15 @@ def test_detect_template_uses_descriptor_and_inline_marker():
     template_resume = (root / "templates" / "swe-typst" / "resume.typ").resolve()
     content = template_resume.read_text(encoding="utf-8")
 
-    descriptor = detect_template(template_resume, content)
+    handler = get_handler(template_resume)
+    descriptor = handler.detect_template(template_resume, content)
     assert descriptor is not None
     assert descriptor.id == "swe-typst"
     assert descriptor.inline_marker == "swe-typst"
 
     lines = read_typst(template_resume)
-    analysis = analyze_typst(lines, descriptor)
-    payload = sections_to_payload(analysis)
+    analysis = handler.analyze(lines, descriptor)
+    payload = handler.sections_to_payload(analysis)
 
     assert payload["template_id"] == "swe-typst"
     assert "sections" in payload
@@ -150,14 +151,15 @@ def test_validate_basic_typst_syntax_with_comments():
     assert validate_basic_typst_syntax(valid_typst)
 
 
-# * Test build_typst_context integration
-def test_build_typst_context_returns_analysis():
+# * Test build_context integration (via handler)
+def test_build_context_returns_analysis():
     root = Path(__file__).resolve().parents[3]
     template_resume = (root / "templates" / "swe-typst" / "resume.typ").resolve()
     text = template_resume.read_text(encoding="utf-8")
     lines = read_typst(template_resume)
 
-    descriptor, analysis = build_typst_context(template_resume, lines, text)
+    handler = get_handler(template_resume)
+    descriptor, analysis = handler.build_context(template_resume, lines, text)
 
     assert descriptor is not None
     assert descriptor.id == "swe-typst"
@@ -171,9 +173,10 @@ def test_sections_to_payload_format():
     fixtures_dir = root / "tests" / "fixtures" / "documents"
     sample_path = fixtures_dir / "basic_formatted_resume.typ"
     lines = read_typst(sample_path)
-    analysis = analyze_typst(lines, descriptor=None)
 
-    payload = sections_to_payload(analysis)
+    handler = get_handler(sample_path)
+    analysis = handler.analyze(lines, descriptor=None)
+    payload = handler.sections_to_payload(analysis)
 
     assert "sections" in payload
     assert "section_order" in payload
@@ -189,7 +192,7 @@ def test_sections_to_payload_format():
         assert "end_line" in section
 
 
-# * Test filter_typst_edits with frozen ranges
+# * Test filter_edits with frozen ranges
 def test_filter_typst_edits_respects_frozen_ranges():
     resume_lines = {
         1: "#set page(",
@@ -203,12 +206,17 @@ def test_filter_typst_edits_respects_frozen_ranges():
         "version": 1,
         "meta": {},
         "ops": [
-            {"op": "replace_line", "line": 2, "text": "  margin: 0.5in,"},  # In frozen range
+            {
+                "op": "replace_line",
+                "line": 2,
+                "text": "  margin: 0.5in,",
+            },  # In frozen range
             {"op": "replace_line", "line": 5, "text": "Updated content"},  # Not frozen
         ],
     }
 
-    filtered, notes = filter_typst_edits(
+    handler = TypstHandler()
+    filtered, notes = handler.filter_edits(
         edits, resume_lines, descriptor=None, frozen_ranges=frozen_ranges
     )
 
@@ -256,7 +264,10 @@ def test_validate_typst_document_invalid_syntax():
     assert result["syntax_valid"] is False
     assert result["compilation_checked"] is False  # skipped due to syntax failure
     assert len(result["errors"]) > 0
-    assert "syntax" in result["errors"][0].lower() or "unbalanced" in result["errors"][0].lower()
+    assert (
+        "syntax" in result["errors"][0].lower()
+        or "unbalanced" in result["errors"][0].lower()
+    )
 
 
 # * Test validate_typst_document result structure
@@ -282,7 +293,8 @@ def test_detect_template_inline_only_fallback(tmp_path):
     typst_file = tmp_path / "resume.typ"
     typst_file.write_text(typst_content, encoding="utf-8")
 
-    descriptor = detect_template(typst_file, typst_content)
+    handler = get_handler(typst_file)
+    descriptor = handler.detect_template(typst_file, typst_content)
 
     assert descriptor is not None
     assert descriptor.id == "my-custom-template"
@@ -299,6 +311,7 @@ def test_detect_template_returns_none_without_marker(tmp_path):
     typst_file = tmp_path / "resume.typ"
     typst_file.write_text(typst_content, encoding="utf-8")
 
-    descriptor = detect_template(typst_file, typst_content)
+    handler = get_handler(typst_file)
+    descriptor = handler.detect_template(typst_file, typst_content)
 
     assert descriptor is None

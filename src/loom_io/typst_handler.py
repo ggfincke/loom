@@ -10,7 +10,6 @@ import re
 import shutil
 import subprocess
 import tempfile
-import tomllib
 
 from ..core.types import Lines
 from .typst_patterns import (
@@ -26,12 +25,17 @@ from .typst_patterns import (
     infer_section_kind,
 )
 
-# Reuse template descriptor types from latex_handler
-from .latex_handler import TemplateDescriptor, TemplateSectionRule, FrozenRules
-from ..core.exceptions import TemplateNotFoundError, TemplateParseError
+# Import shared template utilities
+from .template_io import (
+    TemplateDescriptor,
+    TemplateSectionRule,
+    FrozenRules,
+    find_template_descriptor_path,
+    load_descriptor,
+    detect_inline_marker as _detect_inline_marker,
+)
 
-# Template detection constants
-_TEMPLATE_FILENAME = "loom-template.toml"
+# Typst-specific inline marker pattern (// or /* loom-template: <id>)
 _INLINE_MARKER_RE = re.compile(
     r"(?://|/\*)\s*loom-template:\s*(?P<id>[A-Za-z0-9_\-]+)", re.IGNORECASE
 )
@@ -59,69 +63,11 @@ class TypstAnalysis:
     header_lines: list[int]
 
 
-# * Find loom-template.toml by walking up from resume path
-def find_template_descriptor_path(resume_path: Path) -> Path | None:
-    current = resume_path.resolve().parent
-    for parent in [current] + list(current.parents):
-        candidate = parent / _TEMPLATE_FILENAME
-        if candidate.exists():
-            return candidate
-    return None
-
-
-# * Detect inline marker in Typst file (first N lines)
+# * Detect inline marker in Typst file (uses Typst-specific // or /* comment pattern)
+# parse inline marker from Typst file using // or /* comment syntax
 def detect_inline_marker(text: str) -> str | None:
-    lines = text.split("\n")[:_MARKER_SEARCH_LINES]
-    for line in lines:
-        match = _INLINE_MARKER_RE.search(line)
-        if match:
-            return match.group("id").strip()
-    return None
-
-
-# * Load template descriptor from path
-def load_descriptor(
-    descriptor_path: Path, inline_marker: str | None = None
-) -> TemplateDescriptor:
-    try:
-        with open(descriptor_path, "rb") as f:
-            data = tomllib.load(f)
-    except FileNotFoundError:
-        raise TemplateNotFoundError(f"Template descriptor not found: {descriptor_path}")
-    except tomllib.TOMLDecodeError as e:
-        raise TemplateParseError(
-            f"Invalid TOML in template descriptor {descriptor_path}: {e}"
-        ) from e
-
-    template = data.get("template", {})
-    sections_raw = data.get("sections", {})
-    frozen_raw = data.get("frozen", {})
-    custom = data.get("custom", {})
-
-    sections: dict[str, TemplateSectionRule] = {}
-    for key, sec_data in sections_raw.items():
-        sections[key] = TemplateSectionRule(
-            key=key,
-            pattern=sec_data.get("pattern", ""),
-            pattern_type=sec_data.get("pattern_type", "literal"),
-            kind=sec_data.get("kind"),
-            split_items=sec_data.get("split_items", False),
-            optional=sec_data.get("optional", True),
-        )
-
-    frozen_paths = [Path(p) for p in frozen_raw.get("paths", [])]
-    frozen_patterns = frozen_raw.get("patterns", [])
-
-    return TemplateDescriptor(
-        id=template.get("id", "unknown"),
-        type=template.get("type", "resume"),
-        name=template.get("name"),
-        version=template.get("version"),
-        sections=sections,
-        frozen=FrozenRules(paths=frozen_paths, patterns=frozen_patterns),
-        custom=custom,
-        source_path=descriptor_path,
-        inline_marker=inline_marker,
+    return _detect_inline_marker(
+        text, _INLINE_MARKER_RE, max_lines=_MARKER_SEARCH_LINES
     )
 
 
@@ -576,7 +522,9 @@ def validate_typst_document(
     if validate_basic_typst_syntax(content):
         result["syntax_valid"] = True
     else:
-        result["errors"].append("Typst syntax validation failed (unbalanced delimiters or unterminated string)")
+        result["errors"].append(
+            "Typst syntax validation failed (unbalanced delimiters or unterminated string)"
+        )
         return result
 
     # Optionally check compilation
@@ -592,36 +540,161 @@ def validate_typst_document(
             except Exception as e:
                 result["errors"].append(f"Compilation validation error: {e}")
         else:
-            result["warnings"].append("Typst compiler not available; skipping compilation check")
+            result["warnings"].append(
+                "Typst compiler not available; skipping compilation check"
+            )
 
     return result
 
 
-# * Build context tuple for Typst document (similar to LaTeX)
-def build_typst_context(
-    resume_path: Path, lines: Lines, text: str
-) -> Tuple[TemplateDescriptor | None, TypstAnalysis]:
-    descriptor = detect_template(resume_path, text)
-    analysis = analyze_typst(lines, descriptor)
-    return descriptor, analysis
+# === Handler Class (OO API) ===
+
+from typing import Pattern
+from .base_handler import BaseDocumentHandler
+from .types import DocumentSection, DocumentAnalysis
+
+
+# handler for Typst (.typ) resume documents w/ OO interface for template detection, analysis & filtering
+class TypstHandler(BaseDocumentHandler):
+    format_type = "typst"
+
+    @property
+    def inline_marker_pattern(self) -> Pattern[str]:
+        return _INLINE_MARKER_RE
+
+    @property
+    def inline_marker_max_lines(self) -> int | None:
+        return _MARKER_SEARCH_LINES
+
+    @property
+    def semantic_matchers(self) -> dict[str, Pattern[str]]:
+        return SEMANTIC_MATCHERS
+
+    # analyze Typst document structure & extract sections
+    def analyze(
+        self, lines: Lines, descriptor: TemplateDescriptor | None = None
+    ) -> DocumentAnalysis:
+        # use existing analyze_typst function
+        legacy_analysis = analyze_typst(lines, descriptor)
+
+        # Convert to unified DocumentSection/DocumentAnalysis types
+        sections = [
+            DocumentSection(
+                key=s.key,
+                heading_text=s.heading_text,
+                start_line=s.start_line,
+                end_line=s.end_line,
+                confidence=s.confidence,
+                items=s.items,
+                source=s.source,
+                kind=s.key,  # kind same as key for Typst
+            )
+            for s in legacy_analysis.sections
+        ]
+
+        return DocumentAnalysis(
+            sections=sections,
+            normalized_order=legacy_analysis.normalized_order,
+            notes=legacy_analysis.notes,
+            descriptor=legacy_analysis.descriptor,
+            format_type="typst",
+            frozen_ranges=legacy_analysis.frozen_ranges,
+            header_lines=legacy_analysis.header_lines,
+        )
+
+    # check if line is structural & should not be edited
+    def is_structural_line(
+        self, line: str, frozen_patterns: list[str] | None = None
+    ) -> bool:
+        return is_structural_line(line, frozen_patterns=frozen_patterns)
+
+    # check if line is in a frozen range (returns True if OK to edit, False if frozen)
+    def _check_frozen_ranges(self, line_num: int, kwargs: dict) -> bool:
+        frozen_ranges = kwargs.get("frozen_ranges")
+        if frozen_ranges is not None:
+            return not is_in_frozen_range(line_num, frozen_ranges)
+        return True
+
+    # Typst-specific edit validation (simpler than LaTeX - no command preservation rules)
+    def _validate_edit(
+        self, op: dict, lines: Lines, affected_lines: list[int], notes: list[str]
+    ) -> bool:
+        # currently no Typst-specific validation beyond structural checks
+        return True
+
+    # validate basic Typst syntax
+    def validate_syntax(self, content: str) -> bool:
+        return validate_basic_typst_syntax(content)
+
+    # attempt Typst compilation & return result
+    def validate_compilation(self, content: str) -> Dict[str, Any]:
+        success, message = validate_typst_compilation(content)
+        return {
+            "success": success,
+            "errors": [] if success else [message],
+            "warnings": [],
+        }
+
+    # check if Typst compiler is available
+    def check_tool_availability(self) -> Dict[str, bool]:
+        return check_typst_availability()
+
+    # Override sections_to_payload to match legacy format
+    # convert analysis to JSON-serializable payload for AI
+    def sections_to_payload(self, analysis: DocumentAnalysis) -> dict:
+        sections_data = []
+        for s in analysis.sections:
+            sections_data.append(
+                {
+                    "kind": s.kind or s.key,
+                    "heading_text": s.heading_text,
+                    "start_line": s.start_line,
+                    "end_line": s.end_line,
+                    "items": s.items if s.items else [],
+                }
+            )
+
+        return {
+            "sections": sections_data,
+            "section_order": analysis.normalized_order,
+            "notes": analysis.notes,
+            "template_id": analysis.descriptor.id if analysis.descriptor else None,
+        }
+
+    # Override filter_edits to use legacy implementation for full feature parity
+    def filter_edits(
+        self,
+        edits: dict,
+        lines: Lines,
+        descriptor: TemplateDescriptor | None = None,
+        **kwargs,
+    ) -> Tuple[dict, list[str]]:
+        # filter edits to protect structural content
+        frozen_ranges = kwargs.get("frozen_ranges")
+        return filter_typst_edits(edits, lines, descriptor, frozen_ranges)
+
+    # Typst-specific: expose frozen range detection for multi-line structural blocks
+    def find_frozen_ranges(self, lines: Lines) -> list[Tuple[int, int]]:
+        return find_frozen_ranges(lines)
+
+    # convenience method matching legacy build_typst_context signature
+    def build_context(
+        self, resume_path: Path, lines: Lines, text: str
+    ) -> Tuple[TemplateDescriptor | None, DocumentAnalysis]:
+        descriptor = self.detect_template(resume_path, text)
+        analysis = self.analyze(lines, descriptor)
+        return descriptor, analysis
 
 
 __all__ = [
-    "TypstSection",
-    "TypstAnalysis",
-    "find_template_descriptor_path",
-    "detect_inline_marker",
-    "load_descriptor",
-    "detect_template",
+    # Handler class (public API)
+    "TypstHandler",
+    # Frozen range utilities (useful for external callers)
     "find_frozen_ranges",
     "is_in_frozen_range",
-    "detect_item_boundaries",
-    "analyze_typst",
-    "sections_to_payload",
-    "filter_typst_edits",
+    # Validation utilities (standalone, may be useful externally)
     "validate_basic_typst_syntax",
     "validate_typst_compilation",
     "check_typst_availability",
     "validate_typst_document",
-    "build_typst_context",
 ]

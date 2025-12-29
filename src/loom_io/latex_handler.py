@@ -9,7 +9,6 @@ from typing import Any, Dict, List, Tuple
 import re
 import subprocess
 import tempfile
-import tomllib
 
 from ..core.types import Lines
 from .latex_patterns import (
@@ -19,41 +18,19 @@ from .latex_patterns import (
     SEMANTIC_MATCHERS,
     BULLET_PATTERNS,
 )
-from ..core.exceptions import TemplateNotFoundError, TemplateParseError
 
-# Template descriptor constants
-_TEMPLATE_FILENAME = "loom-template.toml"
+# Import shared template utilities
+from .template_io import (
+    TemplateDescriptor,
+    TemplateSectionRule,
+    FrozenRules,
+    find_template_descriptor_path,
+    load_descriptor,
+    detect_inline_marker as _detect_inline_marker,
+)
+
+# LaTeX-specific inline marker pattern (% loom-template: <id>)
 _INLINE_TEMPLATE_RE = re.compile(r"%\s*loom-template:\s*(?P<id>[A-Za-z0-9_\-]+)")
-
-
-@dataclass
-class TemplateSectionRule:
-    key: str
-    pattern: str
-    pattern_type: str = "literal"
-    kind: str | None = None
-    split_items: bool = False
-    optional: bool = True
-
-
-@dataclass
-class FrozenRules:
-    paths: list[Path] = field(default_factory=list)
-    patterns: list[str] = field(default_factory=list)
-
-
-@dataclass
-class TemplateDescriptor:
-    id: str
-    type: str
-    name: str | None
-    version: str | None
-    sections: dict[str, TemplateSectionRule]
-    frozen: FrozenRules
-    custom: Dict[str, Any]
-    source_path: Path | None = None
-    inline_marker: str | None = None
-    inline_only: bool = False
 
 
 @dataclass
@@ -77,78 +54,9 @@ class LatexAnalysis:
     body_lines: list[int]
 
 
-# * Find loom-template.toml by walking up from resume path
-def find_template_descriptor_path(resume_path: Path) -> Path | None:
-    current = resume_path.resolve().parent
-    for parent in [current] + list(current.parents):
-        candidate = parent / _TEMPLATE_FILENAME
-        if candidate.exists():
-            return candidate
-    return None
-
-
-# * Parse inline marker in LaTeX file
+# * Detect inline marker in LaTeX file (uses LaTeX-specific % comment pattern)
 def detect_inline_marker(text: str) -> str | None:
-    match = _INLINE_TEMPLATE_RE.search(text)
-    if match:
-        return match.group("id").strip()
-    return None
-
-
-# * Load template descriptor from path
-def load_descriptor(
-    descriptor_path: Path, inline_marker: str | None = None
-) -> TemplateDescriptor:
-    try:
-        raw = tomllib.loads(descriptor_path.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        raise TemplateNotFoundError(f"Template descriptor not found: {descriptor_path}")
-    except tomllib.TOMLDecodeError as e:
-        raise TemplateParseError(
-            f"Invalid TOML in template descriptor {descriptor_path}: {e}"
-        ) from e
-
-    template_meta = raw.get("template", {})
-    template_id = template_meta.get("id")
-    template_type = template_meta.get("type")
-    name = template_meta.get("name")
-    version = template_meta.get("version")
-    if template_id is None or template_type is None:
-        raise TemplateParseError(
-            f"Template descriptor {descriptor_path} missing required template.id or template.type"
-        )
-
-    sections_raw = raw.get("sections", {})
-    section_rules: dict[str, TemplateSectionRule] = {}
-    for key, config in sections_raw.items():
-        section_rules[key] = TemplateSectionRule(
-            key=key,
-            pattern=config.get("pattern", ""),
-            pattern_type=config.get("pattern_type", "literal"),
-            kind=config.get("kind"),
-            split_items=bool(config.get("split_items", False)),
-            optional=bool(config.get("optional", True)),
-        )
-
-    frozen_raw = raw.get("frozen", {})
-    frozen_paths = [Path(p) for p in frozen_raw.get("paths", [])]
-    frozen_patterns = frozen_raw.get("patterns", [])
-    frozen_rules = FrozenRules(paths=frozen_paths, patterns=frozen_patterns or [])
-
-    custom_meta = raw.get("custom", {})
-
-    return TemplateDescriptor(
-        id=template_id,
-        type=template_type,
-        name=name,
-        version=version,
-        sections=section_rules,
-        frozen=frozen_rules,
-        custom=custom_meta if isinstance(custom_meta, dict) else {},
-        source_path=descriptor_path,
-        inline_marker=inline_marker,
-        inline_only=False,
-    )
+    return _detect_inline_marker(text, _INLINE_TEMPLATE_RE)
 
 
 # * Detect template descriptor or inline marker near resume
@@ -633,42 +541,176 @@ def validate_latex_document(
     return result
 
 
-# * Build context for LaTeX resume files (detects template, analyzes sections, collects notes)
-def build_latex_context(
-    resume_path: Path, lines: Lines, resume_text: str | None = None
-) -> tuple[TemplateDescriptor | None, str | None, list[str]]:
-    import json
+# === Handler Class (OO API) ===
 
-    descriptor = None
-    sections_json = None
-    notes: list[str] = []
+from typing import Pattern
+from .base_handler import BaseDocumentHandler
+from .types import DocumentSection, DocumentAnalysis
 
-    if resume_path.suffix.lower() == ".tex":
-        # Use provided text or read from file
-        if resume_text is None:
-            resume_text = resume_path.read_text(encoding="utf-8")
-        descriptor = detect_template(resume_path, resume_text)
-        analysis = analyze_latex(lines, descriptor)
-        sections_json = json.dumps(sections_to_payload(analysis), indent=2)
-        notes = analysis.notes
 
-    return descriptor, sections_json, notes
+# handler for LaTeX (.tex) resume documents w/ OO interface for template detection, analysis & filtering
+class LatexHandler(BaseDocumentHandler):
+    format_type = "latex"
+
+    @property
+    def inline_marker_pattern(self) -> Pattern[str]:
+        return _INLINE_TEMPLATE_RE
+
+    @property
+    def inline_marker_max_lines(self) -> int | None:
+        return None  # Search entire file
+
+    @property
+    def semantic_matchers(self) -> dict[str, Pattern[str]]:
+        return SEMANTIC_MATCHERS
+
+    # analyze LaTeX document structure & extract sections
+    def analyze(
+        self, lines: Lines, descriptor: TemplateDescriptor | None = None
+    ) -> DocumentAnalysis:
+        # use existing analyze_latex function
+        legacy_analysis = analyze_latex(lines, descriptor)
+
+        # Convert to unified DocumentSection/DocumentAnalysis types
+        sections = [
+            DocumentSection(
+                key=s.key,
+                heading_text=s.heading_text,
+                start_line=s.start_line,
+                end_line=s.end_line,
+                confidence=s.confidence,
+                items=s.items,
+                source=s.source,
+                kind=s.key,  # kind same as key for LaTeX
+            )
+            for s in legacy_analysis.sections
+        ]
+
+        return DocumentAnalysis(
+            sections=sections,
+            normalized_order=legacy_analysis.normalized_order,
+            notes=legacy_analysis.notes,
+            descriptor=legacy_analysis.descriptor,
+            format_type="latex",
+            preamble_lines=legacy_analysis.preamble_lines,
+            body_lines=legacy_analysis.body_lines,
+        )
+
+    # check if line is structural & should not be edited
+    def is_structural_line(
+        self, line: str, frozen_patterns: list[str] | None = None
+    ) -> bool:
+        return is_structural_line(line, frozen_patterns=frozen_patterns)
+
+    # LaTeX-specific edit validation (preserve commands, \\item, etc.)
+    def _validate_edit(
+        self, op: dict, lines: Lines, affected_lines: list[int], notes: list[str]
+    ) -> bool:
+        op_type = op.get("op") or op.get("operation", "")
+
+        # Collect original commands
+        original_commands: set[str] = set()
+        for line_num in affected_lines:
+            text = lines.get(line_num, "")
+            original_commands |= _extract_commands(text)
+
+        # Handle delete_range: block if removing commands
+        if op_type == "delete_range":
+            if any(cmd.startswith("\\") for cmd in original_commands):
+                notes.append("Dropped delete_range that would remove LaTeX commands")
+                return False
+            return True
+
+        # Get replacement text
+        replacement_text = op.get("text", "") if isinstance(op, dict) else ""
+        new_commands = (
+            _extract_commands(replacement_text) if replacement_text else set()
+        )
+
+        # Ensure \\item commands stick around
+        if "\\item" in original_commands and "\\item" not in new_commands:
+            notes.append("Dropped edit removing \\item command")
+            return False
+
+        # Block edits that erase commands entirely
+        retained = all(
+            cmd in new_commands or cmd == "\\item" for cmd in original_commands
+        )
+        if not retained and op_type in ("replace_line", "replace_range"):
+            notes.append("Dropped edit removing LaTeX commands")
+            return False
+
+        return True
+
+    # validate basic LaTeX syntax
+    def validate_syntax(self, content: str) -> bool:
+        return validate_basic_latex_syntax(content)
+
+    # attempt LaTeX compilation & return result
+    def validate_compilation(self, content: str) -> dict[str, Any]:
+        return validate_latex_compilation(content)
+
+    # check if LaTeX compilers are available
+    def check_tool_availability(self) -> dict[str, bool]:
+        return check_latex_availability()
+
+    # Override sections_to_payload to match legacy format for backward compat
+    def sections_to_payload(self, analysis: DocumentAnalysis) -> dict[str, Any]:
+        # convert analysis to JSON-serializable payload for AI
+        payload_sections: list[dict[str, Any]] = []
+        for section in analysis.sections:
+            section_entry: dict[str, Any] = {
+                "kind": section.kind or section.key,
+                "heading_text": section.heading_text,
+                "start_line": section.start_line,
+                "end_line": section.end_line,
+                "confidence": (
+                    round(section.confidence, 2) if section.confidence else None
+                ),
+            }
+            if section.items:
+                item_label = "ITEM"
+                if section.key == "experience":
+                    item_label = "EXPERIENCE_ITEM"
+                elif section.key == "projects":
+                    item_label = "PROJECT_ITEM"
+                elif section.key == "education":
+                    item_label = "EDUCATION_ITEM"
+                section_entry["subsections"] = [
+                    {"name": item_label, "start_line": ln, "end_line": ln}
+                    for ln in section.items
+                ]
+            payload_sections.append(section_entry)
+
+        result: dict[str, Any] = {"sections": payload_sections}
+        if analysis.notes:
+            result["notes"] = analysis.notes
+        if analysis.descriptor:
+            meta: dict[str, Any] = {"template_id": analysis.descriptor.id}
+            if analysis.descriptor.inline_marker:
+                meta["inline_marker"] = analysis.descriptor.inline_marker
+            result["meta"] = meta
+
+        return result
+
+    # Override filter_edits to use legacy implementation for full feature parity
+    def filter_edits(
+        self,
+        edits: dict,
+        lines: Lines,
+        descriptor: TemplateDescriptor | None = None,
+        **kwargs,
+    ) -> tuple[dict, list[str]]:
+        # filter edits to protect structural content
+        return filter_latex_edits(edits, lines, descriptor)
 
 
 __all__ = [
-    "TemplateDescriptor",
-    "TemplateSectionRule",
-    "FrozenRules",
-    "LatexSection",
-    "LatexAnalysis",
-    "load_descriptor",
-    "detect_template",
-    "analyze_latex",
-    "sections_to_payload",
-    "filter_latex_edits",
+    # Handler class (public API)
+    "LatexHandler",
+    # Validation utilities (standalone, may be useful externally)
     "validate_basic_latex_syntax",
     "validate_latex_compilation",
     "check_latex_availability",
     "validate_latex_document",
-    "build_latex_context",
 ]

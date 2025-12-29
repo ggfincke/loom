@@ -4,6 +4,11 @@
 import re
 from typing import Tuple
 
+from .shared_patterns import (
+    COMMON_SEMANTIC_MATCHERS,
+    infer_section_kind as _infer_section_kind,
+)
+
 # * Structural prefixes (frozen by default - may start multi-line blocks)
 STRUCTURAL_PREFIXES = (
     "#set",
@@ -38,18 +43,10 @@ BLOCK_COMMENT_START = "/*"
 BLOCK_COMMENT_END = "*/"
 
 # * Semantic matchers for inferring resume section type from heading text
+# Extends common matchers w/ Typst-specific summary pattern
 SEMANTIC_MATCHERS = {
+    **COMMON_SEMANTIC_MATCHERS,
     "summary": re.compile(r"\bsummary\b|\bobjective\b|\bprofile\b", re.IGNORECASE),
-    "education": re.compile(r"\beducation\b|\bacademic", re.IGNORECASE),
-    "experience": re.compile(
-        r"\bexperience\b|\bemployment\b|\bwork\b", re.IGNORECASE
-    ),
-    "projects": re.compile(r"\bprojects?\b", re.IGNORECASE),
-    "skills": re.compile(r"\bskills?\b|\btechnologies\b|\btools\b", re.IGNORECASE),
-    "publications": re.compile(r"\bpublications?\b|\bresearch\b", re.IGNORECASE),
-    "certifications": re.compile(
-        r"\bcertifications?\b|\blicenses?\b", re.IGNORECASE
-    ),
 }
 
 
@@ -191,11 +188,15 @@ def requires_trailing_blank(prev_line: str) -> bool:
 
 
 # * Infer section type from heading text using semantic matchers
+# Typst-specific matcher includes "summary" pattern
+_TYPST_EXTRA_MATCHERS = {
+    "summary": re.compile(r"\bsummary\b|\bobjective\b|\bprofile\b", re.IGNORECASE),
+}
+
+
+# infer section kind using common + Typst-specific matchers
 def infer_section_kind(heading_text: str) -> str | None:
-    for kind, pattern in SEMANTIC_MATCHERS.items():
-        if pattern.search(heading_text):
-            return kind
-    return None
+    return _infer_section_kind(heading_text, extra_matchers=_TYPST_EXTRA_MATCHERS)
 
 
 __all__ = [

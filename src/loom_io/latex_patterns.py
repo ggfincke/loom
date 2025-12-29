@@ -1,7 +1,9 @@
 # src/loom_io/latex_patterns.py
-# Shared LaTeX pattern constants for validation, filtering & document reading
+# LaTeX pattern constants for validation, filtering & document reading
 
 import re
+
+from .shared_patterns import COMMON_SEMANTIC_MATCHERS
 
 # * Structural commands that define document architecture
 STRUCTURAL_PREFIXES = (
@@ -42,14 +44,10 @@ SECTION_CMD_RE = re.compile(
 )
 
 # * Semantic matchers for inferring resume section type from heading text
+# Extends common matchers w/ LaTeX-specific heading pattern
 SEMANTIC_MATCHERS = {
+    **COMMON_SEMANTIC_MATCHERS,
     "heading": re.compile(r"\\name{|\\contact", re.IGNORECASE),
-    "education": re.compile(r"\beducation\b|\bacademic", re.IGNORECASE),
-    "experience": re.compile(r"\bexperience\b|\bemployment\b|\bwork\b", re.IGNORECASE),
-    "projects": re.compile(r"\bprojects?\b", re.IGNORECASE),
-    "skills": re.compile(r"\bskills?\b|\btechnologies\b|\btools\b", re.IGNORECASE),
-    "publications": re.compile(r"\bpublications?\b|\bresearch\b", re.IGNORECASE),
-    "certifications": re.compile(r"\bcertifications?\b|\blicenses?\b", re.IGNORECASE),
 }
 
 # * Bullet/item patterns for detecting list entries in LaTeX documents
