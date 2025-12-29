@@ -133,7 +133,7 @@ def _finalize_sections(
         return sections
 
     sorted_headings = sorted(headings, key=lambda h: h[0])
-    section_ranges: list[tuple[int, int, str, str]] = []
+    section_ranges: list[tuple[int, int, str, str, str]] = []
     body_end = body_lines[-1]
     for idx, (start_line, heading_text, key, source) in enumerate(sorted_headings):
         if idx + 1 < len(sorted_headings):
@@ -141,9 +141,9 @@ def _finalize_sections(
             end_line = next_start - 1
         else:
             end_line = body_end
-        section_ranges.append((start_line, end_line, heading_text, source))
+        section_ranges.append((start_line, end_line, heading_text, key, source))
 
-    for start_line, end_line, heading_text, source in section_ranges:
+    for start_line, end_line, heading_text, key, source in section_ranges:
         kind = _infer_kind_from_heading(heading_text, fallback=key)
         sections.append(
             LatexSection(
@@ -171,10 +171,15 @@ def _detect_template_sections(
         matcher = re.compile(pattern) if rule.pattern_type == "regex" else None
         for line_num in body_lines:
             text = lines.get(line_num, "")
-            matched = matcher.search(text) if matcher else text.strip() == pattern
-            if matched:
-                heading_text = matched.group(0) if matcher else pattern
-                headings.append((line_num, heading_text, rule.kind or key, "template"))
+            if matcher:
+                match = matcher.search(text)
+                if match:
+                    headings.append(
+                        (line_num, match.group(0), rule.kind or key, "template")
+                    )
+                    break
+            elif text.strip() == pattern:
+                headings.append((line_num, pattern, rule.kind or key, "template"))
                 break
         else:
             if not rule.optional:

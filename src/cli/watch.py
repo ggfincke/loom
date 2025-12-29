@@ -7,7 +7,7 @@ import signal
 import sys
 from pathlib import Path
 from threading import Timer
-from typing import Callable
+from typing import Any, Callable, Sequence
 
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
@@ -54,7 +54,7 @@ class DebouncedHandler(FileSystemEventHandler):
 class WatchRunner:
     def __init__(
         self,
-        paths: list[Path],
+        paths: Sequence[Path | None],
         run_command: Callable[[], None],
         debounce: float = 1.0,
     ):
@@ -62,7 +62,7 @@ class WatchRunner:
         self.paths = [p for p in paths if p is not None and p.exists()]
         self.run_command = run_command
         self.debounce = debounce
-        self._observer: Observer | None = None
+        self._observer: Any = None  # Observer | None
 
     # run command once, then watch for changes & block until Ctrl+C
     def start(self) -> None:

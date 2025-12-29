@@ -51,7 +51,7 @@ T = TypeVar("T")
 @dataclass
 class BulkConfig:
     resume: Path
-    jobs_path: Path
+    jobs_path: Path | str
     model: str
     output_dir: Path
     sections_path: Optional[Path] = None
@@ -103,7 +103,7 @@ def _run_with_retry(
     )
 
 
-# Read tailored resume as text for keyword analysis
+# read tailored resume as text for keyword analysis
 def _read_tailored_resume_text(output_path: Path, original_lines: Lines) -> str:
     suffix = output_path.suffix.lower()
 
@@ -118,16 +118,16 @@ def _read_tailored_resume_text(output_path: Path, original_lines: Lines) -> str:
         return output_path.read_text(encoding="utf-8")
 
 
-# Orchestrates bulk job processing
+# orchestrates bulk job processing
 class BulkRunner:
     def __init__(self, config: BulkConfig, settings: LoomSettings):
         self.config = config
         self.settings = settings
         self.resolver = ArgResolver(settings)
-        # Cached sections JSON string for analyze_edits
+        # cached sections JSON string for analyze_edits
         self._sections_json: Optional[str] = None
 
-        # Callbacks for progress reporting
+        # callbacks for progress reporting
         self.on_job_start: Optional[Callable[[JobSpec, int, int], None]] = None
         self.on_job_complete: Optional[Callable[[JobResult, int, int], None]] = None
         self.on_retry: Optional[Callable[[str], None]] = None
@@ -147,23 +147,23 @@ class BulkRunner:
 
         return self._sections_json
 
-    # Execute bulk processing & return aggregated results
+    # execute bulk processing & return aggregated results
     def run(self) -> BulkResult:
-        # Discover jobs
+        # discover jobs
         raw_specs = discover_jobs(self.config.jobs_path)
         if not raw_specs:
             raise JobDiscoveryError(f"No jobs found at {self.config.jobs_path}")
 
-        # Deduplicate IDs (handles truncation collisions)
+        # deduplicate IDs (handles truncation collisions)
         job_specs = deduplicate_job_specs(raw_specs)
 
-        # Create output layout
+        # create output layout
         bulk_dir, job_dirs = create_bulk_output_layout(
             self.config.output_dir,
             job_specs,
         )
 
-        # Settings snapshot for reproducibility
+        # settings snapshot for reproducibility
         settings_snapshot = {
             "risk": self.config.risk.value,
             "on_error": self.config.on_error.value,
@@ -172,7 +172,7 @@ class BulkRunner:
             "parallel": self.config.parallel,
         }
 
-        # Write run metadata
+        # write run metadata
         write_run_metadata(
             bulk_dir,
             self.config.resume,
@@ -181,7 +181,7 @@ class BulkRunner:
             job_specs,
         )
 
-        # Process jobs
+        # process jobs
         timestamp = datetime.now().isoformat()
 
         if self.config.parallel > 1:
@@ -189,7 +189,7 @@ class BulkRunner:
         else:
             results = self._run_sequential(job_specs, job_dirs, settings_snapshot)
 
-        # Build final result
+        # build final result
         bulk_result = BulkResult(
             resume_path=self.config.resume,
             model=self.config.model,
@@ -198,12 +198,12 @@ class BulkRunner:
             jobs=results,
         )
 
-        # Write matrix files
+        # write matrix files
         write_matrix_files(bulk_dir, bulk_result)
 
         return bulk_result
 
-    # Process jobs sequentially
+    # process jobs sequentially
     def _run_sequential(
         self,
         job_specs: list[JobSpec],
@@ -226,7 +226,7 @@ class BulkRunner:
                 self.on_job_complete(result, i + 1, total)
 
             if self.config.fail_fast and result.status == JobStatus.FAILED:
-                # Mark remaining as skipped
+                # mark remaining as skipped
                 for remaining_spec in job_specs[i + 1 :]:
                     results.append(
                         JobResult(
@@ -239,7 +239,7 @@ class BulkRunner:
 
         return results
 
-    # Process jobs in parallel w/ bounded concurrency & retry
+    # process jobs in parallel w/ bounded concurrency & retry
     def _run_parallel(
         self,
         job_specs: list[JobSpec],
@@ -282,13 +282,13 @@ class BulkRunner:
                 if self.on_job_complete:
                     self.on_job_complete(result, completed, total)
 
-        # Sort results back to original order
+        # sort results back to original order
         spec_order = {spec.id: i for i, spec in enumerate(job_specs)}
         results.sort(key=lambda r: spec_order.get(r.spec.id, 999))
 
         return results
 
-    # Process single job & return result
+    # process single job & return result
     def _process_single_job(
         self,
         spec: JobSpec,
@@ -299,10 +299,10 @@ class BulkRunner:
         result = JobResult(spec=spec, status=JobStatus.RUNNING)
 
         try:
-            # Read job text
+            # read job text
             job_text = read_text(spec.path)
 
-            # Write job artifacts (normalized text for reproducibility)
+            # write job artifacts (normalized text for reproducibility)
             write_job_artifacts(
                 output_dir,
                 spec,
@@ -311,12 +311,12 @@ class BulkRunner:
                 settings_snapshot,
             )
 
-            # Determine output paths
+            # determine output paths
             resume_suffix = self.config.resume.suffix
             edits_path = output_dir / "edits.json"
             output_resume_path = output_dir / f"tailored_resume{resume_suffix}"
 
-            # Build tailoring context
+            # build tailoring context
             ctx = build_tailoring_context(
                 self.settings,
                 self.resolver,
@@ -333,36 +333,36 @@ class BulkRunner:
                 interactive=False,  # Bulk mode is always non-interactive
             )
 
-            # Run tailoring
+            # run tailoring
             runner = TailoringRunner(TailoringMode.TAILOR, ctx)
             runner.run()
 
-            # Analyze results
+            # analyze results
             edits = read_json_safe(edits_path)
             sections_json = self._load_sections_json()
             result.edits = analyze_edits(edits, sections_json=sections_json)
 
-            # Read resume for validation & coverage analysis
+            # read resume for validation & coverage analysis
             resume_lines = read_resume(self.config.resume)
 
-            # Capture validation warnings
+            # capture validation warnings
             validation_warnings = validate_edits(edits, resume_lines, self.config.risk)
             result.validation = build_validation_summary(validation_warnings, edits)
 
-            # Keyword coverage analysis
+            # keyword coverage analysis
             required_kw, preferred_kw = extract_job_keywords(job_text)
             tailored_text = _read_tailored_resume_text(output_resume_path, resume_lines)
             result.coverage = calculate_keyword_coverage(
                 tailored_text, required_kw, preferred_kw
             )
 
-            # Keyword stuffing check
+            # keyword stuffing check
             result.keyword_stuffing_score = detect_keyword_stuffing(tailored_text)
 
-            # Calculate fit score
+            # calculate fit score
             result.fit_score = calculate_fit_score(result)
 
-            # Set output paths
+            # set output paths
             result.output_dir = output_dir
             result.edits_path = edits_path
             result.resume_path = output_resume_path

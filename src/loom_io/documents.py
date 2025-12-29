@@ -246,7 +246,7 @@ def _insert_paragraph_after(paragraph: Paragraph, text: str) -> Paragraph:
     return new_para
 
 
-def _copy_run_formatting(source_run: Run, target_run: Run) -> None:
+def _copy_run_formatting(source_run: Run | None, target_run: Run) -> None:
     # Copy run-level formatting if available
     if not source_run:
         return

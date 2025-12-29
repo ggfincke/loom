@@ -66,13 +66,13 @@ def _discover_from_manifest(manifest_path: Path) -> list[JobSpec]:
     if manifest_path.suffix.lower() in (".yaml", ".yml"):
         try:
             import yaml
-
-            data = yaml.safe_load(content)
         except ImportError:
             raise ConfigurationError(
                 "PyYAML required for YAML manifest files. "
                 "Install with: pip install pyyaml"
             )
+        try:
+            data = yaml.safe_load(content)
         except yaml.YAMLError as e:
             raise JobDiscoveryError(
                 f"Invalid YAML in manifest {manifest_path}: {e}"
