@@ -119,6 +119,7 @@ def prepare_resume_context(
     load_job: bool = True,
 ) -> ResumeContext:
     # load resume + optional job
+    assert ctx.resume is not None, "resume path required"
     if load_job and ctx.job is not None:
         lines, job_text = load_resume_and_job(ctx.resume, ctx.job, progress, task)
     else:
@@ -328,6 +329,8 @@ class TailoringRunner:
         # generate edits using core helper
         vlog_stage("Generating edits", "Calling AI to analyze & suggest edits")
         progress.update(task, description="Generating edits with AI...")
+        assert resume_ctx.job_text is not None, "job_text required for generate"
+        assert self.ctx.model is not None, "model required for generate"
         self._edits = generate_edits_core(
             self.ctx.settings,
             resume_ctx.lines,
@@ -348,6 +351,7 @@ class TailoringRunner:
 
         num_ops = len(self._edits.get("ops", []))
         vlog_think(f"Generated {num_ops} edit operations")
+        assert self.ctx.edits_json is not None, "edits_json path required"
         persist_edits_json(self._edits, self.ctx.edits_json, progress, task)
 
     # apply mode: apply existing edits to resume
@@ -372,6 +376,7 @@ class TailoringRunner:
 
         # load edits
         vlog_stage("Loading edits", f"From {self.ctx.edits_json}")
+        assert self.ctx.edits_json is not None, "edits_json path required for apply"
         edits_obj = load_edits_json(self.ctx.edits_json, progress, task)
         num_ops = len(edits_obj.get("ops", []))
         vlog_think(f"Loaded {num_ops} edit operations to apply")
@@ -409,6 +414,10 @@ class TailoringRunner:
 
         # write output w/ diff generation
         vlog_stage("Writing output", f"To {self.ctx.output_resume}")
+        assert self.ctx.resume is not None, "resume path required for apply"
+        assert (
+            self.ctx.output_resume is not None
+        ), "output_resume path required for apply"
         write_output_with_diff(
             self.ctx.settings,
             self.ctx.resume,
@@ -434,6 +443,8 @@ class TailoringRunner:
         # generate edits using core helper
         vlog_stage("Generating edits", "Calling AI to analyze & suggest edits")
         progress.update(task, description="Generating edits with AI...")
+        assert resume_ctx.job_text is not None, "job_text required for tailor"
+        assert self.ctx.model is not None, "model required for tailor"
         self._edits = generate_edits_core(
             self.ctx.settings,
             resume_ctx.lines,
@@ -455,6 +466,7 @@ class TailoringRunner:
         vlog_think(f"Generated {num_ops} edit operations")
 
         # persist edits (for inspection / re-run)
+        assert self.ctx.edits_json is not None, "edits_json path required"
         persist_edits_json(self._edits, self.ctx.edits_json, progress, task)
 
         # apply edits using core helper
@@ -480,6 +492,10 @@ class TailoringRunner:
 
         # write output w/ diff generation
         vlog_stage("Writing output", f"To {self.ctx.output_resume}")
+        assert self.ctx.resume is not None, "resume path required for tailor"
+        assert (
+            self.ctx.output_resume is not None
+        ), "output_resume path required for tailor"
         write_output_with_diff(
             self.ctx.settings,
             self.ctx.resume,
