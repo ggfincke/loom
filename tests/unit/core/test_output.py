@@ -15,7 +15,6 @@ from src.core.output import (
 
 class TestOutputLevel:
 
-
     # * Verify levels are ordered correctly
     def test_level_ordering(self):
 
@@ -40,7 +39,6 @@ class TestOutputLevel:
 
 
 class TestNullOutputManager:
-
 
     # * Verify default level is NORMAL
     def test_default_level_is_normal(self):
@@ -81,7 +79,6 @@ class TestNullOutputManager:
 
 
 class TestRegistry:
-
 
     def setup_method(self):
 
@@ -128,7 +125,6 @@ class TestRegistry:
 
 
 class TestOutputInterface:
-
 
     # * Verify NullOutputManager implements protocol
     def test_null_manager_implements_protocol(self):

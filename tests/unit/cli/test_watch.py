@@ -219,7 +219,9 @@ class TestWatchSettings:
         from src.config.settings import LoomSettings
         from src.core.exceptions import SettingsValidationError
 
-        with pytest.raises(SettingsValidationError, match="watch_debounce must be >= 0.1"):
+        with pytest.raises(
+            SettingsValidationError, match="watch_debounce must be >= 0.1"
+        ):
             LoomSettings(watch_debounce=0.05)
 
     # Custom watch_debounce >= 0.1 should be accepted.

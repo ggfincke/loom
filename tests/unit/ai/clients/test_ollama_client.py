@@ -21,17 +21,21 @@ from src.ai.clients.ollama_client import (
 from src.ai.cache import AICache
 from src.core.exceptions import AIError
 
+
 def _reset_ollama_state() -> None:
     AICache.invalidate_provider("ollama")
     _get_client.cache_clear()
+
 
 class _FakeModel:
     def __init__(self, name: str) -> None:
         self.model = name
 
+
 class _ListResponse:
     def __init__(self, models):
         self.models = models
+
 
 @pytest.fixture(autouse=True)
 def reset_ollama_cache():
@@ -41,6 +45,7 @@ def reset_ollama_cache():
     yield
     _reset_ollama_state()
     AICache.invalidate_all()
+
 
 # * Verify success path & code-fence stripping
 def test_run_generate_success_with_code_fence(monkeypatch):
@@ -59,6 +64,7 @@ def test_run_generate_success_with_code_fence(monkeypatch):
     # Code fence stripped
     assert result.json_text.strip().startswith("{")
 
+
 # * Verify model-not-found branch lists available models
 def test_run_generate_model_not_found_lists_available(monkeypatch):
     # Model requested is not in available list
@@ -70,6 +76,7 @@ def test_run_generate_model_not_found_lists_available(monkeypatch):
     error_msg = result.error.lower()
     assert "not found" in error_msg
     assert "available" in error_msg or "llama3.1" in error_msg
+
 
 # * Verify network error on availability check handled
 def test_run_generate_network_error_on_availability_check(monkeypatch):
@@ -83,6 +90,7 @@ def test_run_generate_network_error_on_availability_check(monkeypatch):
     assert result.success is False
     error_msg = result.error.lower()
     assert "connection" in error_msg or "ollama" in error_msg
+
 
 # * Verify thinking tokens are stripped in json_text
 def test_run_generate_strips_thinking_tokens(monkeypatch):
@@ -101,6 +109,7 @@ def test_run_generate_strips_thinking_tokens(monkeypatch):
     assert "</think>" not in result.json_text
     assert "<think>" in result.raw_text
 
+
 # * Verify API error during chat is handled
 def test_run_generate_api_error_during_chat(monkeypatch):
     monkeypatch.setattr("ollama.list", lambda: _ListResponse([_FakeModel("llama3.2")]))
@@ -114,6 +123,7 @@ def test_run_generate_api_error_during_chat(monkeypatch):
 
     assert result.success is False
     assert "Ollama API error" in result.error
+
 
 # * Test OllamaClient class directly
 class TestOllamaClientClass:

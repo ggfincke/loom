@@ -22,10 +22,12 @@ from src.ai.clients.claude_client import ClaudeClient
 from src.ai.types import GenerateResult
 from src.core.exceptions import AIError, ConfigurationError
 
+
 # * Helper function to run generate using client directly (no more module-level API)
 def _run_generate(prompt: str, model: str) -> GenerateResult:
     client = ClaudeClient()
     return client.run_generate(prompt, model)
+
 
 # * Fake Anthropic response objects for testing
 class _FakeContentBlock:
@@ -33,9 +35,11 @@ class _FakeContentBlock:
         self.type = "text"
         self.text = text
 
+
 class _FakeResponse:
     def __init__(self, text: str):
         self.content = [_FakeContentBlock(text)]
+
 
 class _FakeMessages:
     def __init__(
@@ -49,11 +53,13 @@ class _FakeMessages:
             raise self._error
         return _FakeResponse(self._response_text or "{}")
 
+
 class _FakeAnthropic:
     def __init__(
         self, response_text: str | None = None, error: Exception | None = None
     ):
         self.messages = _FakeMessages(response_text, error)
+
 
 # * Test successful result normalization & JSON parsing
 @patch("anthropic.Anthropic")
@@ -70,6 +76,7 @@ def test_claude_success_normalized_result(mock_anthropic_class):
     assert result.raw_text
     assert result.json_text
 
+
 # * Test API error raised as AIError (caught by base class, returns error result)
 @patch("anthropic.Anthropic")
 @patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"})
@@ -81,6 +88,7 @@ def test_claude_api_error_returns_error_result(mock_anthropic_class):
     assert result.success is False
     assert "Anthropic API error" in result.error
 
+
 # * Test missing API key returns error result
 @patch.dict(os.environ, {}, clear=True)
 # * Verify claude missing api key returns error result
@@ -89,6 +97,7 @@ def test_claude_missing_api_key_returns_error_result():
 
     assert result.success is False
     assert "ANTHROPIC_API_KEY" in result.error or "anthropic" in result.error.lower()
+
 
 # * Test markdown code block stripping
 @patch("anthropic.Anthropic")
@@ -106,6 +115,7 @@ def test_claude_strips_markdown_code_blocks(mock_anthropic_class):
     assert result.raw_text == markdown_response
     assert result.json_text == json.dumps(payload)
     assert result.data == payload
+
 
 # * Test ClaudeClient class directly
 class TestClaudeClientClass:

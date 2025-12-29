@@ -169,7 +169,13 @@ def extract_job_keywords(job_text: str) -> tuple[list[str], list[str]]:
         # detect section headers
         if any(
             kw in line_lower
-            for kw in ["required", "must have", "requirements", "qualifications", "minimum"]
+            for kw in [
+                "required",
+                "must have",
+                "requirements",
+                "qualifications",
+                "minimum",
+            ]
         ):
             in_required = True
         elif any(
@@ -204,9 +210,13 @@ def calculate_keyword_coverage(
     resume_lower = resume_text.lower()
 
     required_matched = sum(1 for kw in required_keywords if kw.lower() in resume_lower)
-    preferred_matched = sum(1 for kw in preferred_keywords if kw.lower() in resume_lower)
+    preferred_matched = sum(
+        1 for kw in preferred_keywords if kw.lower() in resume_lower
+    )
 
-    missing_required = [kw for kw in required_keywords if kw.lower() not in resume_lower]
+    missing_required = [
+        kw for kw in required_keywords if kw.lower() not in resume_lower
+    ]
 
     return KeywordCoverage(
         required_matched=required_matched,

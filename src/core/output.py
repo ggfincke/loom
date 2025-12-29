@@ -30,7 +30,11 @@ class OutputInterface(Protocol):
     def debug(self, msg: str, category: str = "DEBUG", **kwargs: Any) -> None: ...
 
     def verbose(
-        self, msg: str, category: str = "INFO", detail: Optional[str] = None, **kwargs: Any
+        self,
+        msg: str,
+        category: str = "INFO",
+        detail: Optional[str] = None,
+        **kwargs: Any,
     ) -> None: ...
 
     def info(self, msg: str, **kwargs: Any) -> None: ...
@@ -57,7 +61,11 @@ class NullOutputManager:
         pass
 
     def verbose(
-        self, msg: str, category: str = "INFO", detail: Optional[str] = None, **kwargs: Any
+        self,
+        msg: str,
+        category: str = "INFO",
+        detail: Optional[str] = None,
+        **kwargs: Any,
     ) -> None:
         pass
 

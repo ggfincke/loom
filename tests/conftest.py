@@ -9,6 +9,7 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 from typing import Dict, Any
 
+
 @pytest.fixture(autouse=True)
 def isolate_config(tmp_path, monkeypatch):
     # Patch Path.home() to isolated temp directory
@@ -75,6 +76,7 @@ def isolate_config(tmp_path, monkeypatch):
 
     return fake_home
 
+
 @pytest.fixture(autouse=True)
 def block_network():
     # Block all network calls by default w/ pytest-socket
@@ -85,6 +87,7 @@ def block_network():
     except pytest.skip.Exception:
         # Pytest-socket not installed, skip network blocking
         pass
+
 
 @pytest.fixture
 def temp_output_dirs(tmp_path):
@@ -104,6 +107,7 @@ def temp_output_dirs(tmp_path):
         "base": tmp_path,
     }
 
+
 @pytest.fixture
 def mock_env_vars(monkeypatch):
     # Seed test environment w/ required API keys & settings
@@ -118,6 +122,7 @@ def mock_env_vars(monkeypatch):
 
     return test_env
 
+
 @pytest.fixture
 def mock_ai_client():
     # Create mock AI client for testing w/o real API calls
@@ -126,6 +131,7 @@ def mock_ai_client():
         choices=[MagicMock(message=MagicMock(content="mock response"))]
     )
     return mock_client
+
 
 @pytest.fixture
 def sample_resume_content():
@@ -145,6 +151,7 @@ Senior Developer | Tech Corp | 2020-2024
 • Built scalable web applications
 • Led team of 3 developers"""
 
+
 @pytest.fixture
 def sample_job_description():
     # Provide sample job posting for testing
@@ -156,6 +163,7 @@ Requirements:
 • 3+ years experience w/ Python
 • Experience w/ REST APIs
 • AWS knowledge preferred"""
+
 
 @pytest.fixture
 def sample_sections_data():
@@ -189,6 +197,7 @@ def sample_sections_data():
         ]
     }
 
+
 @pytest.fixture
 def sample_edits_data():
     # Provide expected edit operations output
@@ -208,6 +217,7 @@ def sample_edits_data():
             },
         ]
     }
+
 
 @pytest.fixture
 def sample_lines_dict():
@@ -229,6 +239,7 @@ def sample_lines_dict():
         14: "• Led team of 3 developers",
     }
 
+
 @pytest.fixture
 def valid_edits_v1():
     # Valid edits dict w/ version 1 format for pipeline testing
@@ -244,6 +255,7 @@ def valid_edits_v1():
         ],
     }
 
+
 @pytest.fixture
 def mock_ai_success_response():
     # Mock successful AI response for testing
@@ -256,6 +268,7 @@ def mock_ai_success_response():
     }
     return mock_response
 
+
 @pytest.fixture
 def mock_ai_failure_response():
     # Mock failed AI response for testing
@@ -266,6 +279,7 @@ def mock_ai_failure_response():
     mock_response.raw_text = None
     return mock_response
 
+
 @pytest.fixture
 def isolate_output():
     from src.core.output import reset_output_manager
@@ -273,6 +287,7 @@ def isolate_output():
     reset_output_manager()
     yield
     reset_output_manager()
+
 
 @pytest.fixture
 def dev_mode_enabled(isolate_config):

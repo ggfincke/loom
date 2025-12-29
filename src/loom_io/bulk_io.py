@@ -294,7 +294,9 @@ def _generate_markdown_matrix(result: BulkResult) -> str:
             lines.append(
                 f"- **Preferred Keywords:** {job.coverage.preferred_matched}/{job.coverage.preferred_total}"
             )
-            lines.append(f"- **Edits:** {job.edits.total_count} ({job.edits.replacements} replacements, {job.edits.inserts} inserts, {job.edits.deletes} deletes)")
+            lines.append(
+                f"- **Edits:** {job.edits.total_count} ({job.edits.replacements} replacements, {job.edits.inserts} inserts, {job.edits.deletes} deletes)"
+            )
             lines.append(f"- **Runtime:** {job.runtime_seconds:.1f}s")
             if job.coverage.missing_required:
                 missing = ", ".join(job.coverage.missing_required[:5])

@@ -17,11 +17,13 @@ def _get_openai_client_class() -> Type[BaseClient]:
 
     return OpenAIClient
 
+
 # lazy client factory for Anthropic (tests can monkeypatch this)
 def _get_anthropic_client_class() -> Type[BaseClient]:
     from .claude_client import ClaudeClient
 
     return ClaudeClient
+
 
 # lazy client factory for Ollama (tests can monkeypatch this)
 def _get_ollama_client_class() -> Type[BaseClient]:
@@ -29,12 +31,14 @@ def _get_ollama_client_class() -> Type[BaseClient]:
 
     return OllamaClient
 
+
 # * Registry mapping provider IDs to client factory functions
 CLIENT_REGISTRY: dict[str, Callable[[], Type[BaseClient]]] = {
     "openai": _get_openai_client_class,
     "anthropic": _get_anthropic_client_class,
     "ollama": _get_ollama_client_class,
 }
+
 
 # * Generate JSON response using appropriate AI client based on model
 def run_generate(prompt: str, model: str) -> GenerateResult:

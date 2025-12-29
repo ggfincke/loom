@@ -15,6 +15,7 @@ from ...config.env_validator import validate_provider_env, get_missing_env_messa
 from ...core.exceptions import AIError, ConfigurationError
 from ...core.verbose import vlog, vlog_ai_request, vlog_ai_response, vlog_think
 
+
 # * Abstract base class for AI provider clients using template-method pattern
 # Orchestrates: cache check -> preflight -> validate_model -> make_call -> parse -> cache store
 # Always returns GenerateResult, never raises exceptions to callers

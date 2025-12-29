@@ -169,7 +169,7 @@ class TestStructuralChecks:
         assert is_structural_prefix("#let name(content) = {}")
 
     def test_structural_prefix_with_whitespace(self):
-        assert is_structural_prefix("  #set text(font: \"Arial\")")
+        assert is_structural_prefix('  #set text(font: "Arial")')
 
     def test_structural_prefix_rejects_non_structural(self):
         assert not is_structural_prefix("Regular text")

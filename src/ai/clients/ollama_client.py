@@ -50,7 +50,9 @@ class OllamaClient(BaseClient):
         settings = settings_manager.load()
         output = get_output_manager()
 
-        output.debug(f"Ollama API call - Model: {model}, Prompt: {len(prompt)} chars", "API")
+        output.debug(
+            f"Ollama API call - Model: {model}, Prompt: {len(prompt)} chars", "API"
+        )
         output.debug(
             f"Making Ollama API call with model: {model}, temperature: {settings.temperature}",
             "AI",
@@ -73,7 +75,9 @@ class OllamaClient(BaseClient):
             )
 
             raw_text = response.get("message", {}).get("content", "")
-            output.debug(f"Received response from Ollama: {len(raw_text)} characters", "AI")
+            output.debug(
+                f"Received response from Ollama: {len(raw_text)} characters", "AI"
+            )
 
             return APICallContext(
                 raw_text=raw_text, provider_name="ollama", model=model
@@ -149,19 +153,23 @@ class OllamaClient(BaseClient):
 def _get_client() -> OllamaClient:
     return OllamaClient()
 
+
 # * Generate JSON response using Ollama API
 def run_generate(prompt: str, model: str | None = None) -> GenerateResult:
     resolved_model = model or get_default_model("ollama")
     return _get_client().run_generate(prompt, resolved_model)
 
+
 # check Ollama server status (cached)
 def check_ollama_status(*, with_debug: bool = False) -> OllamaStatus:
     return _get_client()._check_ollama_status(with_debug=with_debug)
+
 
 # check if Ollama server is running & return detailed error if not
 def check_ollama_with_error() -> tuple[bool, str]:
     status = check_ollama_status(with_debug=True)
     return status.available, status.error
+
 
 # get list of available local models w/ detailed error reporting
 def get_available_models_with_error() -> tuple[list[str], str]:

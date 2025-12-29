@@ -89,7 +89,9 @@ def _run_with_retry(
             last_error = e
             delay = base_delay * (2**attempt) * (0.5 + random.random())
             if logger:
-                logger(f"[{job_id}] Retry {attempt + 1}/{max_attempts} after {delay:.1f}s: {e}")
+                logger(
+                    f"[{job_id}] Retry {attempt + 1}/{max_attempts} after {delay:.1f}s: {e}"
+                )
             time.sleep(delay)
 
     if last_error:
@@ -137,7 +139,9 @@ class BulkRunner:
 
         if self.config.sections_path and self.config.sections_path.exists():
             try:
-                self._sections_json = self.config.sections_path.read_text(encoding="utf-8")
+                self._sections_json = self.config.sections_path.read_text(
+                    encoding="utf-8"
+                )
             except OSError:
                 self._sections_json = None
 
@@ -213,7 +217,9 @@ class BulkRunner:
             if self.on_job_start:
                 self.on_job_start(spec, i + 1, total)
 
-            result = self._process_single_job(spec, job_dirs[spec.id], settings_snapshot)
+            result = self._process_single_job(
+                spec, job_dirs[spec.id], settings_snapshot
+            )
             results.append(result)
 
             if self.on_job_complete:
@@ -246,7 +252,9 @@ class BulkRunner:
 
         def process_with_retry(spec: JobSpec) -> JobResult:
             return _run_with_retry(
-                lambda: self._process_single_job(spec, job_dirs[spec.id], settings_snapshot),
+                lambda: self._process_single_job(
+                    spec, job_dirs[spec.id], settings_snapshot
+                ),
                 job_id=spec.id,
                 logger=self.on_retry,
             )

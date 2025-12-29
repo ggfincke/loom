@@ -11,7 +11,6 @@ from src.cli.output_manager import OutputManager
 
 class TestOutputManagerBasics:
 
-
     # * Verify OutputManager implements protocol
     def test_implements_protocol(self):
 
@@ -26,7 +25,6 @@ class TestOutputManagerBasics:
 
 
 class TestInitialize:
-
 
     # * Verify default initialization
     def test_default_initialization(self):
@@ -81,7 +79,6 @@ class TestInitialize:
 
 
 class TestOutputMethods:
-
 
     # * Verify debug only at DEBUG level
     def test_debug_only_at_debug_level(self):
@@ -146,7 +143,6 @@ class TestOutputMethods:
 
 class TestFileLogging:
 
-
     # * Verify log file is created
     def test_log_file_created(self, tmp_path):
 
@@ -189,7 +185,6 @@ class TestFileLogging:
 
 class TestDeprecationWarnings:
 
-
     def setup_method(self):
 
         OutputManager.reset_warnings()
@@ -203,7 +198,9 @@ class TestDeprecationWarnings:
             warnings.simplefilter("always")
             OutputManager.emit_deprecation_warning("test_func", dev_mode=False)
         # No DeprecationWarning should be raised
-        deprecation_warnings = [w for w in warning_list if issubclass(w.category, DeprecationWarning)]
+        deprecation_warnings = [
+            w for w in warning_list if issubclass(w.category, DeprecationWarning)
+        ]
         assert len(deprecation_warnings) == 0
 
     # * Verify warning in dev_mode
@@ -241,16 +238,13 @@ class TestDeprecationWarnings:
 
 class TestLevelComputation:
 
-
     # * Verify quiet has highest precedence
     def test_quiet_precedence(self):
 
         manager = OutputManager()
 
         # Even w/ DEBUG + dev_mode, quiet wins
-        manager.initialize(
-            requested_level=OutputLevel.DEBUG, dev_mode=True, quiet=True
-        )
+        manager.initialize(requested_level=OutputLevel.DEBUG, dev_mode=True, quiet=True)
         assert manager.get_level() == OutputLevel.QUIET
 
     # * Verify dev_mode caps at VERBOSE

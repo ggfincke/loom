@@ -12,6 +12,7 @@ from pathlib import Path
 
 from .types import GenerateResult
 
+
 # in-memory provider availability cache (static class)
 class AICache:
     _provider_available: dict[str, bool] = {}
@@ -71,6 +72,7 @@ class AICache:
     def is_ollama_cached(cls) -> bool:
         return cls._ollama_models is not None or cls._ollama_error != ""
 
+
 # disk-based response cache w/ TTL & LRU eviction
 class AIResponseCache:
     def __init__(
@@ -123,9 +125,7 @@ class AIResponseCache:
             return True
 
     # * Get cached result for prompt, model & temperature (returns None if not found or expired)
-    def get(
-        self, prompt: str, model: str, temperature: float
-    ) -> GenerateResult | None:
+    def get(self, prompt: str, model: str, temperature: float) -> GenerateResult | None:
         if not self._enabled:
             return None
 
@@ -335,6 +335,7 @@ class AIResponseCache:
 
         return evicted
 
+
 # global response cache instance (configured lazily from settings)
 _response_cache: AIResponseCache | None = None
 # original enabled state from settings (before any overrides)
@@ -342,9 +343,11 @@ _original_enabled: bool = True
 # thread-local storage for per-invocation cache disable (--no-cache flag)
 _cache_disabled_local = threading.local()
 
+
 # check if cache is disabled for current thread
 def _is_cache_disabled() -> bool:
     return getattr(_cache_disabled_local, "disabled", False)
+
 
 # * Get global response cache instance (lazily initialized from settings)
 def get_response_cache() -> AIResponseCache:
@@ -378,6 +381,7 @@ def get_response_cache() -> AIResponseCache:
 
     return _response_cache
 
+
 # reset global cache instance & thread-local state
 def reset_response_cache() -> None:
     global _response_cache, _original_enabled
@@ -385,6 +389,7 @@ def reset_response_cache() -> None:
     _original_enabled = True
     # reset thread-local state
     _cache_disabled_local.disabled = False
+
 
 # disable cache for current invocation (thread-local, used by --no-cache flag)
 def disable_cache_for_invocation() -> None:

@@ -33,10 +33,12 @@ SECTION_KEY_ALIASES: dict[str, str] = {
 def normalize_op_keys(op: dict[str, Any]) -> dict[str, Any]:
     return {OP_KEY_ALIASES.get(k, k): v for k, v in op.items()}
 
+
 def normalize_edits_response(edits: dict[str, Any]) -> dict[str, Any]:
     if "ops" in edits and isinstance(edits["ops"], list):
         edits["ops"] = [normalize_op_keys(op) for op in edits["ops"]]
     return edits
+
 
 def _normalize_subsection(sub: Any) -> dict[str, Any]:
     if isinstance(sub, list) and len(sub) >= 3:
@@ -71,6 +73,7 @@ def normalize_section_keys(section: dict[str, Any]) -> dict[str, Any]:
             _normalize_subsection(sub) for sub in normalized["subsections"]
         ]
     return normalized
+
 
 def normalize_sections_response(data: dict[str, Any]) -> dict[str, Any]:
     if "sections" in data and isinstance(data["sections"], list):

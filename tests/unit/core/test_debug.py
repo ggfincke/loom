@@ -22,25 +22,29 @@ from src.core.output import (
 )
 from src.cli.output_manager import OutputManager
 
+
 @pytest.fixture
 def debug_output_manager():
-    
+
     manager = OutputManager()
     manager.initialize(requested_level=OutputLevel.DEBUG, dev_mode=True)
     set_output_manager(manager)
     yield manager
     reset_output_manager()
 
+
 @pytest.fixture
 def normal_output_manager():
-    
+
     manager = OutputManager()
     manager.initialize(requested_level=OutputLevel.NORMAL, dev_mode=False)
     set_output_manager(manager)
     yield manager
     reset_output_manager()
 
+
 # * Tests for is_debug_enabled() function
+
 
 class TestIsDebugEnabled:
 
@@ -73,7 +77,9 @@ class TestIsDebugEnabled:
         assert result is True
         reset_output_manager()
 
+
 # * Tests for debug_print() function
+
 
 class TestDebugPrint:
 
@@ -118,7 +124,9 @@ class TestDebugPrint:
         mock_manager.debug.assert_called_once_with("test message", "CATEGORY")
         reset_output_manager()
 
+
 # * Tests for debug_ai() function
+
 
 class TestDebugAi:
 
@@ -151,7 +159,9 @@ class TestDebugAi:
         mock_manager.debug.assert_called_once_with("model response", "AI")
         reset_output_manager()
 
+
 # * Tests for debug_error() function
+
 
 class TestDebugError:
 
@@ -193,7 +203,9 @@ class TestDebugError:
 
             mock_console.print.assert_not_called()
 
+
 # * Tests for debug_api_call() function
+
 
 class TestDebugApiCall:
 

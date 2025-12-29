@@ -59,4 +59,3 @@ def exit_with_error(msg: str, code: int = 1) -> None:
 
     typer.echo(msg, err=True)
     raise typer.Exit(code)
-

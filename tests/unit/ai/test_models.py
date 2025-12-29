@@ -20,7 +20,6 @@ from src.ai.models import (
 from src.ai.provider_validator import (
     validate_model,
     get_model_error_message,
-    ensure_valid_model,
     check_openai_api_key,
     check_anthropic_api_key,
     get_ollama_models,
@@ -29,6 +28,7 @@ from src.ai.provider_validator import (
     get_model_provider,
     reset_model_cache,
 )
+from src.cli.model_helpers import ensure_valid_model_cli
 from src.ai.cache import AICache
 
 
@@ -197,37 +197,39 @@ class TestGetModelErrorMessage:
         assert "Available local models: llama3, mistral" in message
 
 
-# * Test ensure_valid_model functionality
+# * Test ensure_valid_model_cli functionality (moved to cli/model_helpers.py)
 
 
-class TestEnsureValidModel:
+class TestEnsureValidModelCli:
     # * Test successful validation returns resolved model
-    @patch("src.ai.provider_validator.validate_model")
+    @patch("src.cli.model_helpers.validate_model")
     # * Verify ensure valid model success
-    def test_ensure_valid_model_success(self, mock_validate):
+    def test_ensure_valid_model_cli_success(self, mock_validate):
         mock_validate.return_value = (True, "openai")
 
-        result = ensure_valid_model("gpt5")
+        result = ensure_valid_model_cli("gpt5")
 
         # gpt5 resolves to gpt-5
         assert result == "gpt-5"
 
     # * Test None input returns None
-    def test_ensure_valid_model_none(self):
-        result = ensure_valid_model(None)
+    def test_ensure_valid_model_cli_none(self):
+        result = ensure_valid_model_cli(None)
         assert result is None
 
     # * Test invalid model raises typer.Exit
-    @patch("src.ai.provider_validator.validate_model")
-    @patch("src.ai.provider_validator.get_model_error_message")
+    @patch("src.cli.model_helpers.validate_model")
+    @patch("src.cli.model_helpers.get_model_error_message")
     @patch("typer.echo")
     # * Verify ensure valid model invalid
-    def test_ensure_valid_model_invalid(self, mock_echo, mock_error_msg, mock_validate):
+    def test_ensure_valid_model_cli_invalid(
+        self, mock_echo, mock_error_msg, mock_validate
+    ):
         mock_validate.return_value = (False, "model_not_found")
         mock_error_msg.return_value = "Error message"
 
         with pytest.raises(typer.Exit) as exc_info:
-            ensure_valid_model("invalid-model")
+            ensure_valid_model_cli("invalid-model")
 
         assert exc_info.value.exit_code == 1
         mock_echo.assert_called_once_with("Error message", err=True)

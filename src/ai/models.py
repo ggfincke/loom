@@ -94,10 +94,12 @@ MODEL_METADATA: dict[str, tuple[str, str]] = {
     "claude-3-haiku-20240307": ("anthropic", "Claude 3 Haiku (fastest, economical)"),
 }
 
+
 def get_model_description(model: str) -> str:
     if model in MODEL_METADATA:
         return MODEL_METADATA[model][1]
     return model
+
 
 def resolve_model_alias(model: str) -> str:
     # first check if it's already a valid full model name
@@ -109,6 +111,7 @@ def resolve_model_alias(model: str) -> str:
     # return original if no alias found (may be Ollama model)
     return model
 
+
 def get_default_model(provider: str | None = None) -> str:
     if provider is None:
         # global default is OpenAI
@@ -117,6 +120,7 @@ def get_default_model(provider: str | None = None) -> str:
         provider, DEFAULT_MODELS_BY_PROVIDER["openai"]
     )
 
+
 def get_provider_for_model(model: str) -> str | None:
     # ? Note: This only checks static model lists. For dynamic validation including Ollama, use provider_validator.validate_model()
     if model in OPENAI_MODELS:
@@ -124,6 +128,7 @@ def get_provider_for_model(model: str) -> str | None:
     if model in CLAUDE_MODELS:
         return "anthropic"
     return None
+
 
 # * Centralized model validation & resolution registry
 class ModelRegistry:

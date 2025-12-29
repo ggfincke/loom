@@ -369,7 +369,11 @@ class TestCacheLimits(TestAIResponseCache):
     # * Verify stats include limits
     def test_stats_include_limits(self, temp_cache_dir):
         cache = AIResponseCache(
-            cache_dir=temp_cache_dir, ttl_days=7, enabled=True, max_entries=100, max_size_mb=50
+            cache_dir=temp_cache_dir,
+            ttl_days=7,
+            enabled=True,
+            max_entries=100,
+            max_size_mb=50,
         )
 
         stats = cache.stats()
@@ -379,7 +383,11 @@ class TestCacheLimits(TestAIResponseCache):
     # * Verify unlimited limits shown as string
     def test_stats_unlimited_limits(self, temp_cache_dir):
         cache = AIResponseCache(
-            cache_dir=temp_cache_dir, ttl_days=7, enabled=True, max_entries=0, max_size_mb=0
+            cache_dir=temp_cache_dir,
+            ttl_days=7,
+            enabled=True,
+            max_entries=0,
+            max_size_mb=0,
         )
 
         stats = cache.stats()

@@ -43,6 +43,7 @@ from src.cli.decorators import handle_loom_error
 
 # * Test format_error_message helper
 
+
 class TestFormatErrorMessage:
 
     # * Test format_error_message produces correct Rich markup
@@ -74,7 +75,9 @@ class TestFormatErrorMessage:
         assert "[red]Validation Error:[/]" in result
         assert "line 1\nline 2\nline 3" in result
 
+
 # * Test exception hierarchy & attributes
+
 
 class TestExceptionHierarchy:
 
@@ -108,7 +111,9 @@ class TestExceptionHierarchy:
             TemplateNotFoundError("template not found"),
             TemplateParseError("template parse error"),
             SettingsValidationError("invalid", setting_name="temp", value=5.0),
-            MissingAPIKeyError("missing key", provider="openai", env_var="OPENAI_API_KEY"),
+            MissingAPIKeyError(
+                "missing key", provider="openai", env_var="OPENAI_API_KEY"
+            ),
             CacheError("cache error"),
             CacheCorruptError("cache corrupt"),
             BulkProcessingError("bulk error"),
@@ -149,7 +154,9 @@ class TestExceptionHierarchy:
         empty_warnings = ValidationError([])
         assert "0 warnings" in str(empty_warnings)
 
+
 # * Test error handling decorator
+
 
 class TestHandleLoomErrorDecorator:
 
@@ -295,7 +302,9 @@ class TestHandleLoomErrorDecorator:
         assert "AI Error:" in error_msg
         assert "wrapped in AI error" in error_msg
 
+
 # * Test exception context & usage patterns
+
 
 class TestExceptionUsage:
 
@@ -360,7 +369,9 @@ class TestExceptionUsage:
         assert "Compilation failed" in str(error)
         assert "usepackage" in str(error)
 
+
 # * Test error scenarios & edge cases
+
 
 class TestErrorEdgeCases:
 
@@ -401,9 +412,11 @@ class TestErrorEdgeCases:
         assert "JSON Parsing Error:" in error_msg
         assert "error while handling error" in error_msg
 
+
 # =============================================================================
 # Group G: Expanded Exception Hierarchy Tests
 # =============================================================================
+
 
 # * Test new AI & Provider exceptions
 class TestProviderExceptions:
@@ -453,6 +466,7 @@ class TestProviderExceptions:
         assert isinstance(error, LoomError)
         assert "gpt-99" in str(error)
 
+
 # * Test new Document exceptions
 class TestDocumentExceptions:
 
@@ -494,6 +508,7 @@ class TestDocumentExceptions:
         assert "SectionNotFoundError" in repr_str
         assert "section_name='experience'" in repr_str
 
+
 # * Test new Template exceptions
 class TestTemplateExceptions:
 
@@ -505,7 +520,9 @@ class TestTemplateExceptions:
 
     # * Test TemplateNotFoundError inheritance
     def test_template_not_found_error_inheritance(self):
-        error = TemplateNotFoundError("Template descriptor not found: /path/to/template.toml")
+        error = TemplateNotFoundError(
+            "Template descriptor not found: /path/to/template.toml"
+        )
         assert isinstance(error, TemplateError)
         assert isinstance(error, LoomError)
 
@@ -514,6 +531,7 @@ class TestTemplateExceptions:
         error = TemplateParseError("Invalid TOML in template")
         assert isinstance(error, TemplateError)
         assert isinstance(error, LoomError)
+
 
 # * Test new Configuration exceptions
 class TestConfigurationExceptions:
@@ -565,6 +583,7 @@ class TestConfigurationExceptions:
         assert "provider='openai'" in repr_str
         assert "env_var='OPENAI_API_KEY'" in repr_str
 
+
 # * Test new Cache exceptions
 class TestCacheExceptions:
 
@@ -579,6 +598,7 @@ class TestCacheExceptions:
         error = CacheCorruptError("Cache file corrupted")
         assert isinstance(error, CacheError)
         assert isinstance(error, LoomError)
+
 
 # * Test new Bulk Processing exceptions
 class TestBulkProcessingExceptions:
@@ -618,6 +638,7 @@ class TestBulkProcessingExceptions:
         assert "job_id='job_123'" in repr_str
         assert "attempts=3" in repr_str
 
+
 # * Test new File I/O exceptions
 class TestFileOperationExceptions:
 
@@ -654,6 +675,7 @@ class TestFileOperationExceptions:
         assert isinstance(error, LoomError)
         assert error.path == Path("/tmp/test.txt")
 
+
 # * Test exception chaining patterns (from e)
 class TestExceptionChaining:
 
@@ -684,6 +706,7 @@ class TestExceptionChaining:
             assert isinstance(e.__cause__, FileReadError)
             assert e.__cause__.__cause__ is not None
             assert isinstance(e.__cause__.__cause__, FileNotFoundError)
+
 
 # * Test handle_loom_error decorator w/ new exceptions
 class TestDecoratorWithNewExceptions:

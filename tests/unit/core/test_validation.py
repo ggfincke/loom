@@ -485,7 +485,9 @@ class TestValidationFlow:
 
         mock_ui = MagicMock()
 
-        with patch("src.cli.validation_handlers.AskStrategy", return_value=mock_strategy):
+        with patch(
+            "src.cli.validation_handlers.AskStrategy", return_value=mock_strategy
+        ):
             outcome = validate(mock_validate_fn, ValidationPolicy.ASK, mock_ui)
 
         assert outcome == mock_outcome

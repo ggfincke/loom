@@ -249,7 +249,9 @@ class TestSettingsManager:
         config_path = tmp_path / "config.json"
         manager = SettingsManager(config_path)
 
-        with pytest.raises(SettingsValidationError, match="Unknown setting: invalid_key"):
+        with pytest.raises(
+            SettingsValidationError, match="Unknown setting: invalid_key"
+        ):
             manager.set("invalid_key", "value")
 
     # * Test reset method restores all defaults
@@ -441,25 +443,33 @@ class TestLoomSettingsValidation:
     # * Verify temperature below range rejected
     def test_temperature_below_range_rejected(self):
         # Temperature below 0.0 raises SettingsValidationError.
-        with pytest.raises(SettingsValidationError, match="temperature must be 0.0-2.0"):
+        with pytest.raises(
+            SettingsValidationError, match="temperature must be 0.0-2.0"
+        ):
             LoomSettings(temperature=-0.1)
 
     # * Verify temperature above range rejected
     def test_temperature_above_range_rejected(self):
         # Temperature above 2.0 raises SettingsValidationError.
-        with pytest.raises(SettingsValidationError, match="temperature must be 0.0-2.0"):
+        with pytest.raises(
+            SettingsValidationError, match="temperature must be 0.0-2.0"
+        ):
             LoomSettings(temperature=2.1)
 
     # * Verify temperature non numeric rejected
     def test_temperature_non_numeric_rejected(self):
         # Non-numeric temperature raises SettingsValidationError.
-        with pytest.raises(SettingsValidationError, match="temperature must be a number"):
+        with pytest.raises(
+            SettingsValidationError, match="temperature must be a number"
+        ):
             LoomSettings(temperature="high")  # type: ignore[arg-type]
 
     # * Verify temperature none rejected
     def test_temperature_none_rejected(self):
         # None temperature raises SettingsValidationError.
-        with pytest.raises(SettingsValidationError, match="temperature must be a number"):
+        with pytest.raises(
+            SettingsValidationError, match="temperature must be a number"
+        ):
             LoomSettings(temperature=None)  # type: ignore[arg-type]
 
     # * Risk validation tests
@@ -523,13 +533,17 @@ class TestLoomSettingsValidation:
     # * Verify interactive string rejected
     def test_interactive_string_rejected(self):
         # String interactive raises SettingsValidationError.
-        with pytest.raises(SettingsValidationError, match="interactive must be a boolean"):
+        with pytest.raises(
+            SettingsValidationError, match="interactive must be a boolean"
+        ):
             LoomSettings(interactive="yes")  # type: ignore[arg-type]
 
     # * Verify interactive int rejected
     def test_interactive_int_rejected(self):
         # Integer interactive raises SettingsValidationError.
-        with pytest.raises(SettingsValidationError, match="interactive must be a boolean"):
+        with pytest.raises(
+            SettingsValidationError, match="interactive must be a boolean"
+        ):
             LoomSettings(interactive=1)  # type: ignore[arg-type]
 
     # * Combined validation tests

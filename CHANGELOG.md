@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.8-nightly.20251229] - 2025-12-29
+
+### Added
+- **Unified handler architecture**: BaseDocumentHandler abstract class w/ registry pattern for format-agnostic processing
+- **Shared utilities**: Template loading, semantic matchers & document types (`template_io`, `shared_patterns`, `types`)
+- **CLI helpers**: Model validation module & `HelpOpt()` param factory for standardized help flags
+- **ValidationResult type**: Pure data class for validation outcomes & settings cache invalidation
+
+### Changed
+- **Handler refactor**: LaTeX/Typst handlers migrated to OO API w/ `get_handler()` registry & backward-compatible legacy API
+- **Layer purity**: Move I/O operations from ai/ to CLI layer (`ensure_valid_model` → `model_helpers`)
+- **Code formatting**: Apply black formatting across codebase
+- **Documentation**: Enhanced layer purity rules & command authoring patterns
+
+---
+
 ## [1.3.7-nightly.20251228] - 2025-12-28
 
 ### Changed

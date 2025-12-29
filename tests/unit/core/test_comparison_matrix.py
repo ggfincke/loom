@@ -290,9 +290,7 @@ class TestCategorizeWarnings:
 class TestCountUnsafeClaims:
     # * Percentages flagged as unsafe
     def test_detects_percentages(self):
-        edits = {
-            "ops": [{"op": "replace_line", "text": "Improved performance by 50%"}]
-        }
+        edits = {"ops": [{"op": "replace_line", "text": "Improved performance by 50%"}]}
 
         count = count_unsafe_claims(edits)
 
@@ -300,9 +298,7 @@ class TestCountUnsafeClaims:
 
     # * Scope escalation words flagged
     def test_detects_scope_escalation(self):
-        edits = {
-            "ops": [{"op": "replace_line", "text": "Led team of engineers"}]
-        }
+        edits = {"ops": [{"op": "replace_line", "text": "Led team of engineers"}]}
 
         count = count_unsafe_claims(edits)
 
@@ -310,9 +306,7 @@ class TestCountUnsafeClaims:
 
     # * Normal text not flagged
     def test_normal_text_ok(self):
-        edits = {
-            "ops": [{"op": "replace_line", "text": "Developed backend services"}]
-        }
+        edits = {"ops": [{"op": "replace_line", "text": "Developed backend services"}]}
 
         count = count_unsafe_claims(edits)
 
@@ -349,9 +343,7 @@ class TestSectionsTouched:
                 {"name": "SKILLS", "start_line": 30, "end_line": 40, "subsections": []}
             ]
         }"""
-        edits = {
-            "ops": [{"op": "replace_line", "line": 15, "text": "new text"}]
-        }
+        edits = {"ops": [{"op": "replace_line", "line": 15, "text": "new text"}]}
 
         breakdown = analyze_edits(edits, sections_json=sections_json)
 
@@ -364,9 +356,7 @@ class TestSectionsTouched:
                 {"name": "EXPERIENCE", "start_line": 10, "end_line": 25, "subsections": []}
             ]
         }"""
-        edits = {
-            "ops": [{"op": "replace_line", "line": 50, "text": "new text"}]
-        }
+        edits = {"ops": [{"op": "replace_line", "line": 50, "text": "new text"}]}
 
         breakdown = analyze_edits(edits, sections_json=sections_json)
 
@@ -387,9 +377,7 @@ class TestSectionsTouched:
                 }
             ]
         }"""
-        edits = {
-            "ops": [{"op": "replace_line", "line": 20, "text": "new text"}]
-        }
+        edits = {"ops": [{"op": "replace_line", "line": 20, "text": "new text"}]}
 
         breakdown = analyze_edits(edits, sections_json=sections_json)
 
@@ -400,9 +388,7 @@ class TestSectionsTouched:
     # * Graceful handling of invalid JSON
     def test_invalid_json_returns_empty(self):
         sections_json = "not valid json {{{"
-        edits = {
-            "ops": [{"op": "replace_line", "line": 15, "text": "new text"}]
-        }
+        edits = {"ops": [{"op": "replace_line", "line": 15, "text": "new text"}]}
 
         breakdown = analyze_edits(edits, sections_json=sections_json)
 
@@ -410,9 +396,7 @@ class TestSectionsTouched:
 
     # * No sections_json returns empty list
     def test_no_sections_json_returns_empty(self):
-        edits = {
-            "ops": [{"op": "replace_line", "line": 15, "text": "new text"}]
-        }
+        edits = {"ops": [{"op": "replace_line", "line": 15, "text": "new text"}]}
 
         breakdown = analyze_edits(edits, sections_json=None)
 
