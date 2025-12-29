@@ -17,8 +17,7 @@ from ..core.constants import RiskLevel, ValidationPolicy
 from ..core.exceptions import EditError
 from ..core.verbose import vlog_stage, vlog_config, vlog_file_read, vlog_think
 import json
-from ..loom_io import read_resume, TemplateDescriptor, build_latex_context, build_typst_context
-from ..loom_io.typst_handler import sections_to_payload as typst_sections_to_payload
+from ..loom_io import read_resume, TemplateDescriptor, get_handler
 from ..loom_io.generics import ensure_parent
 from ..core.types import Lines
 from ..ui.core.progress import (
@@ -133,32 +132,20 @@ def prepare_resume_context(
     auto_sections_json = None
     template_notes: list[str] = []
 
-    if ctx.is_latex:
-        progress.update(task, description="Analyzing LaTeX structure...")
-        descriptor, auto_sections_json, template_notes = build_latex_context(
-            ctx.resume, lines
-        )
-        progress.advance(task)
+    if ctx.is_latex or ctx.is_typst:
+        format_name = "LaTeX" if ctx.is_latex else "Typst"
+        progress.update(task, description=f"Analyzing {format_name} structure...")
 
-        # display LaTeX info
-        if descriptor:
-            ui.print(f"[green]Detected LaTeX template:[/] {descriptor.id}")
-        if template_notes:
-            ui.print("[yellow]Template notes:[/]")
-            for note in template_notes:
-                ui.print(f" - {note}")
-
-    elif ctx.is_typst:
-        progress.update(task, description="Analyzing Typst structure...")
+        handler = get_handler(ctx.resume)
         resume_text = ctx.resume.read_text(encoding="utf-8")
-        descriptor, analysis = build_typst_context(ctx.resume, lines, resume_text)
-        auto_sections_json = json.dumps(typst_sections_to_payload(analysis))
+        descriptor, analysis = handler.build_context(ctx.resume, lines, resume_text)
+        auto_sections_json = json.dumps(handler.sections_to_payload(analysis))
         template_notes = analysis.notes
         progress.advance(task)
 
-        # display Typst info
+        # display template info
         if descriptor:
-            ui.print(f"[green]Detected Typst template:[/] {descriptor.id}")
+            ui.print(f"[green]Detected {format_name} template:[/] {descriptor.id}")
         if template_notes:
             ui.print("[yellow]Template notes:[/]")
             for note in template_notes:

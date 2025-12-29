@@ -184,12 +184,7 @@ def test_apply_with_typst_resume(isolate_config, typst_files):
 
 # * Test end-to-end Typst workflow: sectionize then apply
 def test_typst_sectionize_and_apply_workflow(isolate_config, typst_files):
-    from src.loom_io.documents import read_typst, write_text_lines
-    from src.loom_io.typst_handler import (
-        detect_template,
-        analyze_typst,
-        sections_to_payload,
-    )
+    from src.loom_io.documents import read_typst, write_text_lines, get_handler
     from src.core.pipeline import apply_edits
 
     # Step 1: Read and analyze the Typst resume (sectionize)
@@ -197,9 +192,10 @@ def test_typst_sectionize_and_apply_workflow(isolate_config, typst_files):
     lines = read_typst(resume_path)
     content = resume_path.read_text()
 
-    descriptor = detect_template(resume_path, content)
-    analysis = analyze_typst(lines, descriptor)
-    payload = sections_to_payload(analysis)
+    handler = get_handler(resume_path)
+    descriptor = handler.detect_template(resume_path, content)
+    analysis = handler.analyze(lines, descriptor)
+    payload = handler.sections_to_payload(analysis)
 
     # Verify sectionize output
     assert "sections" in payload
@@ -261,15 +257,15 @@ def test_read_resume_handles_typst(isolate_config, typst_files):
 
 # * Test Typst template detection in template directory
 def test_template_detection_for_typst(isolate_config):
-    from src.loom_io.typst_handler import detect_template, build_typst_context
-    from src.loom_io.documents import read_typst
+    from src.loom_io.documents import read_typst, get_handler
 
     template_dir = Path(__file__).parent.parent.parent / "templates" / "swe-typst"
     resume_path = template_dir / "resume.typ"
 
     if resume_path.exists():
         content = resume_path.read_text()
-        descriptor = detect_template(resume_path, content)
+        handler = get_handler(resume_path)
+        descriptor = handler.detect_template(resume_path, content)
 
         assert descriptor is not None
         assert descriptor.id == "swe-typst"
@@ -277,6 +273,6 @@ def test_template_detection_for_typst(isolate_config):
 
         # test full context building
         lines = read_typst(resume_path)
-        desc, analysis = build_typst_context(resume_path, lines, content)
+        desc, analysis = handler.build_context(resume_path, lines, content)
         assert desc is not None
         assert len(analysis.sections) > 0

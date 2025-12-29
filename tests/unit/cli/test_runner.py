@@ -476,28 +476,40 @@ class TestPrepareResumeContext:
         mock_read_resume.assert_called_once()
 
     @patch("src.cli.runner.read_resume")
-    @patch("src.cli.runner.build_latex_context")
+    @patch("src.cli.runner.get_handler")
     @patch("src.cli.runner.load_sections")
     # * Verify prepare context latex detection
     def test_prepare_context_latex_detection(
         self,
         mock_load_sections,
-        mock_build_latex,
+        mock_get_handler,
         mock_read_resume,
         mock_settings,
         mock_ui,
         mock_progress,
+        tmp_path,
     ):
         progress, task = mock_progress
         mock_read_resume.return_value = {1: "\\documentclass"}
+        mock_load_sections.return_value = None
+
+        # Create a real temp file (needed for ctx.resume.read_text())
+        tex_file = tmp_path / "resume.tex"
+        tex_file.write_text("\\documentclass{article}")
+
+        # Mock the handler
+        mock_handler = Mock()
         mock_descriptor = Mock()
         mock_descriptor.id = "moderncv"
-        mock_build_latex.return_value = (mock_descriptor, '{"sections": []}', ["note1"])
-        mock_load_sections.return_value = None
+        mock_analysis = Mock()
+        mock_analysis.notes = ["note1"]
+        mock_handler.build_context.return_value = (mock_descriptor, mock_analysis)
+        mock_handler.sections_to_payload.return_value = {"sections": []}
+        mock_get_handler.return_value = mock_handler
 
         ctx = TailoringContext(
             settings=mock_settings,
-            resume=Path("resume.tex"),
+            resume=tex_file,
             job=None,
         )
 
@@ -506,7 +518,8 @@ class TestPrepareResumeContext:
         assert result.descriptor == mock_descriptor
         assert result.auto_sections_json == '{"sections": []}'
         assert result.template_notes == ["note1"]
-        mock_build_latex.assert_called_once()
+        mock_get_handler.assert_called_once()
+        mock_handler.build_context.assert_called_once()
         # verify LaTeX info was displayed
         mock_ui.print.assert_called()
 

@@ -9,8 +9,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import typer
-
 from .cache import AICache
 from .models import (
     OPENAI_MODELS,
@@ -30,6 +28,7 @@ def check_openai_api_key() -> bool:
     AICache.set_provider_available("openai", available)
     return available
 
+
 def check_anthropic_api_key() -> bool:
     cached = AICache.get_provider_available("anthropic")
     if cached is not None:
@@ -39,6 +38,7 @@ def check_anthropic_api_key() -> bool:
     AICache.set_provider_available("anthropic", available)
     return available
 
+
 def get_ollama_models() -> list[str]:
     cached = AICache.get_ollama_models()
     if cached is not None:
@@ -46,9 +46,11 @@ def get_ollama_models() -> list[str]:
     # if not cached, return empty - Ollama client will populate on first use
     return []
 
+
 def is_ollama_available() -> bool:
     cached = AICache.get_provider_available("ollama")
     return cached is True
+
 
 # * Validate model & determine its provider (checks API keys & Ollama availability)
 def validate_model(model: str) -> tuple[bool, str | None]:
@@ -139,22 +141,6 @@ def get_model_error_message(invalid_model: str) -> str:
     return "\n".join(message_parts)
 
 
-# validate model & show error if invalid (exits on failure)
-def ensure_valid_model(model: str | None) -> str | None:
-    if model is None:
-        return None
-
-    # resolve alias first
-    resolved_model = resolve_model_alias(model)
-
-    valid, _ = validate_model(resolved_model)
-    if not valid:
-        typer.echo(get_model_error_message(model), err=True)
-        raise typer.Exit(1)
-
-    return resolved_model
-
-
 # * Get all supported models grouped by provider w/ availability status
 def get_models_by_provider() -> dict[str, dict[str, Any]]:
     return {
@@ -180,6 +166,7 @@ def get_models_by_provider() -> dict[str, dict[str, Any]]:
 def get_model_provider(model: str) -> str | None:
     valid, provider = validate_model(model)
     return provider if valid else None
+
 
 # reset all model-related caches (call at start of each CLI invocation)
 def reset_model_cache() -> None:

@@ -15,10 +15,8 @@ from ..config.settings import LoomSettings
 from ..loom_io.generics import ensure_parent, write_json_safe
 from ..core.types import Lines
 from ..loom_io import (
-    filter_latex_edits,
-    filter_typst_edits,
     TemplateDescriptor,
-    build_latex_context,
+    get_handler,
 )
 from ..core.constants import RiskLevel, ValidationPolicy, EditOperation, DiffOp
 from ..core.pipeline import (
@@ -390,12 +388,9 @@ def apply_edits_core(
     def sanitize_edits(data: dict) -> dict:
         if not isinstance(data, dict):
             return data
-        if is_latex:
-            filtered, notes = filter_latex_edits(data, resume_lines, descriptor)
-            filter_notes.extend(notes)
-            return filtered
-        if is_typst:
-            filtered, notes = filter_typst_edits(data, resume_lines, descriptor)
+        if is_latex or is_typst:
+            handler = get_handler(resume_path)
+            filtered, notes = handler.filter_edits(data, resume_lines, descriptor)
             filter_notes.extend(notes)
             return filtered
         return data

@@ -13,9 +13,7 @@ from ...ai.utils import normalize_sections_response
 from ...loom_io import (
     read_resume,
     write_json_safe,
-    detect_template,
-    analyze_latex,
-    sections_to_payload,
+    get_handler,
 )
 from ...core.types import number_lines
 
@@ -25,7 +23,7 @@ from ..helpers import handle_help_flag, validate_required_args
 from ...ui.core.progress import setup_ui_with_progress
 from ...ui.display.reporting import report_result
 from ..logic import ArgResolver
-from ..params import ResumeArg, OutJsonOpt, ModelOpt
+from ..params import ResumeArg, OutJsonOpt, ModelOpt, HelpOpt
 from ...ui.help.help_data import command_help
 from ...config.settings import get_settings
 
@@ -54,7 +52,7 @@ def sectionize(
     resume_path: Optional[Path] = ResumeArg(),
     out_json: Optional[Path] = OutJsonOpt(),
     model: Optional[str] = ModelOpt(),
-    help: bool = typer.Option(False, "--help", "-h", help="Show help message & exit."),
+    help: bool = HelpOpt(),
 ) -> None:
     handle_help_flag(ctx, help, "sectionize")
     settings = get_settings(ctx)
@@ -103,29 +101,15 @@ def sectionize(
         lines = read_resume(resume_path)
         progress.advance(task)
 
-        if is_latex:
-            progress.update(task, description="Analyzing LaTeX structure...")
-            resume_text = resume_path.read_text(encoding="utf-8")
-            descriptor = detect_template(resume_path, resume_text)
-            analysis = analyze_latex(lines, descriptor)
-            payload = sections_to_payload(analysis)
-            progress.advance(task)
+        if is_latex or is_typst:
+            format_name = "LaTeX" if is_latex else "Typst"
+            progress.update(task, description=f"Analyzing {format_name} structure...")
 
-            progress.update(task, description="Writing sections JSON...")
-            write_json_safe(payload, out_json)
-            progress.advance(task)
-        elif is_typst:
-            progress.update(task, description="Analyzing Typst structure...")
-            from ...loom_io.typst_handler import (
-                detect_template as detect_typst_template,
-                analyze_typst,
-                sections_to_payload as typst_sections_to_payload,
-            )
-
+            handler = get_handler(resume_path)
             resume_text = resume_path.read_text(encoding="utf-8")
-            descriptor = detect_typst_template(resume_path, resume_text)
-            analysis = analyze_typst(lines, descriptor)
-            payload = typst_sections_to_payload(analysis)
+            descriptor = handler.detect_template(resume_path, resume_text)
+            analysis = handler.analyze(lines, descriptor)
+            payload = handler.sections_to_payload(analysis)
             progress.advance(task)
 
             progress.update(task, description="Writing sections JSON...")
