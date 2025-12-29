@@ -8,11 +8,11 @@ from typing import Optional
 import typer
 
 from ...core.constants import RiskLevel, ValidationPolicy
-from ...core.exceptions import handle_loom_error
 
 from ..app import app
-from ..logic import ArgResolver
-from ..runner import TailoringMode, TailoringRunner, build_tailoring_context
+from ..decorators import handle_loom_error
+from ..helpers import handle_help_flag, run_tailoring_command
+from ..runner import TailoringMode
 from ..params import (
     ResumeArg,
     JobArg,
@@ -22,9 +22,9 @@ from ..params import (
     OnErrorOpt,
     ModelOpt,
     SectionsPathOpt,
+    HelpOpt,
 )
 from ...ui.help.help_data import command_help
-from ...config.settings import get_settings
 
 
 # * Generate edits w/ step-by-step planning & validation workflow
@@ -56,26 +56,16 @@ def plan(
     on_error: Optional[ValidationPolicy] = OnErrorOpt(),
     model: Optional[str] = ModelOpt(),
     sections_path: Optional[Path] = SectionsPathOpt(),
-    help: bool = typer.Option(
-        False, "--help", "-h", help="Show help message and exit."
-    ),
+    help: bool = HelpOpt(),
 ) -> None:
-    # detect help flag & show custom help
-    if help:
-        from .help import show_command_help
+    handle_help_flag(ctx, help, "plan")
 
-        show_command_help("plan")
-        ctx.exit()
-
-    # unused but planned
+    # Unused but planned
     _ = plan
 
-    settings = get_settings(ctx)
-    resolver = ArgResolver(settings)
-
-    tailoring_ctx = build_tailoring_context(
-        settings,
-        resolver,
+    run_tailoring_command(
+        ctx,
+        TailoringMode.PLAN,
         resume=resume,
         job=job,
         model=model,
@@ -84,6 +74,3 @@ def plan(
         risk=risk,
         on_error=on_error,
     )
-
-    runner = TailoringRunner(TailoringMode.PLAN, tailoring_ctx)
-    runner.run()

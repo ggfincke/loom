@@ -9,22 +9,21 @@ import typer
 
 from ...ai.prompts import build_sectionizer_prompt
 from ...ai.clients import run_generate
+from ...ai.utils import normalize_sections_response
 from ...loom_io import (
     read_resume,
     write_json_safe,
-    detect_template,
-    analyze_latex,
-    sections_to_payload,
-    number_lines,
+    get_handler,
 )
-from ...core.exceptions import handle_loom_error
+from ...core.types import number_lines
 
 from ..app import app
-from ..helpers import validate_required_args
+from ..decorators import handle_loom_error
+from ..helpers import handle_help_flag, validate_required_args
 from ...ui.core.progress import setup_ui_with_progress
 from ...ui.display.reporting import report_result
 from ..logic import ArgResolver
-from ..params import ResumeArg, OutJsonOpt, ModelOpt
+from ..params import ResumeArg, OutJsonOpt, ModelOpt, HelpOpt
 from ...ui.help.help_data import command_help
 from ...config.settings import get_settings
 
@@ -34,7 +33,7 @@ from ...config.settings import get_settings
     name="sectionize",
     description="Parse resume document into structured sections using AI",
     long_description=(
-        "analyze resume (.docx or .tex) & identify distinct sections such as "
+        "analyze resume (.docx, .tex, or .typ) & identify distinct sections such as "
         "SUMMARY, EXPERIENCE & EDUCATION. Produce machine-readable JSON map "
         "used to target edits precisely in later steps.\n\n"
         "Defaults: paths come from config when omitted (see 'loom config')."
@@ -53,14 +52,9 @@ def sectionize(
     resume_path: Optional[Path] = ResumeArg(),
     out_json: Optional[Path] = OutJsonOpt(),
     model: Optional[str] = ModelOpt(),
-    help: bool = typer.Option(False, "--help", "-h", help="Show help message & exit."),
+    help: bool = HelpOpt(),
 ) -> None:
-    # detect help flag & show custom help
-    if help:
-        from .help import show_command_help
-
-        show_command_help("sectionize")
-        ctx.exit()
+    handle_help_flag(ctx, help, "sectionize")
     settings = get_settings(ctx)
     resolver = ArgResolver(settings)
 
@@ -74,7 +68,7 @@ def sectionize(
         resolved["model"],
     )
 
-    # validate required arguments (model not required for LaTeX path)
+    # validate required arguments (model not required for LaTeX/Typst path)
     required_args = {
         "resume_path": (resume_path, "Resume path"),
         "out_json": (
@@ -83,7 +77,9 @@ def sectionize(
         ),
     }
     resume_suffix = resume_path.suffix.lower() if resume_path else ""
-    if resume_suffix != ".tex":
+    is_latex = resume_suffix == ".tex"
+    is_typst = resume_suffix == ".typ"
+    if not (is_latex or is_typst):
         required_args["model"] = (model, "Model (provide --model or set in config)")
 
     validate_required_args(**required_args)
@@ -92,10 +88,9 @@ def sectionize(
     assert resume_path is not None
     assert out_json is not None
 
-    is_latex = resume_path.suffix.lower() == ".tex"
-    if not is_latex:
+    if not (is_latex or is_typst):
         assert model is not None
-    total_steps = 3 if is_latex else 4
+    total_steps = 3 if (is_latex or is_typst) else 4
 
     with setup_ui_with_progress("Processing resume...", total=total_steps) as (
         ui,
@@ -106,12 +101,15 @@ def sectionize(
         lines = read_resume(resume_path)
         progress.advance(task)
 
-        if is_latex:
-            progress.update(task, description="Analyzing LaTeX structure...")
+        if is_latex or is_typst:
+            format_name = "LaTeX" if is_latex else "Typst"
+            progress.update(task, description=f"Analyzing {format_name} structure...")
+
+            handler = get_handler(resume_path)
             resume_text = resume_path.read_text(encoding="utf-8")
-            descriptor = detect_template(resume_path, resume_text)
-            analysis = analyze_latex(lines, descriptor)
-            payload = sections_to_payload(analysis)
+            descriptor = handler.detect_template(resume_path, resume_text)
+            analysis = handler.analyze(lines, descriptor)
+            payload = handler.sections_to_payload(analysis)
             progress.advance(task)
 
             progress.update(task, description="Writing sections JSON...")
@@ -124,9 +122,10 @@ def sectionize(
 
             progress.update(task, description="Building prompt and calling OpenAI...")
             prompt = build_sectionizer_prompt(numbered)
+            assert model is not None, "Model required for non-LaTeX/Typst resumes"
             result = run_generate(prompt, model=model)
 
-            # handle JSON parsing errors
+            # Handle JSON parsing errors
             if not result.success:
                 from ...core.exceptions import AIError
 
@@ -136,6 +135,8 @@ def sectionize(
 
             data = result.data
             assert data is not None, "Expected non-None data from successful AI result"
+            # Normalize short keys (k->kind, h->heading_text, etc.) to full keys
+            data = normalize_sections_response(data)
             progress.advance(task)
 
             progress.update(task, description="Writing sections JSON...")

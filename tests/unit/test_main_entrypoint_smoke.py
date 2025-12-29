@@ -21,6 +21,6 @@ def test_main_entrypoint_runs():
     from src import main
 
     runner = CliRunner()
-    # invoking with no args triggers quick usage and exits cleanly
+    # invoking w/ no args triggers quick usage & exits cleanly
     result = runner.invoke(main.app, [])
     assert result.exit_code == 0

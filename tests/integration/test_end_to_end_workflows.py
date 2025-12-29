@@ -16,18 +16,18 @@ from tests.test_support.mock_ai import (
 
 
 @pytest.fixture
-# * Create mock AI that returns successful responses for all scenarios
 def mock_ai_success():
+    # * Create mock AI that returns successful responses for all scenarios
     return DeterministicMockAI()
 
 
 @pytest.fixture
-# * Create sample files for end-to-end testing w/ both DOCX & LaTeX formats
 def e2e_sample_files(tmp_path):
+    # * Create sample files for end-to-end testing w/ both DOCX & LaTeX formats
     sample_dir = tmp_path / "samples"
     sample_dir.mkdir()
 
-    # copy sample resume files from fixtures
+    # Copy sample resume files from fixtures
     fixtures_dir = Path(__file__).parent.parent / "fixtures" / "documents"
 
     # DOCX resume
@@ -38,7 +38,7 @@ def e2e_sample_files(tmp_path):
     resume_tex = sample_dir / "sample_resume.tex"
     shutil.copy(fixtures_dir / "basic_formatted_resume.tex", resume_tex)
 
-    # job description
+    # Job description
     job_file = sample_dir / "job_posting.txt"
     job_file.write_text(
         "Senior Software Engineer position requiring Python, Django, AWS, and microservices experience. Looking for candidates with 5+ years experience leading technical teams."
@@ -53,25 +53,25 @@ def e2e_sample_files(tmp_path):
 
 
 @pytest.fixture
-# * Create temp output directory for real artifact generation
 def temp_output_dir(tmp_path):
+    # * Create temp output directory for real artifact generation
     output_dir = tmp_path / "temp_output"
     output_dir.mkdir()
     return output_dir
 
 
 @pytest.fixture
-# * Setup config w/ defaults pointing to temp directories
 def config_with_temp_defaults(tmp_path, isolate_config):
+    # * Setup config w/ defaults pointing to temp directories
     from src.config.settings import LoomSettings
 
-    # create temp data & output dirs
+    # Create temp data & output dirs
     data_dir = tmp_path / "data"
     output_dir = tmp_path / "output"
     data_dir.mkdir()
     output_dir.mkdir()
 
-    # return settings w/ temp paths
+    # Return settings w/ temp paths
     return LoomSettings(
         data_dir=str(data_dir),
         output_dir=str(output_dir),
@@ -91,7 +91,7 @@ class TestEndToEndWorkflows:
 
         runner = CliRunner()
 
-        # setup mock AI for both sectionize & tailor commands
+        # Setup mock AI for both sectionize & tailor commands
         ai_mock = create_simple_ai_mock(mock_ai_success)
 
         with (
@@ -99,7 +99,7 @@ class TestEndToEndWorkflows:
             patch("src.core.pipeline.run_generate", side_effect=ai_mock),
         ):
 
-            # step 1: run sectionize command
+            # Step 1: run sectionize command
             sections_file = temp_output_dir / "sections.json"
             result1 = runner.invoke(
                 app,
@@ -117,12 +117,12 @@ class TestEndToEndWorkflows:
             assert result1.exit_code == 0
             assert sections_file.exists()
 
-            # verify sections.json structure
+            # Verify sections.json structure
             sections_data = json.loads(sections_file.read_text())
             assert "sections" in sections_data
             assert len(sections_data["sections"]) > 0
 
-            # step 2: run tailor command using sections from step 1
+            # Step 2: run tailor command using sections from step 1
             edits_file = temp_output_dir / "edits.json"
             output_resume = temp_output_dir / "tailored_resume.docx"
 
@@ -150,17 +150,17 @@ class TestEndToEndWorkflows:
                     print("TAILOR STDERR:", result2.stderr_bytes)
             assert result2.exit_code == 0
 
-            # verify all expected artifacts exist
+            # Verify all expected artifacts exist
             assert edits_file.exists()
             assert output_resume.exists()
 
-            # verify edits.json structure
+            # Verify edits.json structure
             edits_data = json.loads(edits_file.read_text())
             assert (
                 "version" in edits_data or "ops" in edits_data or "edits" in edits_data
             )
 
-            # verify output resume is different from input (has content)
+            # Verify output resume is different from input (has content)
             assert output_resume.stat().st_size > 0
 
     # * Test tailor --edits-only flag generates edits without applying them
@@ -194,13 +194,13 @@ class TestEndToEndWorkflows:
 
             assert result.exit_code == 0
 
-            # verify edits file was created
+            # Verify edits file was created
             assert edits_file.exists()
 
-            # verify output resume was NOT created
+            # Verify output resume was NOT created
             assert not output_resume.exists()
 
-            # verify edits structure
+            # Verify edits structure
             edits_data = json.loads(edits_file.read_text())
             assert (
                 "version" in edits_data or "ops" in edits_data or "edits" in edits_data
@@ -238,27 +238,26 @@ class TestEndToEndWorkflows:
 
             assert result.exit_code == 0
 
-            # verify both generation & application artifacts exist
+            # Verify both generation & application artifacts exist
             assert edits_file.exists()
             assert output_resume.exists()
 
-            # verify edits structure
+            # Verify edits structure
             edits_data = json.loads(edits_file.read_text())
             assert (
                 "version" in edits_data or "ops" in edits_data or "edits" in edits_data
             )
 
-            # verify output resume has content
+            # Verify output resume has content
             assert output_resume.stat().st_size > 0
 
-            # verify diff file was created in .loom directory
+            # Verify diff file was created in .loom directory
             loom_dir = Path(".loom")
             if loom_dir.exists():
                 diff_file = loom_dir / "diff.patch"
                 if diff_file.exists():
-                    assert (
-                        diff_file.stat().st_size >= 0
-                    )  # diff file may be empty for identical content
+                    # Diff file may be empty for identical content
+                    assert diff_file.stat().st_size >= 0
 
     # * Test LaTeX resume processing through workflow
     def test_latex_resume_processing(
@@ -289,12 +288,12 @@ class TestEndToEndWorkflows:
             assert result.exit_code == 0
             assert sections_file.exists()
 
-            # verify sections were detected from LaTeX
+            # Verify sections were detected from LaTeX
             sections_data = json.loads(sections_file.read_text())
             assert "sections" in sections_data
             assert len(sections_data["sections"]) > 0
 
-            # verify LaTeX-specific content was processed (check for common LaTeX content)
+            # Verify LaTeX-specific content was processed (check for common LaTeX content)
             has_latex_content = any(
                 "content" in section
                 and any(
@@ -304,7 +303,7 @@ class TestEndToEndWorkflows:
                 for section in sections_data["sections"]
             )
 
-            # at minimum, sections should exist (LaTeX commands may or may not be preserved in JSON)
+            # At minimum, sections should exist (LaTeX commands may or may not be preserved in JSON)
             assert len(sections_data["sections"]) > 0
 
     # * Test config defaults integration w/ minimal CLI arguments
@@ -315,17 +314,17 @@ class TestEndToEndWorkflows:
 
         runner = CliRunner()
 
-        # create config w/ paths inside the test temp directory
+        # Create config w/ paths inside the test temp directory
         data_dir = tmp_path / "data"
         output_dir = tmp_path / "output"
         data_dir.mkdir()
         output_dir.mkdir()
 
-        # copy files to match config defaults
+        # Copy files to match config defaults
         shutil.copy(e2e_sample_files["resume_docx"], data_dir / "resume.docx")
         shutil.copy(e2e_sample_files["job"], data_dir / "job.txt")
 
-        # create config w/ absolute paths
+        # Create config w/ absolute paths
         from src.config.settings import LoomSettings
 
         config = LoomSettings(
@@ -339,7 +338,7 @@ class TestEndToEndWorkflows:
         ai_mock = create_simple_ai_mock(mock_ai_success)
 
         with patch(get_ai_patch_path("sectionize"), side_effect=ai_mock):
-            # test sectionize w/ config defaults (no arguments needed)
+            # Test sectionize w/ config defaults (no arguments needed)
             result = runner.invoke(
                 app, ["sectionize"], env={"NO_COLOR": "1", "TERM": "dumb"}, obj=config
             )
@@ -350,16 +349,8 @@ class TestEndToEndWorkflows:
                     print("STDERR:", result.stderr_bytes)
             assert result.exit_code == 0
 
-            # check if file was created in the working directory's data folder instead
-            cwd_output_file = Path("data") / "sections.json"
-
-            if cwd_output_file.exists():
-                # file was created in current working directory (acceptable)
-                sections_file = cwd_output_file
-            else:
-                # check in configured data directory (new default location)
-                sections_file = data_dir / "sections.json"
-
+            # Check in configured data directory (expected location w/ config defaults)
+            sections_file = data_dir / "sections.json"
             assert sections_file.exists()
 
             sections_data = json.loads(sections_file.read_text())

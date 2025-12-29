@@ -13,27 +13,31 @@ from ..ai.prompts import (
 from ..ai.clients import run_generate
 from ..ai.utils import process_ai_response
 
-from ..loom_io.types import Lines
-from ..loom_io import number_lines
-from .constants import EditOperation
-from .debug import debug_ai
-from .edit_helpers import (
-    check_line_exists,
-    check_range_exists,
-    collect_lines_to_move,
-    count_text_lines,
-    get_operation_line,
-    shift_lines,
+from .types import Lines, number_lines
+from .constants import (
+    EditOperation,
     OP_REPLACE_LINE,
     OP_REPLACE_RANGE,
     OP_INSERT_AFTER,
     OP_DELETE_RANGE,
 )
+from .debug import debug_ai
+from .edit_helpers import (
+    check_line_exists,
+    check_range_exists,
+    get_operation_line,
+    collect_lines_to_move,
+    shift_lines,
+)
 
 
 # * Generate edits.json for resume using AI model w/ job description & sections context
 def generate_edits(
-    resume_lines: Lines, job_text: str, sections_json: str | None, model: str
+    resume_lines: Lines,
+    job_text: str,
+    sections_json: str | None,
+    model: str,
+    user_prompt: str | None = None,
 ) -> dict:
     debug_ai(
         f"Starting edit generation - Model: {model}, Resume lines: {len(resume_lines)}, Job text: {len(job_text)} chars"
@@ -42,7 +46,12 @@ def generate_edits(
     # generate edits
     created_at = datetime.now(timezone.utc).isoformat()
     prompt = build_generate_prompt(
-        job_text, number_lines(resume_lines), model, created_at, sections_json
+        job_text,
+        number_lines(resume_lines),
+        model,
+        created_at,
+        sections_json,
+        user_prompt,
     )
     debug_ai(f"Generated generation prompt: {len(prompt)} characters")
 

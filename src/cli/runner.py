@@ -1,5 +1,9 @@
 # src/cli/runner.py
 # Unified tailoring runner for CLI commands (generate, apply, tailor, plan)
+#
+# ! High import count is intentional: runner.py is the orchestration hub that
+# ! coordinates between AI, I/O, validation, & UI layers. This coupling is
+# ! inherent to its role as the central tailoring workflow coordinator.
 
 from __future__ import annotations
 
@@ -11,9 +15,11 @@ from typing import Any
 from ..config.settings import LoomSettings
 from ..core.constants import RiskLevel, ValidationPolicy
 from ..core.exceptions import EditError
-from ..loom_io import read_resume, TemplateDescriptor
+from ..core.verbose import vlog_stage, vlog_config, vlog_file_read, vlog_think
+import json
+from ..loom_io import read_resume, TemplateDescriptor, get_handler
 from ..loom_io.generics import ensure_parent
-from ..loom_io.types import Lines
+from ..core.types import Lines
 from ..ui.core.progress import (
     setup_ui_with_progress,
     load_resume_and_job,
@@ -29,7 +35,6 @@ from .logic import (
     ArgResolver,
     generate_edits_core,
     apply_edits_core,
-    build_latex_context,
 )
 from .helpers import validate_required_args
 
@@ -39,7 +44,7 @@ class TailoringMode(Enum):
     GENERATE = "generate"  # generate edits only
     APPLY = "apply"  # apply existing edits
     TAILOR = "tailor"  # generate + apply
-    PLAN = "plan"  # generate with planning
+    PLAN = "plan"  # generate w/ planning
 
 
 # context data prepared from resume, job & sections loading
@@ -68,10 +73,15 @@ class TailoringContext:
     preserve_formatting: bool = True
     preserve_mode: str = "in_place"
     interactive: bool = True
+    user_prompt: str | None = None
 
     @property
     def is_latex(self) -> bool:
         return self.resume is not None and self.resume.suffix.lower() == ".tex"
+
+    @property
+    def is_typst(self) -> bool:
+        return self.resume is not None and self.resume.suffix.lower() == ".typ"
 
 
 # validation requirements per mode
@@ -109,6 +119,7 @@ def prepare_resume_context(
     load_job: bool = True,
 ) -> ResumeContext:
     # load resume + optional job
+    assert ctx.resume is not None, "resume path required"
     if load_job and ctx.job is not None:
         lines, job_text = load_resume_and_job(ctx.resume, ctx.job, progress, task)
     else:
@@ -122,25 +133,29 @@ def prepare_resume_context(
     auto_sections_json = None
     template_notes: list[str] = []
 
-    if ctx.is_latex:
-        progress.update(task, description="Analyzing LaTeX structure...")
-        descriptor, auto_sections_json, template_notes = build_latex_context(
-            ctx.resume, lines
-        )
+    if ctx.is_latex or ctx.is_typst:
+        format_name = "LaTeX" if ctx.is_latex else "Typst"
+        progress.update(task, description=f"Analyzing {format_name} structure...")
+
+        handler = get_handler(ctx.resume)
+        resume_text = ctx.resume.read_text(encoding="utf-8")
+        descriptor, analysis = handler.build_context(ctx.resume, lines, resume_text)
+        auto_sections_json = json.dumps(handler.sections_to_payload(analysis))
+        template_notes = analysis.notes
         progress.advance(task)
 
-        # display LaTeX info
+        # display template info
         if descriptor:
-            ui.print(f"[green]Detected LaTeX template:[/] {descriptor.id}")
+            ui.print(f"[green]Detected {format_name} template:[/] {descriptor.id}")
         if template_notes:
             ui.print("[yellow]Template notes:[/]")
             for note in template_notes:
                 ui.print(f" - {note}")
 
-    # resolve sections (explicit path takes precedence over auto-LaTeX)
+    # resolve sections (explicit path takes precedence over auto-detected)
     if ctx.sections_path:
         sections_json_str = load_sections(ctx.sections_path, progress, task)
-    elif ctx.is_latex:
+    elif ctx.is_latex or ctx.is_typst:
         sections_json_str = auto_sections_json
     else:
         sections_json_str = None
@@ -170,6 +185,7 @@ def build_tailoring_context(
     preserve_formatting: bool = True,
     preserve_mode: str = "in_place",
     interactive: bool = True,
+    user_prompt: str | None = None,
 ) -> TailoringContext:
     # build TailoringContext w/ resolved arguments via ArgResolver
     common = resolver.resolve_common(
@@ -197,6 +213,7 @@ def build_tailoring_context(
         preserve_formatting=preserve_formatting,
         preserve_mode=preserve_mode,
         interactive=interactive,
+        user_prompt=user_prompt,
     )
 
 
@@ -232,8 +249,8 @@ class TailoringRunner:
 
         total = base_steps[self.mode]
 
-        # add optional LaTeX step (all modes use LaTeX analysis)
-        if self.ctx.is_latex:
+        # add optional LaTeX/Typst step (all modes use format-specific analysis)
+        if self.ctx.is_latex or self.ctx.is_typst:
             total += 1
 
         # add optional job step (apply only - job is optional for PROMPT support)
@@ -251,6 +268,16 @@ class TailoringRunner:
         # validate before running
         self.validate()
 
+        # log workflow configuration
+        vlog_stage(f"Starting {self.mode.value} workflow")
+        vlog_config("resume", self.ctx.resume)
+        vlog_config("model", self.ctx.model)
+        vlog_config("risk", self.ctx.risk.value)
+        if self.ctx.job:
+            vlog_config("job", self.ctx.job)
+        if self.ctx.user_prompt:
+            vlog_think(f"User prompt: {self.ctx.user_prompt}")
+
         # calculate steps
         total_steps = self.calculate_total_steps()
 
@@ -262,12 +289,16 @@ class TailoringRunner:
             TailoringMode.PLAN: "Planning edits...",
         }
 
-        with setup_ui_with_progress(task_descriptions[self.mode], total=total_steps) as (
+        with setup_ui_with_progress(
+            task_descriptions[self.mode], total=total_steps
+        ) as (
             ui,
             progress,
             task,
         ):
             self._execute(ui, progress, task)
+
+        vlog_stage(f"Completed {self.mode.value} workflow")
 
         # report results
         self._report()
@@ -285,13 +316,21 @@ class TailoringRunner:
 
     # generate mode: create edits.json only
     def _run_generate(self, ui, progress, task) -> None:
-        resume_ctx = prepare_resume_context(
-            self.ctx, ui, progress, task, load_job=True
-        )
+        vlog_stage("Loading resume & job", "Preparing context for generation")
+        resume_ctx = prepare_resume_context(self.ctx, ui, progress, task, load_job=True)
         self._resume_ctx = resume_ctx
 
+        vlog_think(f"Resume has {len(resume_ctx.lines)} lines")
+        if resume_ctx.job_text:
+            vlog_think(f"Job description: {len(resume_ctx.job_text)} chars")
+        if resume_ctx.sections_json_str:
+            vlog_think("Sections JSON provided for structured context")
+
         # generate edits using core helper
+        vlog_stage("Generating edits", "Calling AI to analyze & suggest edits")
         progress.update(task, description="Generating edits with AI...")
+        assert resume_ctx.job_text is not None, "job_text required for generate"
+        assert self.ctx.model is not None, "model required for generate"
         self._edits = generate_edits_core(
             self.ctx.settings,
             resume_ctx.lines,
@@ -302,97 +341,87 @@ class TailoringRunner:
             self.ctx.on_error,
             ui,
             persist_path=self.ctx.edits_json,
+            user_prompt=self.ctx.user_prompt,
         )
         progress.advance(task)
 
         # persist edits
         if self._edits is None:
             raise EditError("Failed to generate valid edits")
+
+        num_ops = len(self._edits.get("ops", []))
+        vlog_think(f"Generated {num_ops} edit operations")
+        assert self.ctx.edits_json is not None, "edits_json path required"
         persist_edits_json(self._edits, self.ctx.edits_json, progress, task)
 
     # apply mode: apply existing edits to resume
     def _run_apply(self, ui, progress, task) -> None:
         from pathlib import Path
 
-        # read resume (apply reads resume separately from job)
-        progress.update(task, description="Reading resume document...")
-        lines = read_resume(self.ctx.resume)
-        progress.advance(task)
+        vlog_stage("Loading resume", "Preparing context for apply")
 
-        # build LaTeX context if applicable
-        descriptor = None
-        auto_sections_json = None
-        template_notes: list[str] = []
+        # use shared context preparation (without loading job initially)
+        resume_ctx = prepare_resume_context(
+            self.ctx, ui, progress, task, load_job=False
+        )
 
-        if self.ctx.is_latex:
-            progress.update(task, description="Analyzing LaTeX structure...")
-            descriptor, auto_sections_json, template_notes = build_latex_context(
-                self.ctx.resume, lines
-            )
-            progress.advance(task)
-
-            # display LaTeX info
-            if descriptor:
-                ui.print(f"[green]Detected LaTeX template:[/] {descriptor.id}")
-            if template_notes:
-                ui.print("[yellow]Template notes:[/]")
-                for note in template_notes:
-                    ui.print(f" - {note}")
-
-        # read job description if available (for PROMPT support)
-        job_text = None
+        # optionally load job for PROMPT support (apply allows job to be optional)
+        job_text = resume_ctx.job_text
         if self.ctx.job is not None:
             progress.update(task, description="Reading job description...")
             if Path(self.ctx.job).exists():
                 job_text = Path(self.ctx.job).read_text(encoding="utf-8")
+                vlog_file_read(self.ctx.job, len(job_text))
             progress.advance(task)
 
-        # resolve sections (explicit path or auto-LaTeX)
-        if self.ctx.sections_path:
-            sections_json_str = load_sections(self.ctx.sections_path, progress, task)
-        elif self.ctx.is_latex:
-            sections_json_str = auto_sections_json
-        else:
-            sections_json_str = None
-
         # load edits
+        vlog_stage("Loading edits", f"From {self.ctx.edits_json}")
+        assert self.ctx.edits_json is not None, "edits_json path required for apply"
         edits_obj = load_edits_json(self.ctx.edits_json, progress, task)
+        num_ops = len(edits_obj.get("ops", []))
+        vlog_think(f"Loaded {num_ops} edit operations to apply")
 
         # apply edits using core helper
+        vlog_stage("Applying edits", "Processing each edit operation")
         progress.update(task, description="Applying edits...")
         self._new_lines = apply_edits_core(
             self.ctx.settings,
-            lines,
+            resume_ctx.lines,
             edits_obj,
             self.ctx.risk,
             self.ctx.on_error,
             ui,
             self.ctx.interactive,
             job_text=job_text,
-            sections_json=sections_json_str,
+            sections_json=resume_ctx.sections_json_str,
             model=self.ctx.model,
             persist_special_ops=self.ctx.interactive,
             edits_json_path=self.ctx.edits_json,
             resume_path=self.ctx.resume,
-            descriptor=descriptor,
+            descriptor=resume_ctx.descriptor,
         )
         progress.advance(task)
 
-        # store for reporting
+        # store for reporting (update job_text if loaded)
         self._resume_ctx = ResumeContext(
-            lines=lines,
+            lines=resume_ctx.lines,
             job_text=job_text,
-            descriptor=descriptor,
-            auto_sections_json=auto_sections_json,
-            template_notes=template_notes,
-            sections_json_str=sections_json_str,
+            descriptor=resume_ctx.descriptor,
+            auto_sections_json=resume_ctx.auto_sections_json,
+            template_notes=resume_ctx.template_notes,
+            sections_json_str=resume_ctx.sections_json_str,
         )
 
         # write output w/ diff generation
+        vlog_stage("Writing output", f"To {self.ctx.output_resume}")
+        assert self.ctx.resume is not None, "resume path required for apply"
+        assert (
+            self.ctx.output_resume is not None
+        ), "output_resume path required for apply"
         write_output_with_diff(
             self.ctx.settings,
             self.ctx.resume,
-            lines,
+            resume_ctx.lines,
             self._new_lines,
             self.ctx.output_resume,
             self.ctx.preserve_formatting,
@@ -403,13 +432,19 @@ class TailoringRunner:
 
     # tailor mode: generate edits then apply
     def _run_full_tailor(self, ui, progress, task) -> None:
-        resume_ctx = prepare_resume_context(
-            self.ctx, ui, progress, task, load_job=True
-        )
+        vlog_stage("Loading resume & job", "Preparing context for full tailor")
+        resume_ctx = prepare_resume_context(self.ctx, ui, progress, task, load_job=True)
         self._resume_ctx = resume_ctx
 
+        vlog_think(f"Resume has {len(resume_ctx.lines)} lines")
+        if resume_ctx.job_text:
+            vlog_think(f"Job description: {len(resume_ctx.job_text)} chars")
+
         # generate edits using core helper
+        vlog_stage("Generating edits", "Calling AI to analyze & suggest edits")
         progress.update(task, description="Generating edits with AI...")
+        assert resume_ctx.job_text is not None, "job_text required for tailor"
+        assert self.ctx.model is not None, "model required for tailor"
         self._edits = generate_edits_core(
             self.ctx.settings,
             resume_ctx.lines,
@@ -420,16 +455,22 @@ class TailoringRunner:
             self.ctx.on_error,
             ui,
             persist_path=self.ctx.edits_json,
+            user_prompt=self.ctx.user_prompt,
         )
         progress.advance(task)
 
         if self._edits is None:
             raise EditError("Failed to generate valid edits")
 
+        num_ops = len(self._edits.get("ops", []))
+        vlog_think(f"Generated {num_ops} edit operations")
+
         # persist edits (for inspection / re-run)
+        assert self.ctx.edits_json is not None, "edits_json path required"
         persist_edits_json(self._edits, self.ctx.edits_json, progress, task)
 
         # apply edits using core helper
+        vlog_stage("Applying edits", "Processing each edit operation")
         progress.update(task, description="Applying edits...")
         self._new_lines = apply_edits_core(
             self.ctx.settings,
@@ -450,6 +491,11 @@ class TailoringRunner:
         progress.advance(task)
 
         # write output w/ diff generation
+        vlog_stage("Writing output", f"To {self.ctx.output_resume}")
+        assert self.ctx.resume is not None, "resume path required for tailor"
+        assert (
+            self.ctx.output_resume is not None
+        ), "output_resume path required for tailor"
         write_output_with_diff(
             self.ctx.settings,
             self.ctx.resume,
@@ -495,4 +541,6 @@ class TailoringRunner:
                 output_path=self.ctx.output_resume,
             )
         elif self.mode == TailoringMode.PLAN:
-            report_result("plan", settings=self.ctx.settings, edits_path=self.ctx.edits_json)
+            report_result(
+                "plan", settings=self.ctx.settings, edits_path=self.ctx.edits_json
+            )

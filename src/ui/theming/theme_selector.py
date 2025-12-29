@@ -11,19 +11,23 @@ from .theme_definitions import THEMES
 from ..display.ascii_art import show_loom_art
 
 
+def _apply_theme_temporarily(theme_name: str) -> None:
+    # Apply a theme for preview purposes.
+    settings_manager.set("theme", theme_name)
+    refresh_theme()
+
+
 # * Capture banner for preview pane
 def _capture_banner(theme_name: str) -> str:
     # render banner w/ theme_name & return ANSI string for preview
     original = settings_manager.get("theme")
     try:
-        settings_manager.set("theme", theme_name)
-        refresh_theme()
+        _apply_theme_temporarily(theme_name)
         with console.capture() as cap:
             show_loom_art()
         return cap.get()
     finally:
-        settings_manager.set("theme", original)
-        refresh_theme()
+        _apply_theme_temporarily(original)
 
 
 # * Interactive theme selector w/ live preview
@@ -86,11 +90,9 @@ def _fallback_theme_selector(theme_names: list[str], current_theme: str) -> str 
                 # display preview
                 console.print(f"\n[loom.accent]Preview of '{selected_theme}' theme:[/]")
                 original = settings_manager.get("theme")
-                settings_manager.set("theme", selected_theme)
-                refresh_theme()
+                _apply_theme_temporarily(selected_theme)
                 show_loom_art()
-                settings_manager.set("theme", original)
-                refresh_theme()
+                _apply_theme_temporarily(original)
 
                 # confirm user selection
                 if Confirm.ask(f"\nSet theme to '{selected_theme}'?", default=True):

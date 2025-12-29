@@ -1,5 +1,9 @@
 # src/cli/logic.py
 # CLI-layer logic wrappers & argument resolution
+#
+# ! High import count is intentional: logic.py bridges CLI commands to core
+# ! pipeline operations. It needs access to multiple layers (core, loom_io, ui)
+# ! to perform argument resolution, context building, & edit coordination.
 
 from __future__ import annotations
 
@@ -8,14 +12,11 @@ from pathlib import Path
 from typing import TypedDict, Any
 
 from ..config.settings import LoomSettings
-from ..loom_io.generics import ensure_parent
-from ..loom_io.types import Lines
+from ..loom_io.generics import ensure_parent, write_json_safe
+from ..core.types import Lines
 from ..loom_io import (
-    filter_latex_edits,
-    detect_template,
-    analyze_latex,
-    sections_to_payload,
     TemplateDescriptor,
+    get_handler,
 )
 from ..core.constants import RiskLevel, ValidationPolicy, EditOperation, DiffOp
 from ..core.pipeline import (
@@ -27,31 +28,12 @@ from ..core.pipeline import (
 )
 from ..core.validation import validate_edits
 from ..core.exceptions import EditError, JSONParsingError
-from ..core.validation import handle_validation_error
+from .validation_handlers import handle_validation_error
 from ..ui.diff_resolution.diff_display import main_display_loop
 
 
 def _resolve(provided_value: Any, settings_default: Any) -> Any:
     return settings_default if provided_value is None else provided_value
-
-
-# * Build LaTeX context (descriptor, sections JSON, notes) for LaTeX resume files
-def build_latex_context(
-    resume_path: Path, lines: Lines
-) -> tuple[TemplateDescriptor | None, str | None, list[str]]:
-    # detect template, analyze sections, & collect notes for LaTeX resume; returns tuple of (descriptor, sections_json, notes) or (None, None, []) for non-LaTeX files
-    descriptor = None
-    sections_json = None
-    notes: list[str] = []
-
-    if resume_path.suffix.lower() == ".tex":
-        resume_text = resume_path.read_text(encoding="utf-8")
-        descriptor = detect_template(resume_path, resume_text)
-        analysis = analyze_latex(lines, descriptor)
-        sections_json = json.dumps(sections_to_payload(analysis), indent=2)
-        notes = analysis.notes
-
-    return descriptor, sections_json, notes
 
 
 class OptionsResolved(TypedDict):
@@ -79,7 +61,7 @@ class ArgResolver:
 
     def resolve_paths(self, resume_path: Path | None = None, **kwargs) -> dict:
         # determine default output extension based on resume file type
-        if resume_path and resume_path.suffix.lower() in [".tex", ".docx"]:
+        if resume_path and resume_path.suffix.lower() in [".tex", ".typ", ".docx"]:
             default_extension = resume_path.suffix.lower()
         else:
             default_extension = ".docx"  # fallback
@@ -110,6 +92,7 @@ def generate_edits_core(
     policy: ValidationPolicy,
     ui,
     persist_path: Path | None = None,
+    user_prompt: str | None = None,
 ) -> dict | None:
     # create initial edits using AI
     json_error_warning = None
@@ -119,6 +102,7 @@ def generate_edits_core(
             job_text=job_text,
             sections_json=sections_json,
             model=model,
+            user_prompt=user_prompt,
         )
     except JSONParsingError as e:
         # convert JSON parsing error to validation warnings for interactive handling
@@ -127,11 +111,10 @@ def generate_edits_core(
 
     # persist edits or create placeholder for manual editing
     target_path = persist_path if persist_path is not None else settings.edits_path
-    ensure_parent(target_path)
 
     if edits is not None:
         # persist successful edits
-        target_path.write_text(json.dumps(edits, indent=2), encoding="utf-8")
+        write_json_safe(edits, target_path)
     else:
         # create placeholder edits file for manual editing when JSON parsing fails
         placeholder_edits = {
@@ -139,9 +122,7 @@ def generate_edits_core(
             "meta": {"strategy": "manual", "model": model},
             "ops": [],
         }
-        target_path.write_text(
-            json.dumps(placeholder_edits, indent=2), encoding="utf-8"
-        )
+        write_json_safe(placeholder_edits, target_path)
 
     # validate using updatable closure
     current_edits = [edits]
@@ -358,46 +339,27 @@ def _operation_to_dict(op: EditOperation, include_status: bool = False) -> dict 
     return dict_op
 
 
-# * Convert approved EditOperation objects back to dict format for application
+# * Convert EditOperation objects back to dict format
 def convert_operations_to_dict_edits(
-    operations: list[EditOperation], original_edits: dict
+    operations: list[EditOperation],
+    original_edits: dict,
+    include_all: bool = False,
 ) -> dict:
-    approved_ops = []
+    result_ops = []
 
     for op in operations:
-        if op.status != DiffOp.APPROVE:
+        if not include_all and op.status != DiffOp.APPROVE:
             continue
 
-        dict_op = _operation_to_dict(op)
+        dict_op = _operation_to_dict(op, include_status=include_all)
         if dict_op is None:
             continue
-        approved_ops.append(dict_op)
+        result_ops.append(dict_op)
 
-    # return new edits dict w/ only approved operations
     return {
         "version": original_edits.get("version", 1),
         "meta": original_edits.get("meta", {}),
-        "ops": approved_ops,
-    }
-
-
-# * Convert ALL EditOperation objects back to dict format for persistence
-def convert_all_operations_to_dict_edits(
-    operations: list[EditOperation], original_edits: dict
-) -> dict:
-    all_ops = []
-
-    for op in operations:
-        dict_op = _operation_to_dict(op, include_status=True)
-        if dict_op is None:
-            continue
-        all_ops.append(dict_op)
-
-    # return new edits dict w/ all operations & their statuses
-    return {
-        "version": original_edits.get("version", 1),
-        "meta": original_edits.get("meta", {}),
-        "ops": all_ops,
+        "ops": result_ops,
     }
 
 
@@ -418,16 +380,19 @@ def apply_edits_core(
     resume_path: Path | None = None,
     descriptor: TemplateDescriptor | None = None,
 ) -> Lines:
-    latex_notes: list[str] = []
+    filter_notes: list[str] = []
     resume_suffix = resume_path.suffix.lower() if resume_path else ""
     is_latex = resume_suffix == ".tex"
+    is_typst = resume_suffix == ".typ"
 
     def sanitize_edits(data: dict) -> dict:
         if not isinstance(data, dict):
             return data
-        if is_latex:
-            filtered, notes = filter_latex_edits(data, resume_lines, descriptor)
-            latex_notes.extend(notes)
+        if is_latex or is_typst:
+            assert resume_path is not None, "resume_path required for LaTeX/Typst"
+            handler = get_handler(resume_path)
+            filtered, notes = handler.filter_edits(data, resume_lines, descriptor)
+            filter_notes.extend(notes)
             return filtered
         return data
 
@@ -496,21 +461,18 @@ def apply_edits_core(
             ):
 
                 # create updated edits dict w/ all operations (including their statuses)
-                complete_edits = convert_all_operations_to_dict_edits(
-                    reviewed_operations, current[0]
+                complete_edits = convert_operations_to_dict_edits(
+                    reviewed_operations, current[0], include_all=True
                 )
 
                 # write updated edits back to file
-                ensure_parent(edits_json_path)
-                edits_json_path.write_text(
-                    json.dumps(complete_edits, indent=2), encoding="utf-8"
-                )
+                write_json_safe(complete_edits, edits_json_path)
                 ui.print(f"[green]Updated edits saved to {edits_json_path}[/]")
 
-    # re-run LaTeX safety checks before applying edits
+    # re-run safety checks before applying edits
     current[0] = sanitize_edits(current[0])
-    if latex_notes and ui:
-        for note in sorted(set(latex_notes)):
+    if filter_notes and ui:
+        for note in sorted(set(filter_notes)):
             ui.print(f"[yellow]{note}[/]")
 
     # execute edit application w/ approved operations only

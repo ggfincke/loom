@@ -5,12 +5,12 @@ from __future__ import annotations
 
 import typer
 
-from ....config.settings import get_settings
-from ....core.exceptions import handle_loom_error, DevModeError
+from ...decorators import handle_loom_error, require_dev_mode
 from ....core.constants import EditOperation
 from ....ui.diff_resolution.diff_display import main_display_loop
 from ....ui.help.help_data import command_help
 from ...app import app
+from ...helpers import handle_help_flag
 
 
 # * Display UI components for testing (dev/testing only, not for production)
@@ -28,27 +28,17 @@ from ...app import app
 )
 @app.command(help="Display UI components for testing (dev/testing only)")
 @handle_loom_error
+@require_dev_mode
 def display(
     ctx: typer.Context,
     help: bool = typer.Option(
         False, "--help", "-h", help="Show help message and exit."
     ),
 ) -> None:
-    # detect help flag & display custom help
-    if help:
-        from ..help import show_command_help
+    # Detect help flag & display custom help
+    handle_help_flag(ctx, help, "display")
 
-        show_command_help("display")
-        ctx.exit()
-
-    # check if dev_mode is globally enabled
-    settings = get_settings(ctx)
-    if not settings.dev_mode:
-        raise DevModeError(
-            "Development mode required. Enable with: loom config set dev_mode true"
-        )
-
-    # create sample edit operations for testing
+    # Create sample edit operations for testing
     sample_operations = [
         EditOperation(
             operation="replace_line",
@@ -90,5 +80,5 @@ def display(
         ),
     ]
 
-    # run the display diff interface w/ sample operations
+    # Run the display diff interface w/ sample operations
     main_display_loop(sample_operations)

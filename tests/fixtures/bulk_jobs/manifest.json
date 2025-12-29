@@ -1,0 +1,16 @@
+{
+  "jobs": [
+    {
+      "path": "swe_role.txt",
+      "id": "swe",
+      "name": "Software Engineer",
+      "company": "TechCorp"
+    },
+    {
+      "path": "devops_role.txt",
+      "id": "devops",
+      "name": "DevOps Engineer",
+      "company": "CloudCo"
+    }
+  ]
+}

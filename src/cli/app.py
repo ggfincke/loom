@@ -1,7 +1,14 @@
 # src/cli/app.py
 # Root Typer application & command registration
 
+# ! High import count is intentional: app.py is the CLI entry point that must
+# ! Register all commands at module load time. This is standard Typer architecture.
+# ! Command imports at bottom of file are deferred to avoid circular dependencies.
+
 from __future__ import annotations
+
+from pathlib import Path
+from typing import Optional
 
 import typer
 from dotenv import load_dotenv
@@ -32,15 +39,52 @@ def main_callback(
         False, "--help-raw", help="Show raw Typer help instead of branded help"
     ),
     help: bool = typer.Option(False, "--help", "-h", help="Show help message & exit."),
+    verbose: bool = typer.Option(
+        False, "--verbose", "-v", help="Enable verbose logging for debugging"
+    ),
+    quiet: bool = typer.Option(
+        False, "--quiet", "-q", help="Suppress all output except errors"
+    ),
+    log_file: Optional[Path] = typer.Option(
+        None, "--log-file", help="Write verbose logs to file (enables verbose mode)"
+    ),
 ) -> None:
+    # initialize theme at start of each CLI invocation
+    from ..ui.theming.console_theme import auto_initialize_theme
+
+    auto_initialize_theme()
+
     # reset model cache at start of each CLI invocation
-    from ..ai.models import reset_model_cache
+    from ..ai.provider_validator import reset_model_cache
 
     reset_model_cache()
 
     # respect injected ctx.obj from tests/embedding; only load if absent
     if getattr(ctx, "obj", None) is None:
         ctx.obj = settings_manager.load()
+
+    # initialize unified output manager
+    # must be after settings load to check dev_mode
+    from ..core.output import OutputLevel, set_output_manager
+    from .output_manager import OutputManager
+
+    # determine requested output level
+    if log_file is not None or verbose:
+        requested_level = OutputLevel.VERBOSE
+    else:
+        requested_level = OutputLevel.NORMAL
+
+    dev_mode = ctx.obj.dev_mode if hasattr(ctx.obj, "dev_mode") else False
+
+    # create, initialize & register output manager
+    output_manager = OutputManager()
+    output_manager.initialize(
+        requested_level=requested_level,
+        dev_mode=dev_mode,
+        quiet=quiet,
+        log_file=log_file,
+    )
+    set_output_manager(output_manager)
 
     if ctx.invoked_subcommand is None:
         if help_raw:
@@ -59,7 +103,7 @@ def main_callback(
         ctx.exit()
 
 
-# ! import command modules here to avoid circular import (need 'app' object defined above)
+# ! import command modules here to avoid circular import w/ app object
 from .commands import sectionize as _sectionize  # noqa: F401
 from .commands import generate as _generate  # noqa: F401
 from .commands import apply as _apply  # noqa: F401
@@ -70,4 +114,7 @@ from .commands import models as _models  # noqa: F401
 from .commands import help as _help  # noqa: F401
 from .commands import templates as _templates  # noqa: F401
 from .commands import init as _init  # noqa: F401
+from .commands import cache as _cache  # noqa: F401
+from .commands import ats as _ats  # noqa: F401
+from .commands import bulk as _bulk  # noqa: F401
 from .commands.dev import display as _display  # noqa: F401

@@ -62,10 +62,10 @@ class TestRiskLevel:
     # * Test that enum values cannot be compared for ordering (expected behavior)
     def test_risk_level_comparison_ordering(self):
         with pytest.raises(TypeError):
-            _ = RiskLevel.LOW < RiskLevel.HIGH
+            _ = RiskLevel.LOW < RiskLevel.HIGH  # type: ignore[operator]
 
         with pytest.raises(TypeError):
-            _ = RiskLevel.STRICT > RiskLevel.MED
+            _ = RiskLevel.STRICT > RiskLevel.MED  # type: ignore[operator]
 
     # * Test enum values are hashable & can be used as dict keys
     def test_risk_level_hashable(self):

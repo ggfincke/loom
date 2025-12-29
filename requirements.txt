@@ -8,3 +8,4 @@ rich
 setuptools
 simple-term-menu
 readchar
+watchdog

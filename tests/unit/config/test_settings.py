@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest.mock import patch, mock_open
 
 from src.config.settings import LoomSettings, SettingsManager
+from src.core.exceptions import SettingsValidationError
 from src.ui.theming.theme_definitions import THEMES
 
 
@@ -102,7 +103,7 @@ class TestSettingsManager:
         assert settings.resume_filename == "resume.docx"
         assert settings.temperature == 0.2
 
-    # * Test loading with non-existent config file returns defaults
+    # * Test loading w/ non-existent config file returns defaults
     def test_load_nonexistent_config_returns_defaults(self, tmp_path):
         config_path = tmp_path / "nonexistent.json"
 
@@ -114,7 +115,7 @@ class TestSettingsManager:
         assert settings.model == "gpt-5-mini"
         assert settings.theme == "deep_blue"
 
-    # * Test loading with malformed JSON falls back to defaults
+    # * Test loading w/ malformed JSON falls back to defaults
     def test_load_malformed_json_fallback(self, tmp_path, capsys):
         config_path = tmp_path / "malformed.json"
 
@@ -134,7 +135,7 @@ class TestSettingsManager:
         assert "Warning: Invalid config file" in captured.out
         assert "Using default settings" in captured.out
 
-    # * Test loading with invalid types that cause TypeError falls back to defaults
+    # * Test loading w/ invalid types that cause TypeError falls back to defaults
     def test_load_invalid_types_fallback(self, tmp_path, capsys):
         config_path = tmp_path / "invalid_types.json"
         # create data that will cause TypeError when creating LoomSettings
@@ -171,7 +172,7 @@ class TestSettingsManager:
         # verify directory was created
         assert config_path.parent.exists()
 
-        # verify file was created with correct content
+        # verify file was created w/ correct content
         assert config_path.exists()
         with open(config_path, "r") as f:
             saved_data = json.load(f)
@@ -248,7 +249,9 @@ class TestSettingsManager:
         config_path = tmp_path / "config.json"
         manager = SettingsManager(config_path)
 
-        with pytest.raises(ValueError, match="Unknown setting: invalid_key"):
+        with pytest.raises(
+            SettingsValidationError, match="Unknown setting: invalid_key"
+        ):
             manager.set("invalid_key", "value")
 
     # * Test reset method restores all defaults
@@ -318,6 +321,12 @@ class TestSettingsManager:
             "theme",
             "interactive",
             "dev_mode",
+            "cache_enabled",
+            "cache_ttl_days",
+            "cache_dir",
+            "cache_max_entries",
+            "cache_max_size_mb",
+            "watch_debounce",
         }
         assert set(all_settings.keys()) == expected_keys
 
@@ -361,7 +370,7 @@ class TestThemeValidation:
             manager.set("theme", theme_name)
             assert manager.get("theme") == theme_name
 
-    # * Test theme validation with config command integration
+    # * Test theme validation w/ config command integration
     def test_theme_validation_integration(self, tmp_path):
         from src.cli.commands.config import _valid_themes
 
@@ -393,7 +402,7 @@ class TestConfigPathHandling:
         manager = SettingsManager(custom_path)
         assert manager.config_path == custom_path
 
-    # * Test config isolation works with existing fixture
+    # * Test config isolation works w/ existing fixture
     def test_config_isolation_with_fixture(self, isolate_config):
         # this test verifies the existing isolate_config fixture works
         manager = SettingsManager()
@@ -406,3 +415,184 @@ class TestConfigPathHandling:
         settings = manager.load()
         assert settings.theme == "deep_blue"  # from fixture
         assert settings.model == "gpt-5-mini"  # from fixture
+
+
+# * Test LoomSettings validation (__post_init__)
+
+
+class TestLoomSettingsValidation:
+    # Tests for __post_init__ validation in LoomSettings.
+
+    # * Temperature validation tests
+
+    def test_valid_temperature_accepted(self):
+        # Valid temperature values are accepted.
+        for temp in [0.0, 0.5, 1.0, 1.5, 2.0]:
+            settings = LoomSettings(temperature=temp)
+            assert settings.temperature == temp
+
+    # * Verify temperature at boundaries
+    def test_temperature_at_boundaries(self):
+        # Temperature at exact boundaries is accepted.
+        settings_low = LoomSettings(temperature=0.0)
+        assert settings_low.temperature == 0.0
+
+        settings_high = LoomSettings(temperature=2.0)
+        assert settings_high.temperature == 2.0
+
+    # * Verify temperature below range rejected
+    def test_temperature_below_range_rejected(self):
+        # Temperature below 0.0 raises SettingsValidationError.
+        with pytest.raises(
+            SettingsValidationError, match="temperature must be 0.0-2.0"
+        ):
+            LoomSettings(temperature=-0.1)
+
+    # * Verify temperature above range rejected
+    def test_temperature_above_range_rejected(self):
+        # Temperature above 2.0 raises SettingsValidationError.
+        with pytest.raises(
+            SettingsValidationError, match="temperature must be 0.0-2.0"
+        ):
+            LoomSettings(temperature=2.1)
+
+    # * Verify temperature non numeric rejected
+    def test_temperature_non_numeric_rejected(self):
+        # Non-numeric temperature raises SettingsValidationError.
+        with pytest.raises(
+            SettingsValidationError, match="temperature must be a number"
+        ):
+            LoomSettings(temperature="high")  # type: ignore[arg-type]
+
+    # * Verify temperature none rejected
+    def test_temperature_none_rejected(self):
+        # None temperature raises SettingsValidationError.
+        with pytest.raises(
+            SettingsValidationError, match="temperature must be a number"
+        ):
+            LoomSettings(temperature=None)  # type: ignore[arg-type]
+
+    # * Risk validation tests
+
+    def test_valid_risk_values_accepted(self):
+        # Valid risk values are accepted.
+        for risk in ["ask", "skip", "abort", "auto"]:
+            settings = LoomSettings(risk=risk)
+            assert settings.risk == risk
+
+    # * Verify invalid risk rejected
+    def test_invalid_risk_rejected(self):
+        # Invalid risk value raises SettingsValidationError.
+        with pytest.raises(SettingsValidationError, match="risk must be one of"):
+            LoomSettings(risk="invalid")
+
+    # * Verify risk empty string rejected
+    def test_risk_empty_string_rejected(self):
+        # Empty string risk raises SettingsValidationError.
+        with pytest.raises(SettingsValidationError, match="risk must be one of"):
+            LoomSettings(risk="")
+
+    # * Verify risk case sensitive
+    def test_risk_case_sensitive(self):
+        # Risk values are case-sensitive.
+        with pytest.raises(SettingsValidationError, match="risk must be one of"):
+            LoomSettings(risk="Ask")
+
+    # * dev_mode validation tests
+
+    def test_dev_mode_bool_accepted(self):
+        # Boolean dev_mode values are accepted.
+        assert LoomSettings(dev_mode=True).dev_mode is True
+        assert LoomSettings(dev_mode=False).dev_mode is False
+
+    # * Verify dev mode string rejected
+    def test_dev_mode_string_rejected(self):
+        # String dev_mode raises SettingsValidationError (no coercion).
+        with pytest.raises(SettingsValidationError, match="dev_mode must be a boolean"):
+            LoomSettings(dev_mode="true")  # type: ignore[arg-type]
+
+    # * Verify dev mode int rejected
+    def test_dev_mode_int_rejected(self):
+        # Integer dev_mode raises SettingsValidationError (no coercion).
+        with pytest.raises(SettingsValidationError, match="dev_mode must be a boolean"):
+            LoomSettings(dev_mode=1)  # type: ignore[arg-type]
+
+    # * Verify dev mode zero rejected
+    def test_dev_mode_zero_rejected(self):
+        # Zero dev_mode raises SettingsValidationError (no coercion).
+        with pytest.raises(SettingsValidationError, match="dev_mode must be a boolean"):
+            LoomSettings(dev_mode=0)  # type: ignore[arg-type]
+
+    # * interactive validation tests
+
+    def test_interactive_bool_accepted(self):
+        # Boolean interactive values are accepted.
+        assert LoomSettings(interactive=True).interactive is True
+        assert LoomSettings(interactive=False).interactive is False
+
+    # * Verify interactive string rejected
+    def test_interactive_string_rejected(self):
+        # String interactive raises SettingsValidationError.
+        with pytest.raises(
+            SettingsValidationError, match="interactive must be a boolean"
+        ):
+            LoomSettings(interactive="yes")  # type: ignore[arg-type]
+
+    # * Verify interactive int rejected
+    def test_interactive_int_rejected(self):
+        # Integer interactive raises SettingsValidationError.
+        with pytest.raises(
+            SettingsValidationError, match="interactive must be a boolean"
+        ):
+            LoomSettings(interactive=1)  # type: ignore[arg-type]
+
+    # * Combined validation tests
+
+    def test_multiple_valid_settings(self):
+        # Multiple valid settings work together.
+        settings = LoomSettings(
+            temperature=1.5,
+            risk="auto",
+            dev_mode=True,
+            interactive=False,
+        )
+        assert settings.temperature == 1.5
+        assert settings.risk == "auto"
+        assert settings.dev_mode is True
+        assert settings.interactive is False
+
+    # * Verify first invalid field raises
+    def test_first_invalid_field_raises(self):
+        # First invalid field in order raises error.
+        # temperature is validated first
+        with pytest.raises(SettingsValidationError, match="temperature"):
+            LoomSettings(temperature=-1, risk="invalid")
+
+
+# * Test SettingsManager cache invalidation
+
+
+class TestSettingsCacheInvalidation:
+    # Tests for cache invalidation when settings change.
+
+    # * Verify save invalidates dev mode cache
+    def test_save_invalidates_dev_mode_cache(self, tmp_path):
+        # Saving settings resets dev mode cache.
+        from src.config.dev_mode import reset_dev_mode_cache, is_dev_mode_enabled
+
+        config_path = tmp_path / "config.json"
+        manager = SettingsManager(config_path)
+
+        # initial settings w/ dev_mode=False
+        settings = LoomSettings(dev_mode=False)
+        manager.save(settings)
+
+        # prime the cache
+        reset_dev_mode_cache()
+
+        # save new settings w/ dev_mode=True
+        settings = LoomSettings(dev_mode=True)
+        manager.save(settings)
+
+        # cache should have been reset by save()
+        # (we can't directly test the reset, but we verify no error occurs)

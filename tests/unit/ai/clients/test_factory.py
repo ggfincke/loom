@@ -5,9 +5,9 @@ import pytest
 from unittest.mock import patch, Mock
 import json
 
-from src.ai.clients.factory import run_generate
+from src.ai.clients.factory import run_generate, CLIENT_REGISTRY
 from src.ai.types import GenerateResult
-from tests.test_support.mock_ai import DeterministicMockAI, create_ai_client_mocks
+from tests.test_support.mock_ai import DeterministicMockAI
 
 
 # * Test AI client factory routing & provider selection
@@ -15,85 +15,100 @@ class TestAIClientRouting:
 
     # * Test OpenAI models route to OpenAI client
     def test_openai_model_routing(self):
-        mock_ai = DeterministicMockAI()
+        mock_result = GenerateResult(
+            success=True,
+            data={"result": "success"},
+            raw_text='{"result": "success"}',
+            json_text='{"result": "success"}',
+        )
 
+        # create a mock client class
+        mock_client_instance = Mock()
+        mock_client_instance.run_generate.return_value = mock_result
+
+        mock_client_class = Mock(return_value=mock_client_instance)
+
+        # patch the registry to return our mock
         with (
-            patch("src.ai.clients.factory.openai_generate") as openai_mock,
-            patch("src.ai.clients.factory.claude_generate") as claude_mock,
-            patch("src.ai.clients.factory.ollama_generate") as ollama_mock,
+            patch.dict(CLIENT_REGISTRY, {"openai": lambda: mock_client_class}),
             patch(
                 "src.ai.clients.factory.validate_model", return_value=(True, "openai")
             ),
+            patch(
+                "src.ai.clients.factory.ModelRegistry.resolve_alias",
+                return_value="gpt-5-mini",
+            ),
         ):
-
-            openai_mock.return_value = mock_ai.generate(
-                "Test prompt", "gpt-5-mini", "success"
-            )
-
             result = run_generate("Test prompt", "gpt-5-mini")
 
             assert result.success
-            assert result.data is not None
-            # verify OpenAI client was called
-            openai_mock.assert_called_once()
-            claude_mock.assert_not_called()
-            ollama_mock.assert_not_called()
+            assert result.data == {"result": "success"}
+            mock_client_instance.run_generate.assert_called_once_with(
+                "Test prompt", "gpt-5-mini"
+            )
 
     # * Test Claude models route to Claude client
     def test_claude_model_routing(self):
-        mock_ai = DeterministicMockAI()
+        mock_result = GenerateResult(
+            success=True,
+            data={"version": 1, "ops": []},
+            raw_text='{"version": 1, "ops": []}',
+            json_text='{"version": 1, "ops": []}',
+        )
+
+        mock_client_instance = Mock()
+        mock_client_instance.run_generate.return_value = mock_result
+
+        mock_client_class = Mock(return_value=mock_client_instance)
 
         with (
-            patch("src.ai.clients.factory.openai_generate") as openai_mock,
-            patch("src.ai.clients.factory.claude_generate") as claude_mock,
-            patch("src.ai.clients.factory.ollama_generate") as ollama_mock,
+            patch.dict(CLIENT_REGISTRY, {"anthropic": lambda: mock_client_class}),
             patch(
-                "src.ai.clients.factory.validate_model", return_value=(True, "claude")
+                "src.ai.clients.factory.validate_model",
+                return_value=(True, "anthropic"),
+            ),
+            patch(
+                "src.ai.clients.factory.ModelRegistry.resolve_alias",
+                return_value="claude-sonnet-4-20250514",
             ),
         ):
-
-            claude_mock.return_value = mock_ai.generate(
-                "Test prompt", "claude-sonnet-4-20250514", "success"
-            )
-
             result = run_generate("Test prompt", "claude-sonnet-4-20250514")
 
             assert result.success
-            assert result.data is not None
-            # verify Claude client was called
-            claude_mock.assert_called_once()
-            openai_mock.assert_not_called()
-            ollama_mock.assert_not_called()
+            mock_client_instance.run_generate.assert_called_once()
 
     # * Test Ollama models route to Ollama client
     def test_ollama_model_routing(self):
-        mock_ai = DeterministicMockAI()
+        mock_result = GenerateResult(
+            success=True,
+            data={"sections": []},
+            raw_text='{"sections": []}',
+            json_text='{"sections": []}',
+        )
+
+        mock_client_instance = Mock()
+        mock_client_instance.run_generate.return_value = mock_result
+
+        mock_client_class = Mock(return_value=mock_client_instance)
 
         with (
-            patch("src.ai.clients.factory.openai_generate") as openai_mock,
-            patch("src.ai.clients.factory.claude_generate") as claude_mock,
-            patch("src.ai.clients.factory.ollama_generate") as ollama_mock,
+            patch.dict(CLIENT_REGISTRY, {"ollama": lambda: mock_client_class}),
             patch(
-                "src.ai.clients.factory.validate_model", return_value=(True, "ollama")
+                "src.ai.clients.factory.validate_model",
+                return_value=(True, "ollama"),
+            ),
+            patch(
+                "src.ai.clients.factory.ModelRegistry.resolve_alias",
+                return_value="llama3.2",
             ),
         ):
-
-            ollama_mock.return_value = mock_ai.generate(
-                "Test prompt", "llama3.2", "success"
-            )
-
             result = run_generate("Test prompt", "llama3.2")
 
             assert result.success
-            assert result.data is not None
-            # verify Ollama client was called
-            ollama_mock.assert_called_once()
-            openai_mock.assert_not_called()
-            claude_mock.assert_not_called()
+            mock_client_instance.run_generate.assert_called_once()
 
     # * Test invalid models are rejected before client calls
     def test_invalid_model_rejection(self):
-        # mock model validation to return invalid
         with patch("src.ai.clients.factory.validate_model", return_value=(False, None)):
             result = run_generate("Test prompt", "nonexistent-model")
 
@@ -106,41 +121,37 @@ class TestAIClientRouting:
 
     # * Test model aliases are resolved before routing
     def test_model_alias_resolution(self):
-        mock_ai = DeterministicMockAI()
+        mock_result = GenerateResult(
+            success=True,
+            data={"result": "success"},
+            raw_text='{"result": "success"}',
+            json_text='{"result": "success"}',
+        )
+
+        mock_client_instance = Mock()
+        mock_client_instance.run_generate.return_value = mock_result
+
+        mock_client_class = Mock(return_value=mock_client_instance)
 
         with (
-            patch("src.ai.clients.factory.openai_generate") as openai_mock,
-            patch("src.ai.clients.factory.claude_generate") as claude_mock,
-            patch("src.ai.clients.factory.ollama_generate") as ollama_mock,
+            patch.dict(CLIENT_REGISTRY, {"openai": lambda: mock_client_class}),
+            patch(
+                "src.ai.clients.factory.validate_model", return_value=(True, "openai")
+            ),
+            patch(
+                "src.ai.clients.factory.ModelRegistry.resolve_alias",
+                return_value="gpt-5",
+            ) as resolve_mock,
         ):
+            result = run_generate("Test prompt", "gpt5")
 
-            # test common aliases
-            aliases_to_test = [
-                ("gpt5", "gpt-5", "openai"),
-                ("claude-sonnet-4", "claude-sonnet-4-20250514", "claude"),
-            ]
-
-            openai_mock.return_value = mock_ai.generate(
-                "Test prompt", "gpt-5", "success"
+            assert result.success
+            # verify alias was resolved
+            resolve_mock.assert_called_once_with("gpt5")
+            # verify client was called w/ resolved model
+            mock_client_instance.run_generate.assert_called_once_with(
+                "Test prompt", "gpt-5"
             )
-            claude_mock.return_value = mock_ai.generate(
-                "Test prompt", "claude-sonnet-4-20250514", "success"
-            )
-
-            for alias, expected_model, provider in aliases_to_test:
-                with (
-                    patch(
-                        "src.ai.clients.factory.resolve_model_alias",
-                        return_value=expected_model,
-                    ),
-                    patch(
-                        "src.ai.clients.factory.validate_model",
-                        return_value=(True, provider),
-                    ),
-                ):
-                    result = run_generate("Test prompt", alias)
-                    # should succeed with resolved model
-                    assert result.success
 
 
 # * Test response parsing for all providers
@@ -211,13 +222,12 @@ class TestResponseParsing:
 
             assert not result.success, f"Expected failure for {provider} malformed JSON"
             assert "JSON parsing failed" in result.error
-            assert result.raw_text is not None  # should preserve raw response
-            assert result.json_text is not None  # should preserve attempted JSON
-            assert result.data is None  # should not have parsed data
+            assert result.raw_text is not None
+            assert result.json_text is not None
+            assert result.data is None
 
     # * Test markdown code blocks stripped correctly
     def test_markdown_code_block_stripping(self, mock_ai):
-        # Anthropic response includes code fences in malformed fixture
         result = mock_ai.generate(
             prompt="Test prompt",
             model="claude-sonnet-4-20250514",
@@ -227,8 +237,9 @@ class TestResponseParsing:
         # even though parsing fails, code blocks should be stripped
         assert "```" not in result.json_text
 
+    # * Verify ollama thinking token stripping
     def test_ollama_thinking_token_stripping(self, mock_ai):
-        """Test Ollama thinking tokens are stripped correctly"""
+        # Test Ollama thinking tokens are stripped correctly
         result = mock_ai.generate(
             prompt="You are a resume section parser.",
             model="llama3.2",
@@ -295,7 +306,7 @@ class TestErrorHandling:
     def test_ollama_model_not_found_handling(self, mock_ai):
         result = mock_ai.generate(
             prompt="Test prompt",
-            model="nonexistent-model",  # will be treated as Ollama model
+            model="nonexistent-model",
             scenario="model_not_found",
         )
 
@@ -323,7 +334,6 @@ class TestPromptKindDetection:
         for prompt in prompts:
             result = mock_ai.generate(prompt, "gpt-5-mini", "success")
             assert result.success
-            # should get sectionizer response (contains 'sections')
             assert "sections" in result.data
 
     # * Test tailor prompts detected correctly
@@ -337,7 +347,6 @@ class TestPromptKindDetection:
         for prompt in prompts:
             result = mock_ai.generate(prompt, "gpt-5-mini", "success")
             assert result.success
-            # should get tailor response (contains 'ops' and 'version')
             assert "ops" in result.data
             assert "version" in result.data
 
@@ -348,16 +357,14 @@ class TestPromptKindDetection:
         )
 
         assert result.success
-        # should fall back to sectionizer response
         assert "sections" in result.data
 
 
-# * Test integration w/ client functions (mocked externally)
+# * Test integration w/ client functions
 class TestClientIntegration:
 
     # * Test factory preserves model validation logic
     def test_factory_preserves_model_validation(self):
-        # test with clearly invalid model
         result = run_generate("Test prompt", "definitely-not-a-real-model-9999")
 
         assert not result.success
@@ -373,7 +380,6 @@ class TestClientIntegration:
 
         assert not result.success
         assert len(result.error) > 20  # should be descriptive
-        # should mention available options or requirements
         assert any(
             word in result.error.lower()
             for word in ["available", "models", "api", "key", "install", "requires"]
@@ -395,7 +401,7 @@ class TestGenerateResultValidation:
         assert isinstance(result.raw_text, str)
         assert result.json_text is not None
         assert isinstance(result.json_text, str)
-        assert result.error == ""  # should be empty for success
+        assert result.error == ""
 
     # * Test failed results have expected structure
     def test_failed_result_structure(self):
@@ -404,9 +410,9 @@ class TestGenerateResultValidation:
 
         assert result.success is False
         assert result.data is None
-        assert result.raw_text is not None  # preserved for debugging
-        assert result.json_text is not None  # preserved for debugging
-        assert result.error != ""  # should contain error message
+        assert result.raw_text is not None
+        assert result.json_text is not None
+        assert result.error != ""
         assert isinstance(result.error, str)
 
     # * Test error results have expected structure
@@ -418,7 +424,6 @@ class TestGenerateResultValidation:
         assert result.data is None
         assert result.error != ""
         assert isinstance(result.error, str)
-        # raw_text and json_text may be empty for API errors
         assert result.raw_text == ""
         assert result.json_text == ""
 
@@ -438,7 +443,7 @@ class TestProviderSpecificBehavior:
 
         assert result.success
         # OpenAI fixture should have output_text directly
-        assert result.raw_text == result.json_text  # no code block stripping needed
+        assert result.raw_text == result.json_text
 
     # * Test Anthropic Messages API format handling
     def test_anthropic_messages_api_format(self, mock_ai):
@@ -447,7 +452,6 @@ class TestProviderSpecificBehavior:
         )
 
         assert result.success
-        # Anthropic may have multiple content blocks
         assert isinstance(result.raw_text, str)
         assert len(result.raw_text) > 0
 
@@ -458,7 +462,6 @@ class TestProviderSpecificBehavior:
         )
 
         assert result.success
-        # Ollama should handle thinking tokens and message format
         assert isinstance(result.raw_text, str)
         assert len(result.raw_text) > 0
 
@@ -471,7 +474,6 @@ class TestProviderSpecificBehavior:
                 "You are a resume section parser.", model, "success"
             )
 
-            # all should succeed and have same result structure
             assert result.success
             assert isinstance(result.data, dict)
             assert "sections" in result.data

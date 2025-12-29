@@ -11,9 +11,8 @@ from .progress import (
 from .pausable_timer import PausableTimer
 from .rich_components import *
 
-from .rich_components import __all__ as rich_components_all
-
 __all__ = [
+    # Local exports
     "UI",
     "PausableElapsedColumn",
     "setup_ui_with_progress",
@@ -21,4 +20,24 @@ __all__ = [
     "load_sections",
     "load_edits_json",
     "PausableTimer",
-] + rich_components_all
+    # Re-exported from rich_components
+    "Console",
+    "RenderableType",
+    "Group",
+    "Text",
+    "Theme",
+    "Panel",
+    "Table",
+    "Layout",
+    "Live",
+    "Align",
+    "Columns",
+    "Padding",
+    "Progress",
+    "SpinnerColumn",
+    "TextColumn",
+    "ProgressColumn",
+    "Spinner",
+    "themed_panel",
+    "themed_table",
+]

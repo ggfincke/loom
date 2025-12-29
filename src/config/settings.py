@@ -1,17 +1,19 @@
 # src/config/settings.py
 # Configuration management for Loom CLI including default paths & OpenAI settings
 
-import json
 from pathlib import Path
 from typing import Dict, Any, Optional, cast
 import typer
 from dataclasses import dataclass, asdict
 
+from ..loom_io.generics import read_json_safe, write_json_safe
+from ..core.exceptions import JSONParsingError, SettingsValidationError
+
 
 # * Default settings dataclass for Loom CLI w/ paths & OpenAI model configuration
 @dataclass
 class LoomSettings:
-    # default paths
+    # Default paths
     data_dir: str = "data"
     output_dir: str = "output"
     resume_filename: str = "resume.docx"
@@ -19,7 +21,7 @@ class LoomSettings:
     sections_filename: str = "sections.json"
     edits_filename: str = "edits.json"
 
-    # loom internal paths
+    # Loom internal paths
     base_dir: str = ".loom"
     warnings_filename: str = "edits.warnings.txt"
     diff_filename: str = "diff.patch"
@@ -27,20 +29,119 @@ class LoomSettings:
 
     # OpenAI model setting
     model: str = "gpt-5-mini"
-    # temp setting (note: GPT-5 models don't support temperature parameter)
+    # Temperature setting (note: GPT-5 models don't support temperature parameter)
     temperature: float = 0.2
 
-    # risk management setting
+    # Risk management setting
     risk: str = "ask"
 
-    # theme setting
+    # Theme setting
     theme: str = "deep_blue"
 
-    # interactive diff setting
+    # Interactive diff setting
     interactive: bool = True
 
-    # dev mode setting (enables access to development commands)
+    # Dev mode setting (enables access to development commands)
     dev_mode: bool = False
+
+    # Cache settings for AI response caching
+    cache_enabled: bool = True
+    cache_ttl_days: int = 7
+    cache_dir: str = ".loom/cache"
+    # Max cached responses (0 = unlimited)
+    cache_max_entries: int = 500
+    # Max cache size in MB (0 = unlimited)
+    cache_max_size_mb: int = 100
+
+    # Watch mode settings
+    watch_debounce: float = 1.0
+
+    # * Validate settings values after initialization
+    def __post_init__(self) -> None:
+        # Temperature validation (OpenAI/Anthropic range: 0.0-2.0)
+        if not isinstance(self.temperature, (int, float)):
+            raise SettingsValidationError(
+                f"temperature must be a number, got {type(self.temperature).__name__}",
+                setting_name="temperature",
+                value=self.temperature,
+            )
+        if not 0.0 <= self.temperature <= 2.0:
+            raise SettingsValidationError(
+                f"temperature must be 0.0-2.0, got {self.temperature}",
+                setting_name="temperature",
+                value=self.temperature,
+            )
+
+        # Risk validation
+        valid_risks = {"ask", "skip", "abort", "auto"}
+        if self.risk not in valid_risks:
+            raise SettingsValidationError(
+                f"risk must be one of {valid_risks}, got '{self.risk}'",
+                setting_name="risk",
+                value=self.risk,
+            )
+
+        # Dev_mode strict bool validation (no coercion)
+        if not isinstance(self.dev_mode, bool):
+            raise SettingsValidationError(
+                f"dev_mode must be a boolean (true/false), "
+                f"got {type(self.dev_mode).__name__}: {self.dev_mode}",
+                setting_name="dev_mode",
+                value=self.dev_mode,
+            )
+
+        # Interactive strict bool validation
+        if not isinstance(self.interactive, bool):
+            raise SettingsValidationError(
+                f"interactive must be a boolean (true/false), "
+                f"got {type(self.interactive).__name__}",
+                setting_name="interactive",
+                value=self.interactive,
+            )
+
+        # Cache_enabled strict bool validation
+        if not isinstance(self.cache_enabled, bool):
+            raise SettingsValidationError(
+                f"cache_enabled must be a boolean (true/false), "
+                f"got {type(self.cache_enabled).__name__}",
+                setting_name="cache_enabled",
+                value=self.cache_enabled,
+            )
+
+        # Cache_ttl_days validation (must be positive integer)
+        if not isinstance(self.cache_ttl_days, int) or self.cache_ttl_days < 1:
+            raise SettingsValidationError(
+                f"cache_ttl_days must be a positive integer, got {self.cache_ttl_days}",
+                setting_name="cache_ttl_days",
+                value=self.cache_ttl_days,
+            )
+
+        # Cache_max_entries validation (must be non-negative integer)
+        if not isinstance(self.cache_max_entries, int) or self.cache_max_entries < 0:
+            raise SettingsValidationError(
+                f"cache_max_entries must be a non-negative integer, got {self.cache_max_entries}",
+                setting_name="cache_max_entries",
+                value=self.cache_max_entries,
+            )
+
+        # Cache_max_size_mb validation (must be non-negative integer)
+        if not isinstance(self.cache_max_size_mb, int) or self.cache_max_size_mb < 0:
+            raise SettingsValidationError(
+                f"cache_max_size_mb must be a non-negative integer, got {self.cache_max_size_mb}",
+                setting_name="cache_max_size_mb",
+                value=self.cache_max_size_mb,
+            )
+
+        # Watch_debounce validation (must be >= 0.1 seconds)
+        if (
+            not isinstance(self.watch_debounce, (int, float))
+            or self.watch_debounce < 0.1
+        ):
+            raise SettingsValidationError(
+                f"watch_debounce must be >= 0.1 seconds, got {self.watch_debounce}",
+                setting_name="watch_debounce",
+                value=self.watch_debounce,
+            )
 
     @property
     def resume_path(self) -> Path:
@@ -58,7 +159,7 @@ class LoomSettings:
     def edits_path(self) -> Path:
         return Path(self.output_dir) / self.edits_filename
 
-    # loom internal paths
+    # Loom internal paths
     @property
     def loom_dir(self) -> Path:
         return Path(self.base_dir)
@@ -82,17 +183,16 @@ class SettingsManager:
         self.config_path = config_path or Path.home() / ".loom" / "config.json"
         self._settings = None
 
-    # load settings from file or return defaults
+    # * Load settings from file or return defaults
     def load(self) -> LoomSettings:
         if self._settings is not None:
             return self._settings
 
         if self.config_path.exists():
             try:
-                with open(self.config_path, "r") as f:
-                    data = json.load(f)
+                data = read_json_safe(self.config_path)
                 self._settings = LoomSettings(**data)
-            except (json.JSONDecodeError, TypeError, ValueError) as e:
+            except (JSONParsingError, TypeError, ValueError) as e:
                 typer.echo(f"Warning: Invalid config file {self.config_path}: {e}")
                 typer.echo("Using default settings")
                 self._settings = LoomSettings()
@@ -101,51 +201,85 @@ class SettingsManager:
 
         return self._settings
 
-    # save setting to file
+    # * Save setting to file
     def save(self, settings: LoomSettings) -> None:
-        self.config_path.parent.mkdir(parents=True, exist_ok=True)
-
-        with open(self.config_path, "w") as f:
-            json.dump(asdict(settings), f, indent=2)
-
+        write_json_safe(asdict(settings), self.config_path)
         self._settings = settings
+        self._notify_settings_changed()
 
-    # get a specific setting value
+    # Notify dependent caches of settings change
+    def _notify_settings_changed(self) -> None:
+        try:
+            from ..ai.cache import AICache
+
+            AICache.invalidate_all()
+        except ImportError:
+            # AI module not loaded yet
+            pass
+
+        # Reset dev mode cache
+        try:
+            from .dev_mode import reset_dev_mode_cache
+
+            reset_dev_mode_cache()
+        except ImportError:
+            # Dev_mode module not loaded yet
+            pass
+
+        # Reset response cache (in case cache settings changed)
+        try:
+            from ..ai.cache import reset_response_cache
+
+            reset_response_cache()
+        except ImportError:
+            # Cache module not loaded yet
+            pass
+
+    # * Get a specific setting value
     def get(self, key: str) -> Any:
         settings = self.load()
         return getattr(settings, key, None)
 
-    # set a specific setting value
+    # * Set a specific setting value
     def set(self, key: str, value: Any) -> None:
         settings = self.load()
         if not hasattr(settings, key):
-            raise ValueError(f"Unknown setting: {key}")
+            raise SettingsValidationError(
+                f"Unknown setting: {key}",
+                setting_name=key,
+                value=value,
+            )
 
         setattr(settings, key, value)
         self.save(settings)
 
-    # reset to default settings
+    # * Reset to default settings
     def reset(self) -> None:
         self.save(LoomSettings())
 
-    # list all settings as a dictionary
+    # * List all settings as a dictionary
     def list_settings(self) -> Dict[str, Any]:
         return asdict(self.load())
 
 
-# global settings manager instance
+# Global settings manager instance
 settings_manager = SettingsManager()
+
+
+# * Invalidate cached settings to force reload on next access
+def invalidate_settings_cache() -> None:
+    settings_manager._settings = None
 
 
 # * Retrieve settings preferring injected object from Typer context
 def get_settings(
     ctx: typer.Context, provided: Optional[LoomSettings] = None
 ) -> LoomSettings:
-    # prefer explicitly provided settings
+    # Prefer explicitly provided settings
     if provided is not None:
         return provided
 
-    # search ctx, parent, & root for LoomSettings
+    # Search ctx, parent, & root for LoomSettings
     candidates: list[typer.Context] = [ctx]
     parent = cast(Optional[typer.Context], getattr(ctx, "parent", None))
     if parent is not None:
@@ -163,5 +297,5 @@ def get_settings(
         if isinstance(obj, LoomSettings):
             return obj
 
-    # fallback to loading from disk
+    # Fallback to loading from disk
     return settings_manager.load()

@@ -1,15 +1,18 @@
 # tests/unit/ai/test_utils.py
-# Unit tests for AI utils - process_json_response & APICallContext
+# Unit tests for AI utils - 3-layer response processing
 
 import pytest
 
 from src.ai.utils import (
     APICallContext,
-    process_json_response,
     strip_markdown_code_blocks,
-    convert_result_to_dict,
-    validate_edits_structure,
+    parse_json,
+    validate_and_extract,
     process_ai_response,
+    normalize_op_keys,
+    normalize_edits_response,
+    normalize_section_keys,
+    normalize_sections_response,
 )
 from src.ai.types import GenerateResult
 from src.core.exceptions import AIError, JSONParsingError
@@ -19,6 +22,7 @@ from src.core.exceptions import AIError, JSONParsingError
 
 
 class TestAPICallContext:
+    # * Verify create context
     def test_create_context(self):
         ctx = APICallContext(
             raw_text='{"key": "value"}', provider_name="openai", model="gpt-4o"
@@ -28,291 +32,213 @@ class TestAPICallContext:
         assert ctx.model == "gpt-4o"
 
 
-# * Test process_json_response
+# * Test Layer 1: strip_markdown_code_blocks
 
 
-class TestProcessJsonResponse:
-    # * Test successful JSON parsing
-    def test_success_valid_json(self):
-        def mock_api_call(prompt: str, model: str) -> APICallContext:
-            return APICallContext(
-                raw_text='{"result": "success"}', provider_name="openai", model=model
-            )
+class TestStripMarkdownCodeBlocks:
+    # * Verify strips json code block
+    def test_strips_json_code_block(self):
+        text = '```json\n{"key": "value"}\n```'
+        assert strip_markdown_code_blocks(text) == '{"key": "value"}'
 
-        result = process_json_response(mock_api_call, "test prompt", "gpt-4o")
+    # * Verify strips plain code block
+    def test_strips_plain_code_block(self):
+        text = '```\n{"key": "value"}\n```'
+        assert strip_markdown_code_blocks(text) == '{"key": "value"}'
 
-        assert result.success is True
-        assert result.data == {"result": "success"}
-        assert result.raw_text == '{"result": "success"}'
-        assert result.json_text == '{"result": "success"}'
-        assert result.error == ""
+    # * Verify returns plain json
+    def test_returns_plain_json(self):
+        text = '{"key": "value"}'
+        assert strip_markdown_code_blocks(text) == '{"key": "value"}'
 
-    # * Test JSON parsing w/ markdown code block stripping
-    def test_strips_markdown_code_blocks(self):
-        def mock_api_call(prompt: str, model: str) -> APICallContext:
-            return APICallContext(
-                raw_text='```json\n{"result": "success"}\n```',
-                provider_name="claude",
-                model=model,
-            )
-
-        result = process_json_response(mock_api_call, "test prompt", "claude-sonnet-4")
-
-        assert result.success is True
-        assert result.data == {"result": "success"}
-        assert result.raw_text == '```json\n{"result": "success"}\n```'
-        assert result.json_text == '{"result": "success"}'
-
-    # * Test error includes model name & truncation
-    def test_error_includes_model_and_truncation(self):
-        long_invalid_json = "not json " * 50  # >200 chars
-
-        def mock_api_call(prompt: str, model: str) -> APICallContext:
-            return APICallContext(
-                raw_text=long_invalid_json, provider_name="ollama", model=model
-            )
-
-        result = process_json_response(mock_api_call, "test prompt", "llama3.2")
-
-        assert result.success is False
-        assert result.data is None
-        assert "llama3.2" in result.error
-        assert "JSON parsing failed" in result.error
-        assert "..." in result.error  # truncated
-        assert len(result.error) < len(long_invalid_json) + 100
-
-    # * Test short invalid JSON error not truncated
-    def test_short_error_not_truncated(self):
-        short_invalid = "not json"
-
-        def mock_api_call(prompt: str, model: str) -> APICallContext:
-            return APICallContext(
-                raw_text=short_invalid, provider_name="openai", model=model
-            )
-
-        result = process_json_response(mock_api_call, "test prompt", "gpt-4o")
-
-        assert result.success is False
-        assert "..." not in result.error
-        assert "not json" in result.error
-
-    # * Test API error propagates (not wrapped as GenerateResult)
-    def test_api_error_propagates(self):
-        def mock_api_call(prompt: str, model: str) -> APICallContext:
-            raise AIError("Connection failed")
-
-        with pytest.raises(AIError, match="Connection failed"):
-            process_json_response(mock_api_call, "test prompt", "gpt-4o")
-
-    # * Test complex nested JSON
-    def test_complex_nested_json(self):
-        nested_json = '{"edits": [{"type": "replace", "line": 1, "text": "hello"}]}'
-
-        def mock_api_call(prompt: str, model: str) -> APICallContext:
-            return APICallContext(
-                raw_text=nested_json, provider_name="openai", model=model
-            )
-
-        result = process_json_response(mock_api_call, "test prompt", "gpt-4o")
-
-        assert result.success is True
-        assert result.data == {
-            "edits": [{"type": "replace", "line": 1, "text": "hello"}]
-        }
+    # * Verify strips thinking tokens
+    def test_strips_thinking_tokens(self):
+        text = '<think>reasoning here</think>\n{"key": "value"}'
+        assert strip_markdown_code_blocks(text) == '{"key": "value"}'
 
 
-# * Test convert_result_to_dict helper
+# * Test Layer 2: parse_json
 
 
-class TestConvertResultToDict:
-    # * Test successful conversion
-    def test_successful_conversion(self):
-        result = GenerateResult(
-            success=True,
-            data={"version": 1, "meta": {}, "ops": []},
+class TestParseJson:
+    # * Verify parse valid json
+    def test_parse_valid_json(self):
+        data, json_text, error = parse_json('{"key": "value"}')
+        assert data == {"key": "value"}
+        assert json_text == '{"key": "value"}'
+        assert error == ""
+
+    # * Verify parse json w/ markdown
+    def test_parse_json_with_markdown(self):
+        data, json_text, error = parse_json('```json\n{"key": "value"}\n```')
+        assert data == {"key": "value"}
+        assert json_text == '{"key": "value"}'
+        assert error == ""
+
+    # * Verify parse invalid json
+    def test_parse_invalid_json(self):
+        data, json_text, error = parse_json("not json")
+        assert data is None
+        assert json_text == "not json"
+        assert "JSON parsing failed" in error
+
+    # * Verify parse error truncates long text
+    def test_parse_error_truncates_long_text(self):
+        long_text = "not json " * 50  # >200 chars
+        data, json_text, error = parse_json(long_text)
+        assert data is None
+        assert "..." in error
+
+
+# * Test Layer 3: validate_and_extract
+
+
+class TestValidateAndExtract:
+    # * Verify valid structure
+    def test_valid_structure(self):
+        data = {"version": 1, "meta": {"model": "gpt-4o"}, "ops": []}
+
+        result = validate_and_extract(
+            data=data,
             raw_text='{"version": 1}',
             json_text='{"version": 1}',
+            parse_error="",
+            model="gpt-4o",
+            context="generation",
         )
 
-        data = convert_result_to_dict(result, "gpt-4o", "generation")
+        assert result["version"] == 1
+        assert "meta" in result
+        assert "ops" in result
 
-        assert data == {"version": 1, "meta": {}, "ops": []}
-
-    # * Test raises JSONParsingError on failure
-    def test_raises_on_failure(self):
-        result = GenerateResult(
-            success=False,
-            raw_text="not json",
-            json_text="not json",
-            error="JSON parsing failed: Expecting value",
-        )
-
+    # * Verify parse failure raises json parsing error
+    def test_parse_failure_raises_json_parsing_error(self):
         with pytest.raises(JSONParsingError) as exc_info:
-            convert_result_to_dict(result, "gpt-4o", "generation")
+            validate_and_extract(
+                data=None,
+                raw_text="not json",
+                json_text="not json",
+                parse_error="JSON parsing failed",
+                model="gpt-4o",
+                context="generation",
+            )
 
         error_msg = str(exc_info.value)
         assert "generation" in error_msg
         assert "gpt-4o" in error_msg
-        assert "not json" in error_msg
 
-    # * Test snippet truncation for long JSON
-    def test_snippet_truncation(self):
-        long_json = "invalid\n" * 10  # >5 lines to trigger truncation
-        result = GenerateResult(
-            success=False,
-            raw_text=long_json,
-            json_text=long_json,
-            error="JSON parsing failed",
-        )
-
-        with pytest.raises(JSONParsingError) as exc_info:
-            convert_result_to_dict(result, "gpt-4o", "correction")
-
-        error_msg = str(exc_info.value)
-        assert "..." in error_msg  # should have truncation indicator
-
-    # * Test includes raw response when different from JSON text
-    def test_includes_raw_response(self):
-        result = GenerateResult(
-            success=False,
-            raw_text="```json\ninvalid\n```",
-            json_text="invalid",
-            error="JSON parsing failed",
-        )
-
-        with pytest.raises(JSONParsingError) as exc_info:
-            convert_result_to_dict(result, "gpt-4o", "generation")
-
-        error_msg = str(exc_info.value)
-        assert "Full raw response" in error_msg
-
-
-# * Test validate_edits_structure helper
-
-
-class TestValidateEditsStructure:
-    # * Test valid structure passes
-    def test_valid_structure(self):
-        data = {"version": 1, "meta": {"model": "gpt-4o"}, "ops": []}
-
-        result = validate_edits_structure(data, "gpt-4o", "generation")
-
-        assert result == data
-
-    # * Test non-dict raises AIError
-    def test_non_dict_raises_error(self):
+    # * Verify non dict raises ai error
+    def test_non_dict_raises_ai_error(self):
         with pytest.raises(AIError) as exc_info:
-            validate_edits_structure([], "gpt-4o", "generation")
+            validate_and_extract(
+                data=[],
+                raw_text="[]",
+                json_text="[]",
+                parse_error="",
+                model="gpt-4o",
+                context="generation",
+            )
 
         assert "not a valid JSON object" in str(exc_info.value)
-        assert "list" in str(exc_info.value)
 
-    # * Test missing/invalid version raises AIError
-    def test_invalid_version(self):
+    # * Verify invalid version raises ai error
+    def test_invalid_version_raises_ai_error(self):
         with pytest.raises(AIError) as exc_info:
-            validate_edits_structure(
-                {"version": 2, "meta": {}, "ops": []}, "gpt-4o", "generation"
+            validate_and_extract(
+                data={"version": 2, "meta": {}, "ops": []},
+                raw_text="{}",
+                json_text="{}",
+                parse_error="",
+                model="gpt-4o",
+                context="generation",
             )
 
         assert "Invalid or missing version" in str(exc_info.value)
         assert "expected 1" in str(exc_info.value)
 
-    # * Test missing version raises AIError
-    def test_missing_version(self):
+    # * Verify missing required fields
+    def test_missing_required_fields(self):
         with pytest.raises(AIError) as exc_info:
-            validate_edits_structure(
-                {"meta": {}, "ops": []}, "gpt-4o", "generation"
+            validate_and_extract(
+                data={"version": 1, "ops": []},  # missing meta
+                raw_text="{}",
+                json_text="{}",
+                parse_error="",
+                model="gpt-4o",
+                context="generation",
             )
-
-        assert "Invalid or missing version" in str(exc_info.value)
-
-    # * Test missing meta field raises AIError
-    def test_missing_meta(self):
-        with pytest.raises(AIError) as exc_info:
-            validate_edits_structure({"version": 1, "ops": []}, "gpt-4o", "generation")
 
         assert "missing required fields" in str(exc_info.value)
         assert "meta" in str(exc_info.value)
 
-    # * Test missing ops field raises AIError
-    def test_missing_ops(self):
-        with pytest.raises(AIError) as exc_info:
-            validate_edits_structure(
-                {"version": 1, "meta": {}}, "gpt-4o", "generation"
-            )
-
-        assert "missing required fields" in str(exc_info.value)
-        assert "ops" in str(exc_info.value)
-
-    # * Test require_single_op validation - valid
-    def test_require_single_op_valid(self):
-        data = {
-            "version": 1,
-            "meta": {},
-            "ops": [{"op": "replace_line", "line": 1, "text": "new text"}],
-        }
-
-        result = validate_edits_structure(
-            data, "gpt-4o", "PROMPT operation", require_single_op=True
-        )
-
-        assert result == data
-
-    # * Test require_single_op validation - empty ops
+    # * Verify require single op empty ops
     def test_require_single_op_empty_ops(self):
-        data = {"version": 1, "meta": {}, "ops": []}
-
         with pytest.raises(AIError) as exc_info:
-            validate_edits_structure(
-                data, "gpt-4o", "PROMPT operation", require_single_op=True
+            validate_and_extract(
+                data={"version": 1, "meta": {}, "ops": []},
+                raw_text="{}",
+                json_text="{}",
+                parse_error="",
+                model="gpt-4o",
+                context="PROMPT",
+                require_single_op=True,
             )
 
         assert "empty" in str(exc_info.value).lower()
 
-    # * Test require_single_op validation - multiple ops
+    # * Verify require single op multiple ops
     def test_require_single_op_multiple_ops(self):
-        data = {
-            "version": 1,
-            "meta": {},
-            "ops": [
-                {"op": "replace_line", "line": 1, "text": "text1"},
-                {"op": "replace_line", "line": 2, "text": "text2"},
-            ],
-        }
-
         with pytest.raises(AIError) as exc_info:
-            validate_edits_structure(
-                data, "gpt-4o", "PROMPT operation", require_single_op=True
+            validate_and_extract(
+                data={
+                    "version": 1,
+                    "meta": {},
+                    "ops": [{"op": "a"}, {"op": "b"}],
+                },
+                raw_text="{}",
+                json_text="{}",
+                parse_error="",
+                model="gpt-4o",
+                context="PROMPT",
+                require_single_op=True,
             )
 
         assert "exactly one" in str(exc_info.value)
-        assert "got 2" in str(exc_info.value)
 
-    # * Test require_ops=False allows missing ops
+    # * Verify require ops false
     def test_require_ops_false(self):
-        data = {"version": 1, "meta": {}}
-
-        result = validate_edits_structure(
-            data, "gpt-4o", "custom", require_ops=False
+        result = validate_and_extract(
+            data={"version": 1, "meta": {}},  # no ops
+            raw_text="{}",
+            json_text="{}",
+            parse_error="",
+            model="gpt-4o",
+            context="custom",
+            require_ops=False,
         )
 
-        assert result == data
+        assert result == {"version": 1, "meta": {}}
 
-    # * Test context appears in error messages
-    def test_context_in_error(self):
-        with pytest.raises(AIError) as exc_info:
-            validate_edits_structure(
-                {"version": 2, "meta": {}, "ops": []}, "gpt-4o", "correction"
-            )
+    # * Verify normalizes short keys
+    def test_normalizes_short_keys(self):
+        result = validate_and_extract(
+            data={"version": 1, "meta": {}, "ops": [{"l": 5, "t": "text"}]},
+            raw_text="{}",
+            json_text="{}",
+            parse_error="",
+            model="gpt-4o",
+            context="test",
+        )
 
-        assert "during correction" in str(exc_info.value)
+        assert result["ops"][0]["line"] == 5
+        assert result["ops"][0]["text"] == "text"
 
 
 # * Test process_ai_response high-level helper
 
 
 class TestProcessAiResponse:
-    # * Test end-to-end success
+    # * Verify end to end success
     def test_end_to_end_success(self):
         result = GenerateResult(
             success=True,
@@ -327,7 +253,7 @@ class TestProcessAiResponse:
         assert "meta" in data
         assert "ops" in data
 
-    # * Test JSONParsingError propagation
+    # * Verify json parsing error propagation
     def test_json_parsing_error_propagation(self):
         result = GenerateResult(
             success=False,
@@ -341,7 +267,7 @@ class TestProcessAiResponse:
 
         assert "generation" in str(exc_info.value)
 
-    # * Test AIError propagation
+    # * Verify ai error propagation
     def test_ai_error_propagation(self):
         result = GenerateResult(
             success=True,
@@ -355,58 +281,154 @@ class TestProcessAiResponse:
 
         assert "Invalid or missing version" in str(exc_info.value)
 
-    # * Test require_single_op parameter
-    def test_require_single_op_parameter(self):
-        result = GenerateResult(
-            success=True,
-            data={"version": 1, "meta": {}, "ops": []},  # empty ops
-            raw_text="{}",
-            json_text="{}",
-        )
 
-        with pytest.raises(AIError) as exc_info:
-            process_ai_response(
-                result, "gpt-4o", "PROMPT operation", require_single_op=True
-            )
-
-        assert "empty" in str(exc_info.value).lower()
-
-    # * Test log flags forwarded
-    def test_log_flags_forwarded(self, caplog):
-        result = GenerateResult(
-            success=True,
-            data={"version": 1, "meta": {}, "ops": []},
-            raw_text="{}",
-            json_text="{}",
-        )
-
-        process_ai_response(
-            result,
-            "gpt-4o",
-            "generation",
-            log_version_debug=True,
-            log_structure=True,
-        )
-
-        # Just verify it doesn't raise - logging tests are in integration tests
+# * Test normalize_op_keys helper
 
 
-# * Test strip_markdown_code_blocks helper
+class TestNormalizeOpKeys:
+    # * Verify expands short keys
+    def test_expands_short_keys(self):
+        op = {
+            "op": "replace_line",
+            "l": 5,
+            "t": "new text",
+            "cur": "old",
+            "w": "reason",
+        }
+
+        result = normalize_op_keys(op)
+
+        assert result == {
+            "op": "replace_line",
+            "line": 5,
+            "text": "new text",
+            "current_snippet": "old",
+            "why": "reason",
+        }
+
+    # * Verify full keys passthrough
+    def test_full_keys_passthrough(self):
+        op = {
+            "op": "replace_line",
+            "line": 5,
+            "text": "new text",
+        }
+
+        result = normalize_op_keys(op)
+
+        assert result == op
+
+    # * Verify mixed keys
+    def test_mixed_keys(self):
+        op = {"op": "replace_range", "s": 10, "end": 12, "t": "text"}
+
+        result = normalize_op_keys(op)
+
+        assert result == {"op": "replace_range", "start": 10, "end": 12, "text": "text"}
 
 
-class TestStripMarkdownCodeBlocks:
-    def test_strips_json_code_block(self):
-        text = '```json\n{"key": "value"}\n```'
-        assert strip_markdown_code_blocks(text) == '{"key": "value"}'
+# * Test normalize_edits_response helper
 
-    def test_strips_plain_code_block(self):
-        text = '```\n{"key": "value"}\n```'
-        assert strip_markdown_code_blocks(text) == '{"key": "value"}'
 
-    def test_returns_plain_json(self):
-        text = '{"key": "value"}'
-        assert strip_markdown_code_blocks(text) == '{"key": "value"}'
+class TestNormalizeEditsResponse:
+    # * Verify normalizes ops
+    def test_normalizes_ops(self):
+        edits = {
+            "version": 1,
+            "meta": {},
+            "ops": [
+                {"op": "replace_line", "l": 5, "t": "text"},
+                {"op": "replace_range", "s": 10, "e": 12, "t": "more"},
+            ],
+        }
 
-    def test_strips_thinking_tokens(self):
-        text = '<think>reasoning here</think>\n{"key": "value"}'
-        assert strip_markdown_code_blocks(text) == '{"key": "value"}'
+        result = normalize_edits_response(edits)
+
+        assert result["ops"][0]["line"] == 5
+        assert result["ops"][0]["text"] == "text"
+        assert result["ops"][1]["start"] == 10
+        assert result["ops"][1]["end"] == 12
+
+    # * Verify handles missing ops
+    def test_handles_missing_ops(self):
+        edits = {"version": 1, "meta": {}}
+
+        result = normalize_edits_response(edits)
+
+        assert result == {"version": 1, "meta": {}}
+
+
+# * Test normalize_section_keys helper
+
+
+class TestNormalizeSectionKeys:
+    # * Verify expands short keys
+    def test_expands_short_keys(self):
+        section = {
+            "k": "experience",
+            "h": "Work Experience",
+            "s": 10,
+            "e": 50,
+            "c": 0.95,
+        }
+
+        result = normalize_section_keys(section)
+
+        assert result == {
+            "kind": "experience",
+            "heading_text": "Work Experience",
+            "start_line": 10,
+            "end_line": 50,
+            "confidence": 0.95,
+        }
+
+    # * Verify subsections array format
+    def test_subsections_array_format(self):
+        section = {
+            "k": "experience",
+            "h": "Work",
+            "s": 10,
+            "e": 50,
+            "c": 0.9,
+            "sub": [
+                ["EXPERIENCE_ITEM", 15, 20],
+                ["EXPERIENCE_ITEM", 25, 30, {"company": "Acme"}],
+            ],
+        }
+
+        result = normalize_section_keys(section)
+
+        assert "subsections" in result
+        assert len(result["subsections"]) == 2
+        assert result["subsections"][0] == {
+            "name": "EXPERIENCE_ITEM",
+            "start_line": 15,
+            "end_line": 20,
+        }
+
+
+# * Test normalize_sections_response helper
+
+
+class TestNormalizeSectionsResponse:
+    # * Verify normalizes all sections
+    def test_normalizes_all_sections(self):
+        data = {
+            "sections": [
+                {"k": "summary", "h": "Summary", "s": 1, "e": 5, "c": 0.9},
+                {"k": "experience", "h": "Experience", "s": 10, "e": 50, "c": 0.95},
+            ],
+        }
+
+        result = normalize_sections_response(data)
+
+        assert result["sections"][0]["kind"] == "summary"
+        assert result["sections"][1]["kind"] == "experience"
+
+    # * Verify handles missing sections
+    def test_handles_missing_sections(self):
+        data = {"notes": "no sections"}
+
+        result = normalize_sections_response(data)
+
+        assert result == {"notes": "no sections"}

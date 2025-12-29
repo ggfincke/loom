@@ -17,10 +17,13 @@ def initialize_theme() -> None:
 def refresh_theme() -> None:
     try:
         from .theme_engine import get_loom_theme
+        from rich.theme import ThemeStackError
 
-        # pop existing theme & push new one
-        if console._theme_stack:
+        # pop existing theme (if any was pushed) & push new one
+        try:
             console.pop_theme()
+        except ThemeStackError:
+            pass  # no theme was pushed yet, that's fine
         console.push_theme(get_loom_theme())
     except ImportError:
         pass

@@ -10,7 +10,7 @@ from typing import List, Dict
 import pytest
 
 from src.core.pipeline import apply_edits
-from src.loom_io.types import Lines
+from src.core.types import Lines
 
 
 # * Random text generator for stress input
@@ -23,7 +23,7 @@ def _random_text(length: int = 20) -> str:
 @pytest.mark.slow
 # * Stress test for apply_edits scalability & correctness
 def test_apply_edits_large_input_many_ops() -> None:
-    # create a large resume with 2000+ lines
+    # create a large resume w/ 2000+ lines
     total_lines = 2000
     resume_lines: Lines = {
         i: f"Line {i} - {_random_text(10)}" for i in range(1, total_lines + 1)
@@ -57,7 +57,7 @@ def test_apply_edits_large_input_many_ops() -> None:
             }
         )
 
-    # 40 replace_range ops; various sizes (1-4 lines) with 1-3 replacement lines
+    # 40 replace_range ops; various sizes (1-4 lines) w/ 1-3 replacement lines
     # keep ranges in-bounds & non-overlapping by spacing
     start = 20
     for i in range(40):

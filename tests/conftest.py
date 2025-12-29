@@ -12,15 +12,15 @@ from typing import Dict, Any
 
 @pytest.fixture(autouse=True)
 def isolate_config(tmp_path, monkeypatch):
-    # patch Path.home() to isolated temp directory
+    # Patch Path.home() to isolated temp directory
     fake_home = tmp_path / "fake_home"
     fake_home.mkdir()
 
-    # create isolated .loom directory
+    # Create isolated .loom directory
     loom_dir = fake_home / ".loom"
     loom_dir.mkdir()
 
-    # create minimal config.json w/ test defaults
+    # Create minimal config.json w/ test defaults
     config_data = {
         "data_dir": "data",
         "output_dir": "output",
@@ -36,13 +36,15 @@ def isolate_config(tmp_path, monkeypatch):
         "temperature": 0.2,
         "risk": "ask",
         "theme": "deep_blue",
+        "interactive": True,
+        "dev_mode": False,
     }
 
     config_file = loom_dir / "config.json"
     with open(config_file, "w") as f:
         json.dump(config_data, f, indent=2)
 
-    # patch Path.home() to return fake home
+    # Patch Path.home() to return fake home
     monkeypatch.setattr(Path, "home", lambda: fake_home)
 
     # ! reset global settings_manager state & patch its config_path to use isolated location
@@ -51,24 +53,45 @@ def isolate_config(tmp_path, monkeypatch):
     settings_manager._settings = None
     settings_manager.config_path = fake_home / ".loom" / "config.json"
 
+    # ! reset LoomColors cache to pick up isolated settings
+    from src.ui.theming.theme_engine import reset_color_cache
+
+    reset_color_cache()
+
+    # ! reset dev mode cache to pick up isolated settings
+    from src.config.dev_mode import reset_dev_mode_cache
+
+    reset_dev_mode_cache()
+
+    # ! reset & disable response cache to prevent caching during tests
+    from src.ai.cache import reset_response_cache, disable_cache_for_invocation
+
+    reset_response_cache()
+    disable_cache_for_invocation()
+
+    # ! reset output manager to NullOutputManager for test isolation
+    from src.core.output import reset_output_manager
+
+    reset_output_manager()
+
     return fake_home
 
 
 @pytest.fixture(autouse=True)
 def block_network():
-    # block all network calls by default w/ pytest-socket
+    # Block all network calls by default w/ pytest-socket
     # tests requiring network must explicitly enable w/ pytest.mark.enable_socket
     try:
         pytest_socket = pytest.importorskip("pytest_socket")
         pytest_socket.disable_socket()
     except pytest.skip.Exception:
-        # pytest-socket not installed, skip network blocking
+        # Pytest-socket not installed, skip network blocking
         pass
 
 
 @pytest.fixture
 def temp_output_dirs(tmp_path):
-    # provide isolated temp directories for all file operations
+    # Provide isolated temp directories for all file operations
     data_dir = tmp_path / "data"
     output_dir = tmp_path / "output"
     loom_dir = tmp_path / ".loom"
@@ -87,7 +110,7 @@ def temp_output_dirs(tmp_path):
 
 @pytest.fixture
 def mock_env_vars(monkeypatch):
-    # seed test environment w/ required API keys & settings
+    # Seed test environment w/ required API keys & settings
     test_env = {
         "OPENAI_API_KEY": "test-openai-key-12345",
         "ANTHROPIC_API_KEY": "test-anthropic-key-12345",
@@ -102,7 +125,7 @@ def mock_env_vars(monkeypatch):
 
 @pytest.fixture
 def mock_ai_client():
-    # create mock AI client for testing w/o real API calls
+    # Create mock AI client for testing w/o real API calls
     mock_client = MagicMock()
     mock_client.chat.completions.create.return_value = MagicMock(
         choices=[MagicMock(message=MagicMock(content="mock response"))]
@@ -112,7 +135,7 @@ def mock_ai_client():
 
 @pytest.fixture
 def sample_resume_content():
-    # provide sample resume text for testing
+    # Provide sample resume text for testing
     return """John Doe
 Software Engineer
 
@@ -131,20 +154,20 @@ Senior Developer | Tech Corp | 2020-2024
 
 @pytest.fixture
 def sample_job_description():
-    # provide sample job posting for testing
-    return """Senior Python Developer
-Tech Company is seeking an experienced Python developer to join our team.
+    # Provide sample job posting for testing
+    return """Software Engineer - Python developer
+
+We are looking for a Python developer to join our team.
 
 Requirements:
-• 5+ years Python experience
-• Experience w/ web frameworks
-• Strong problem-solving skills
-• AWS/cloud experience preferred"""
+• 3+ years experience w/ Python
+• Experience w/ REST APIs
+• AWS knowledge preferred"""
 
 
 @pytest.fixture
 def sample_sections_data():
-    # provide expected section parsing output
+    # Provide expected section parsing output
     return {
         "sections": [
             {
@@ -177,7 +200,7 @@ def sample_sections_data():
 
 @pytest.fixture
 def sample_edits_data():
-    # provide expected edit operations output
+    # Provide expected edit operations output
     return {
         "edits": [
             {
@@ -194,9 +217,6 @@ def sample_edits_data():
             },
         ]
     }
-
-
-# * Additional fixtures for core logic testing
 
 
 @pytest.fixture
@@ -222,7 +242,7 @@ def sample_lines_dict():
 
 @pytest.fixture
 def valid_edits_v1():
-    # valid edits dict w/ version 1 format for pipeline testing
+    # Valid edits dict w/ version 1 format for pipeline testing
     return {
         "version": 1,
         "meta": {"model": "gpt-4o", "created_at": "2024-01-01T00:00:00Z"},
@@ -238,7 +258,7 @@ def valid_edits_v1():
 
 @pytest.fixture
 def mock_ai_success_response():
-    # mock successful AI response for testing
+    # Mock successful AI response for testing
     mock_response = MagicMock()
     mock_response.success = True
     mock_response.data = {
@@ -251,10 +271,44 @@ def mock_ai_success_response():
 
 @pytest.fixture
 def mock_ai_failure_response():
-    # mock failed AI response for testing
+    # Mock failed AI response for testing
     mock_response = MagicMock()
     mock_response.success = False
     mock_response.error = "Invalid JSON syntax"
     mock_response.json_text = '{"invalid": json}'
     mock_response.raw_text = None
     return mock_response
+
+
+@pytest.fixture
+def isolate_output():
+    from src.core.output import reset_output_manager
+
+    reset_output_manager()
+    yield
+    reset_output_manager()
+
+
+@pytest.fixture
+def dev_mode_enabled(isolate_config):
+    # Enable dev_mode for tests that require it
+    config_file = isolate_config / ".loom" / "config.json"
+
+    with open(config_file, "r") as f:
+        config_data = json.load(f)
+
+    config_data["dev_mode"] = True
+
+    with open(config_file, "w") as f:
+        json.dump(config_data, f)
+
+    # Reset caches to pick up new settings
+    from src.config.settings import settings_manager
+
+    settings_manager._settings = None
+
+    from src.config.dev_mode import reset_dev_mode_cache
+
+    reset_dev_mode_cache()
+
+    return isolate_config

@@ -14,17 +14,14 @@ from src.cli.commands.dev.display import display
 # * Test complete workflow from command invocation to diff resolution
 class TestInteractiveDiffWorkflow:
 
-    @patch("src.cli.commands.dev.display.get_settings")
+    @patch("src.config.dev_mode.is_dev_mode_enabled")
     @patch("src.cli.commands.dev.display.main_display_loop")
     # * Test complete flow from dev command to diff display
     def test_dev_command_to_diff_display_integration(
-        self, mock_display_loop, mock_get_settings
+        self, mock_display_loop, mock_dev_enabled
     ):
         # setup mocks
-        mock_settings = Mock()
-        mock_settings.dev_mode = True
-        mock_get_settings.return_value = mock_settings
-
+        mock_dev_enabled.return_value = True
         mock_display_loop.return_value = []
 
         mock_ctx = Mock()
@@ -33,7 +30,6 @@ class TestInteractiveDiffWorkflow:
         display(mock_ctx, help=False)
 
         # verify the flow worked
-        mock_get_settings.assert_called_once_with(mock_ctx)
         mock_display_loop.assert_called_once()
 
         # verify sample operations were passed
@@ -81,13 +77,10 @@ class TestInteractiveDiffWorkflow:
         op.status = DiffOp.SKIP
         assert op.status == DiffOp.SKIP
 
-    @patch("src.cli.commands.dev.display.get_settings")
+    @patch("src.config.dev_mode.is_dev_mode_enabled")
     # * Test dev mode requirement enforcement in workflow
-    # * Test dev mode requirement enforcement in workflow
-    def test_dev_mode_requirement_integration(self, mock_get_settings):
-        mock_settings = Mock()
-        mock_settings.dev_mode = False
-        mock_get_settings.return_value = mock_settings
+    def test_dev_mode_requirement_integration(self, mock_dev_enabled):
+        mock_dev_enabled.return_value = False
 
         mock_ctx = Mock()
 
@@ -97,22 +90,18 @@ class TestInteractiveDiffWorkflow:
 
         assert exc_info.value.code == 1
 
-    @patch("src.cli.commands.dev.display.get_settings")
+    @patch("src.config.dev_mode.is_dev_mode_enabled")
     @patch("src.cli.commands.dev.display.main_display_loop")
     # * Test sample operations creation & integration w/ display
-    # * Test sample operations creation & integration w/ display
-    def test_sample_operations_integration(self, mock_display_loop, mock_get_settings):
-        mock_settings = Mock()
-        mock_settings.dev_mode = True
-        mock_get_settings.return_value = mock_settings
-
+    def test_sample_operations_integration(self, mock_display_loop, mock_dev_enabled):
+        mock_dev_enabled.return_value = True
         mock_display_loop.return_value = []
 
         mock_ctx = Mock()
 
         display(mock_ctx, help=False)
 
-        # verify display loop was called with operations
+        # verify display loop was called w/ operations
         mock_display_loop.assert_called_once()
         call_args = mock_display_loop.call_args[0]
         operations = call_args[0]
@@ -148,7 +137,7 @@ class TestInteractiveDiffWorkflow:
         from src.ui.diff_resolution.diff_display import InteractiveDiffResolver
         from src.core.constants import EditOperation
 
-        # create resolver and call render_screen method
+        # create resolver & call render_screen method
         op = EditOperation(operation="replace_line", line_number=1, content="test")
         resolver = InteractiveDiffResolver([op], filename="test.txt")
         resolver.render_screen()

@@ -11,7 +11,7 @@ from pathlib import Path
 from src.core.pipeline import apply_edits, generate_edits
 from src.core.constants import EditOperation, DiffOp
 from src.core.exceptions import EditError, AIError
-from src.loom_io.types import Lines
+from src.core.types import Lines
 from src.loom_io.documents import read_resume
 from src.config.settings import SettingsManager
 
@@ -21,7 +21,7 @@ from src.config.settings import SettingsManager
 
 @pytest.fixture
 def temp_resume_file():
-    """Create a temporary resume file for testing"""
+    # Create a temporary resume file for testing
     content = """John Doe
 Senior Software Engineer
 john.doe@email.com
@@ -81,7 +81,7 @@ Preferred:
 
 @pytest.fixture
 def sample_edits_with_special_ops():
-    """Edits containing both regular and special operations"""
+    # Edits containing both regular & special operations
     return {
         "version": 1,
         "meta": {
@@ -117,7 +117,7 @@ def sample_edits_with_special_ops():
 
 @pytest.fixture
 def resume_lines_from_temp_file(temp_resume_file):
-    """Load resume lines from temp file"""
+    # Load resume lines from temp file
     lines = {}
     with open(temp_resume_file, "r") as f:
         for i, line in enumerate(f.readlines(), 1):
@@ -129,10 +129,11 @@ def resume_lines_from_temp_file(temp_resume_file):
 class TestPromptOperationIntegration:
 
     @patch("src.core.pipeline.run_generate")
+    # * Verify prompt operation end to end
     def test_prompt_operation_end_to_end(
         self, mock_run_generate, resume_lines_from_temp_file, ml_job_description
     ):
-        """Test complete PROMPT operation from user input to applied changes"""
+        # Test complete PROMPT operation from user input to applied changes
 
         # mock AI response
         mock_run_generate.return_value = MagicMock(
@@ -215,16 +216,17 @@ class TestPromptOperationIntegration:
             ],
         }
 
-        # apply edits and verify changes
+        # apply edits & verify changes
         result_lines = apply_edits(resume_lines_from_temp_file, processed_edits)
 
         assert result_lines[6] == result_op.content
         assert "Machine learning engineer" in result_lines[6]
 
+    # * Verify prompt operation w/ sections context
     def test_prompt_operation_with_sections_context(
         self, resume_lines_from_temp_file, ml_job_description
     ):
-        """Test PROMPT operation with sections context for better targeting"""
+        # Test PROMPT operation w/ sections context for better targeting
 
         sections_json = json.dumps(
             {
@@ -288,10 +290,11 @@ class TestPromptOperationIntegration:
 # * Integration tests for mixed workflows (both PROMPT & MODIFY operations)
 class TestMixedSpecialOperationsWorkflow:
 
+    # * Verify mixed operations in single edit session
     def test_mixed_operations_in_single_edit_session(
         self, resume_lines_from_temp_file, ml_job_description
     ):
-        """Test applying both PROMPT and MODIFY operations in single session"""
+        # Test applying both PROMPT & MODIFY operations in single session
 
         # create mixed operations
         prompt_op = EditOperation(
@@ -375,8 +378,9 @@ class TestMixedSpecialOperationsWorkflow:
         )  # inserted after line 12
         assert "CNNs, RNNs, Transformers" in result_lines[13]
 
+    # * Verify operation dependencies & line shifts
     def test_operation_dependencies_and_line_shifts(self, resume_lines_from_temp_file):
-        """Test that operations handle line number shifts from previous operations"""
+        # Test that operations handle line number shifts from previous operations
 
         # operations that will shift line numbers
         insert_op = EditOperation(
@@ -435,10 +439,11 @@ class TestMixedSpecialOperationsWorkflow:
 # * Error handling integration tests
 class TestSpecialOperationsErrorHandling:
 
+    # * Verify prompt operation ai failure recovery
     def test_prompt_operation_ai_failure_recovery(
         self, resume_lines_from_temp_file, ml_job_description
     ):
-        """Test error handling when AI fails during PROMPT operation"""
+        # Test error handling when AI fails during PROMPT operation
 
         operation = EditOperation(
             operation="replace_line",
@@ -466,8 +471,9 @@ class TestSpecialOperationsErrorHandling:
             assert "AI failed to process PROMPT operation" in str(exc_info.value)
             assert "API rate limit exceeded" in str(exc_info.value)
 
+    # * Verify modify operation missing fields
     def test_modify_operation_missing_fields(self):
-        """Test error handling for MODIFY operations with missing fields"""
+        # Test error handling for MODIFY operations w/ missing fields
 
         operation = EditOperation(
             operation="replace_line",
@@ -484,10 +490,11 @@ class TestSpecialOperationsErrorHandling:
         assert "MODIFY operation requires content to be set" in str(exc_info.value)
 
     @patch("src.core.pipeline.run_generate")
+    # * Verify invalid ai response handling
     def test_invalid_ai_response_handling(
         self, mock_run_generate, resume_lines_from_temp_file, ml_job_description
     ):
-        """Test handling of invalid AI responses during PROMPT operations"""
+        # Test handling of invalid AI responses during PROMPT operations
 
         # test different types of invalid responses
         invalid_responses = [

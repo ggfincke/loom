@@ -4,16 +4,18 @@
 from __future__ import annotations
 
 import typer
-from ...ai.models import get_models_by_provider
+from ...ai.provider_validator import get_models_by_provider
 from ...ai.clients.ollama_client import (
     check_ollama_with_error,
     get_available_models_with_error,
 )
 from ...loom_io.console import console
 from ...ui.theming.theme_engine import styled_checkmark, accent_gradient, styled_bullet
+from ...ui.theming.styled_helpers import styled_provider_line
 from ..app import app
+from ..helpers import handle_help_flag
+from ..params import HelpOpt
 from ...ui.help.help_data import command_help
-from .help import show_command_help
 
 # * Sub-app for models commands; registered on root app
 models_app = typer.Typer(
@@ -23,7 +25,7 @@ models_app = typer.Typer(
 app.add_typer(models_app, name="models")
 
 
-# * default callback: show all available models by provider when no subcommand provided
+# * Default callback: show all available models by provider when no subcommand provided
 @command_help(
     name="models",
     description="List available AI models by provider",
@@ -42,26 +44,21 @@ app.add_typer(models_app, name="models")
 @models_app.callback(invoke_without_command=True)
 def models_callback(
     ctx: typer.Context,
-    help: bool = typer.Option(
-        False, "--help", "-h", help="Show help message and exit."
-    ),
+    help: bool = HelpOpt(),
 ) -> None:
-    # detect help flag & show custom help
-    if help:
-        show_command_help("models")
-        ctx.exit()
+    handle_help_flag(ctx, help, "models")
 
     if ctx.invoked_subcommand is None:
         _show_models_list()
 
 
-# * explicit list command (same as default callback)
+# * Explicit list command (same as default callback)
 @models_app.command()
 def list() -> None:
     _show_models_list()
 
 
-# * helper function to display models by provider
+# * Helper function to display models by provider
 def _show_models_list() -> None:
     providers = get_models_by_provider()
 
@@ -86,7 +83,7 @@ def _show_models_list() -> None:
             status_icon = "[red]X[/]"
             status_text = "[dim]No models available[/]"
 
-        console.print(f"[bold white]{provider_display}[/] {status_icon} {status_text}")
+        console.print(*styled_provider_line(provider_display, status_icon, status_text))
 
         # show models list
         if models:
@@ -116,7 +113,7 @@ def _show_models_list() -> None:
     )
 
 
-# * test command to check Ollama connectivity & model availability
+# * Test command to check Ollama connectivity & model availability
 @models_app.command()
 def test(
     model: str = typer.Argument(help="Model name to test (e.g., deepseek-r1:14b)"),
@@ -158,7 +155,7 @@ def test(
 
     # test basic API call
     console.print("4. Testing basic API call...")
-    from ...ai.clients.ollama_client import run_generate
+    from ...ai.clients import run_generate
 
     test_prompt = "Please respond with valid JSON containing a single field 'test' with value 'success': "
     result = run_generate(test_prompt, model)

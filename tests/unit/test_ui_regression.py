@@ -14,7 +14,7 @@ from tests.test_support.rich_capture import (
 
 from src.ui.display.ascii_art import show_loom_art
 from src.ui.core.progress import setup_ui_with_progress
-from src.ui.theming.theme_engine import get_active_theme, natural_gradient
+from src.ui.theming.theme_engine import natural_gradient
 from src.ui.display.reporting import report_result
 
 

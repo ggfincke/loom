@@ -1,5 +1,11 @@
 # src/ui/core/ui.py
 # UI abstraction layer for progress-safe prompting & console output
+#
+# Usage guidance:
+# - Use UI class during progress operations that may need user input
+# - ui.input_mode() pauses progress timer for clean prompts
+# - ui.ask() handles TTY detection & default responses
+# - For simple output without progress context, use loom_io.console directly
 
 from __future__ import annotations
 

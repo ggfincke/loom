@@ -1,54 +1,74 @@
 # src/ai/clients/claude_client.py
-# Claude API client functions for generating JSON responses
+# Claude (Anthropic) API client for generating JSON responses
 
-import os
-from anthropic import Anthropic
+from __future__ import annotations
+
+from .base import BaseClient
+from ..utils import APICallContext
 from ...config.settings import settings_manager
-from ..types import GenerateResult
-from ..models import ensure_valid_model
-from ...core.exceptions import AIError
-from ..utils import APICallContext, process_json_response
+from ...core.exceptions import AIError, ProviderError, RateLimitError
 
 
-# * Internal helper to make Claude API call & return raw context
-def _make_claude_call(prompt: str, model: str) -> APICallContext:
-    client = Anthropic()
-    settings = settings_manager.load()
+# * Anthropic Claude API client for JSON generation
+class ClaudeClient(BaseClient):
 
-    try:
-        response = client.messages.create(
-            model=model,
-            max_tokens=4096,
-            temperature=settings.temperature,
-            messages=[
-                {
-                    "role": "user",
-                    "content": f"{prompt}\n\nPlease respond with valid JSON only, no additional text or formatting.",
-                }
-            ],
-        )
-    except Exception as e:
-        raise AIError(f"Anthropic API error: {str(e)}")
+    provider_name = "anthropic"
+    required_env_vars = ["ANTHROPIC_API_KEY"]
 
-    # extract text from response (process text blocks only & skip tool blocks)
-    raw_text = ""
-    for content_block in response.content:
-        if content_block.type == "text":
-            raw_text += content_block.text
+    # * Make Claude API call w/ JSON-only response mode
+    def make_call(self, prompt: str, model: str) -> APICallContext:
+        import anthropic
+        from anthropic import Anthropic
 
-    return APICallContext(raw_text=raw_text, provider_name="claude", model=model)
+        client = Anthropic()
+        settings = settings_manager.load()
 
+        try:
+            response = client.messages.create(
+                model=model,
+                max_tokens=4096,
+                temperature=settings.temperature,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": f"{prompt}\n\nPlease respond with valid JSON only, no additional text or formatting.",
+                    }
+                ],
+            )
+        except Exception as e:
+            # Safely check for provider-specific exception types (may not exist in mocks)
+            rate_limit_error = getattr(anthropic, "RateLimitError", None)
+            api_status_error = getattr(anthropic, "APIStatusError", None)
+            api_connection_error = getattr(anthropic, "APIConnectionError", None)
 
-# * Generate JSON response via Claude API w/ model validation
-def run_generate(
-    prompt: str, model: str = "claude-sonnet-4-20250514"
-) -> GenerateResult:
-    if not os.getenv("ANTHROPIC_API_KEY"):
-        raise RuntimeError("Missing ANTHROPIC_API_KEY in environment or .env")
+            # Check for rate limit (429)
+            if rate_limit_error and isinstance(e, rate_limit_error):
+                raise RateLimitError(
+                    f"Anthropic rate limit exceeded: {e}",
+                    provider="anthropic",
+                    retry_after=getattr(e, "retry_after", None),
+                ) from e
+            # Check for API errors (4xx/5xx)
+            if api_status_error and isinstance(e, api_status_error):
+                status_code = getattr(e, "status_code", "unknown")
+                message = getattr(e, "message", str(e))
+                raise ProviderError(
+                    f"Anthropic API error ({status_code}): {message}",
+                    provider="anthropic",
+                ) from e
+            # Check for connection errors
+            if api_connection_error and isinstance(e, api_connection_error):
+                raise ProviderError(
+                    f"Anthropic connection error: {e}",
+                    provider="anthropic",
+                ) from e
+            # Fallback for unexpected errors
+            raise AIError(f"Anthropic API error: {e}") from e
 
-    # validate model before API call
-    validated_model = ensure_valid_model(model)
-    if validated_model is None:
-        raise RuntimeError("Model validation failed")
+        # extract text from response (process text blocks only & skip tool blocks)
+        raw_text = ""
+        for content_block in response.content:
+            if content_block.type == "text":
+                raw_text += content_block.text
 
-    return process_json_response(_make_claude_call, prompt, validated_model)
+        return APICallContext(raw_text=raw_text, provider_name="anthropic", model=model)

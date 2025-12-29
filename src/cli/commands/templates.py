@@ -6,8 +6,8 @@ from __future__ import annotations
 from pathlib import Path
 import typer
 
-from ...core.exceptions import handle_loom_error
 from ...loom_io import load_descriptor, TemplateDescriptor
+from ..decorators import handle_loom_error
 from ...loom_io.console import console
 from ..app import app
 from ...ui.help.help_data import command_help
@@ -15,7 +15,7 @@ from ...ui.help.help_data import command_help
 
 # * Resolve path to bundled templates directory (if available)
 def get_templates_root() -> Path | None:
-    # search multiple parent levels to support both dev & installed package structures
+    # Search multiple parent levels to support both dev & installed package structures
     candidates = [
         Path(__file__).resolve().parents[4] / "templates",  # installed package
         Path(__file__).resolve().parents[3] / "templates",  # editable install
@@ -33,7 +33,7 @@ def discover_templates() -> list[tuple[Path, TemplateDescriptor]]:
     root = get_templates_root()
     if root is None:
         return []
-    templates: list[tuple[Path, object]] = []
+    templates: list[tuple[Path, TemplateDescriptor]] = []
     for descriptor_path in sorted(root.rglob("loom-template.toml")):
         try:
             descriptor = load_descriptor(descriptor_path)

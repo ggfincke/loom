@@ -1,44 +1,66 @@
 # src/ai/clients/openai_client.py
-# OpenAI API client functions for generating JSON responses using the Responses API
+# OpenAI API client for generating JSON responses using the Responses API
 
-import os
-from openai import OpenAI
+from __future__ import annotations
+
+from .base import BaseClient
+from ..utils import APICallContext
 from ...config.settings import settings_manager
-from ..types import GenerateResult
-from ..models import ensure_valid_model
-from ...core.exceptions import AIError, ConfigurationError
-from ..utils import APICallContext, process_json_response
+from ...core.exceptions import AIError, ProviderError, RateLimitError
 
 
-# * Internal helper to make OpenAI API call & return raw context
-def _make_openai_call(prompt: str, model: str) -> APICallContext:
-    client = OpenAI()
+# * OpenAI API client using the Responses API
+class OpenAIClient(BaseClient):
 
-    try:
-        # GPT-5 models don't support temperature parameter
-        if model.startswith("gpt-5"):
-            resp = client.responses.create(model=model, input=prompt)
-        else:
-            settings = settings_manager.load()
-            resp = client.responses.create(
-                model=model, input=prompt, temperature=settings.temperature
-            )
-    except Exception as e:
-        raise AIError(f"OpenAI API error: {str(e)}")
+    provider_name = "openai"
+    required_env_vars = ["OPENAI_API_KEY"]
 
-    return APICallContext(
-        raw_text=resp.output_text, provider_name="openai", model=model
-    )
+    # * Make OpenAI API call using Responses API
+    def make_call(self, prompt: str, model: str) -> APICallContext:
+        import openai
+        from openai import OpenAI
 
+        client = OpenAI()
 
-# * Generate JSON response using OpenAI API w/ model validation
-def run_generate(prompt: str, model: str = "gpt-5-mini") -> GenerateResult:
-    if not os.getenv("OPENAI_API_KEY"):
-        raise ConfigurationError("Missing OPENAI_API_KEY in environment or .env")
+        try:
+            # GPT-5 models don't support temperature parameter
+            if model.startswith("gpt-5"):
+                resp = client.responses.create(model=model, input=prompt)
+            else:
+                settings = settings_manager.load()
+                resp = client.responses.create(
+                    model=model, input=prompt, temperature=settings.temperature
+                )
+        except Exception as e:
+            # Safely check for provider-specific exception types (may not exist in mocks)
+            rate_limit_error = getattr(openai, "RateLimitError", None)
+            api_status_error = getattr(openai, "APIStatusError", None)
+            api_connection_error = getattr(openai, "APIConnectionError", None)
 
-    # validate model before making API call
-    validated_model = ensure_valid_model(model)
-    if validated_model is None:
-        raise RuntimeError("Model validation failed")
+            # Check for rate limit (429)
+            if rate_limit_error and isinstance(e, rate_limit_error):
+                raise RateLimitError(
+                    f"OpenAI rate limit exceeded: {e}",
+                    provider="openai",
+                    retry_after=getattr(e, "retry_after", None),
+                ) from e
+            # Check for API errors (4xx/5xx)
+            if api_status_error and isinstance(e, api_status_error):
+                status_code = getattr(e, "status_code", "unknown")
+                message = getattr(e, "message", str(e))
+                raise ProviderError(
+                    f"OpenAI API error ({status_code}): {message}",
+                    provider="openai",
+                ) from e
+            # Check for connection errors
+            if api_connection_error and isinstance(e, api_connection_error):
+                raise ProviderError(
+                    f"OpenAI connection error: {e}",
+                    provider="openai",
+                ) from e
+            # Fallback for unexpected errors
+            raise AIError(f"OpenAI API error: {e}") from e
 
-    return process_json_response(_make_openai_call, prompt, validated_model)
+        return APICallContext(
+            raw_text=resp.output_text, provider_name="openai", model=model
+        )

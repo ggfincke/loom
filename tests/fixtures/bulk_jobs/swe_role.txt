@@ -1,0 +1,23 @@
+Software Engineer - Backend
+
+About the Role:
+We're looking for a skilled backend engineer to join our platform team.
+
+Requirements:
+- 3+ years of experience with Python or Java
+- Strong knowledge of PostgreSQL and Redis
+- Experience with REST APIs and microservices
+- Familiarity with Docker and Kubernetes
+- Experience with CI/CD pipelines
+
+Preferred:
+- Experience with AWS or GCP
+- Knowledge of Kafka or RabbitMQ
+- Familiarity with GraphQL
+- Experience with machine learning systems
+
+Responsibilities:
+- Design and implement scalable backend services
+- Write clean, maintainable code with comprehensive tests
+- Participate in code reviews and technical discussions
+- Collaborate with frontend and data teams

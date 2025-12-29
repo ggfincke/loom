@@ -8,6 +8,7 @@ from src.ai.prompts import (
     build_generate_prompt,
     build_edit_prompt,
     build_prompt_operation_prompt,
+    _is_latex_content,
 )
 
 
@@ -177,7 +178,7 @@ class TestPromptAssembly:
 
     # * Test prompts handle special characters & edge cases safely
     def test_prompt_parameter_injection_safety(self):
-        # test with potentially problematic inputs
+        # test w/ potentially problematic inputs
         problematic_resume = (
             '1\tName with "quotes" & special chars\n'
             "2\tLine with\nnewlines and\ttabs\n"
@@ -203,35 +204,32 @@ class TestPromptAssembly:
 
 
 class TestPromptRequiredElements:
-    """Test prompts contain all necessary instructional elements"""
+    # Test prompts contain all necessary instructional elements
 
+    # * Verify sectionizer schema completeness
     def test_sectionizer_schema_completeness(self):
-        """Ensure sectionizer prompt defines complete JSON schema"""
+        # Ensure sectionizer prompt defines complete JSON schema (short keys)
         prompt = build_sectionizer_prompt("1\tTest Resume\n")
 
-        # schema field requirements
-        required_fields = [
+        # schema field requirements (short keys: k=kind, h=heading, s=start, e=end, c=confidence, sub=subsections)
+        required_elements = [
             "sections",
-            "name",
-            "heading_text",
-            "start_line",
-            "end_line",
-            "confidence",
-            "subsections",
-            "normalized_order",
+            "k=kind",  # key legend
+            "h=heading",  # key legend
             "notes",
         ]
 
-        for field in required_fields:
-            assert field in prompt, f"Missing required schema field: {field}"
+        for element in required_elements:
+            assert element in prompt, f"Missing required schema element: {element}"
 
-        # data type specifications (check actual JSON examples)
-        assert '"start_line": 1' in prompt  # integer example
-        assert '"confidence": 0.95' in prompt  # float example
-        assert '"name": "SUMMARY"' in prompt  # string example
+        # data type specifications (check actual JSON examples w/ short keys)
+        assert '"s": 1' in prompt  # short key for start_line
+        assert '"c": 0.95' in prompt  # short key for confidence
+        assert '"k": "SUMMARY"' in prompt  # short key for kind
 
+    # * Verify generate operation schema completeness
     def test_generate_operation_schema_completeness(self):
-        """Ensure generate prompt defines all operation schemas"""
+        # Ensure generate prompt defines all operation schemas (short keys)
         prompt = build_generate_prompt(
             job_info="Test job",
             resume_with_line_numbers="1\tTest\n",
@@ -244,16 +242,22 @@ class TestPromptRequiredElements:
         for op in operations:
             assert op in prompt, f"Missing operation type: {op}"
 
-        # required fields per operation (check examples)
-        assert '"line": 5' in prompt  # line field with integer example
-        assert '"start": 10' in prompt  # start field with integer example
-        assert '"end": 12' in prompt  # end field with integer example
-        assert '"text": "Enhanced bullet point"' in prompt  # text field example
-        assert '"current_snippet": "Original text"' in prompt  # current_snippet example
-        assert '"why": "Targets Python requirement"' in prompt  # why field example
+        # short key legend should be present
+        assert "l=line" in prompt
+        assert "t=text" in prompt
+        assert "cur=current_snippet" in prompt
 
+        # required fields per operation (check examples w/ short keys)
+        assert '"l": 5' in prompt  # short key for line
+        assert '"s": 10' in prompt  # short key for start
+        assert '"e": 12' in prompt  # short key for end
+        assert '"t": "Enhanced bullet"' in prompt  # short key for text
+        assert '"cur": "Original"' in prompt  # short key for current_snippet
+        assert '"w": "Python req"' in prompt  # short key for why
+
+    # * Verify validation checklist presence
     def test_validation_checklist_presence(self):
-        """Ensure prompts include validation checklists"""
+        # Ensure prompts include validation checklists
         prompt = build_generate_prompt(
             job_info="Test",
             resume_with_line_numbers="1\tTest\n",
@@ -261,21 +265,19 @@ class TestPromptRequiredElements:
             created_at="2024-01-15T12:00:00Z",
         )
 
-        # validation checklist elements
-        assert (
-            "VALIDATION CHECKLIST" in prompt
-            or "validate before outputting" in prompt.lower()
-        )
-        assert "no unescaped quotes" in prompt.lower()
-        assert "line numbers exist" in prompt.lower()
+        # validation checklist elements (using short keys)
+        assert "VALIDATION CHECKLIST" in prompt
+        assert "cur matches" in prompt.lower() or "cur=current" in prompt.lower()
+        assert "l/s/e" in prompt  # short key reference
 
 
 class TestPromptEdgeCases:
-    """Test prompt builders handle edge cases gracefully"""
+    # Test prompt builders handle edge cases gracefully
 
+    # * Verify empty inputs
     def test_empty_inputs(self):
-        """Test prompts with minimal/empty inputs"""
-        # should not crash with empty inputs
+        # Test prompts w/ minimal/empty inputs
+        # should not crash w/ empty inputs
         prompt1 = build_sectionizer_prompt("")
         assert isinstance(prompt1, str)
         assert len(prompt1) > 100  # still contains instructions
@@ -289,8 +291,9 @@ class TestPromptEdgeCases:
         assert isinstance(prompt2, str)
         assert len(prompt2) > 200
 
+    # * Verify very long inputs
     def test_very_long_inputs(self):
-        """Test prompts with unusually long inputs"""
+        # Test prompts w/ unusually long inputs
         long_resume = "\n".join([f"{i}\tLine {i} content" for i in range(1, 1001)])
         long_job = "Very long job description. " * 100
 
@@ -305,8 +308,9 @@ class TestPromptEdgeCases:
         assert long_resume in prompt
         assert long_job in prompt
 
+    # * Verify none optional parameters
     def test_none_optional_parameters(self):
-        """Test optional parameters can be None"""
+        # Test optional parameters can be None
         prompt = build_generate_prompt(
             job_info="Test job",
             resume_with_line_numbers="1\tTest\n",
@@ -320,10 +324,11 @@ class TestPromptEdgeCases:
 
 
 class TestPromptHelperFunctionality:
-    """Test any helper functions mentioned in prompt construction"""
+    # Test any helper functions mentioned in prompt construction
 
+    # * Verify prompt consistency across models
     def test_prompt_consistency_across_models(self):
-        """Test prompts remain consistent regardless of model parameter"""
+        # Test prompts remain consistent regardless of model parameter
         base_args = {
             "job_info": "Test job description",
             "resume_with_line_numbers": "1\tTest Resume\n2\tContent\n",
@@ -346,8 +351,9 @@ class TestPromptHelperFunctionality:
             assert "surgical edits" in prompt.lower()
             assert "current_snippet" in prompt
 
+    # * Verify timestamp injection formats
     def test_timestamp_injection_formats(self):
-        """Test various timestamp format handling"""
+        # Test various timestamp format handling
         timestamps = [
             "2024-01-15T12:00:00Z",
             "2024-01-15T12:00:00.123Z",
@@ -448,18 +454,18 @@ class TestLatexSectionDetection:
         assert "Custom commands like \\sectionhead{}" in prompt
         assert "\\name{}, \\contact{}" in prompt
 
-    # * Test schema includes LaTeX heading text format
+    # * Test schema includes LaTeX heading text format (short keys)
     def test_latex_schema_format(self, latex_resume_sample):
         prompt = build_sectionizer_prompt(latex_resume_sample)
 
-        # schema should include LaTeX command format (check actual example)
-        assert '"heading_text": "Professional Summary"' in prompt
+        # schema should include LaTeX command format (check actual example w/ short keys)
+        assert '"h": "Professional Summary"' in prompt  # short key for heading_text
 
-        # should still include basic schema elements
-        assert '"name": "SUMMARY"' in prompt  # example name
-        assert '"start_line": 1' in prompt  # example start line
-        assert '"end_line": 5' in prompt  # example end line
-        assert '"confidence": 0.95' in prompt  # example confidence
+        # should still include basic schema elements (short keys)
+        assert '"k": "SUMMARY"' in prompt  # short key for kind
+        assert '"s": 1' in prompt  # short key for start_line
+        assert '"e": 5' in prompt  # short key for end_line
+        assert '"c": 0.95' in prompt  # short key for confidence
 
     # * Test LaTeX resume content is preserved in prompt
     def test_latex_content_injection(self, latex_resume_sample):
@@ -606,7 +612,7 @@ class TestPromptOperationPrompt:
         assert "gpt-4" in prompt
         assert "2024-01-01T00:00:00Z" in prompt
 
-    # * Test JSON schema inclusion & format validation
+    # * Test JSON schema inclusion & format validation (short keys)
     def test_json_schema_in_prompt(
         self, sample_user_instruction, sample_job_text, sample_resume_text
     ):
@@ -620,14 +626,14 @@ class TestPromptOperationPrompt:
             created_at="2024-01-01T00:00:00Z",
         )
 
-        # JSON schema components
+        # JSON schema components (short keys)
         assert '"version": 1' in prompt
         assert '"ops": [' in prompt
         assert '"meta"' in prompt
         assert '"op": "replace_line"' in prompt
-        assert '"text": "Custom user-requested content"' in prompt  # example text
-        assert '"current_snippet": "Original text"' in prompt  # example current_snippet
-        assert '"why": "User instruction fulfilled"' in prompt  # example why
+        assert '"t": "User-requested content"' in prompt  # short key for text
+        assert '"cur": "Original"' in prompt  # short key for current_snippet
+        assert '"w": "User instruction"' in prompt  # short key for why
 
     # * Test operation type handling for different edit types
     def test_operation_type_variants(
@@ -687,7 +693,7 @@ class TestPromptOperationPrompt:
         assert len(prompt_with_sections) > 200
         assert len(prompt_without_sections) > 200
 
-    # * Test prompt validation requirements & constraints
+    # * Test prompt validation requirements & constraints (short keys)
     def test_prompt_validation_requirements(
         self, sample_user_instruction, sample_job_text, sample_resume_text
     ):
@@ -701,13 +707,12 @@ class TestPromptOperationPrompt:
             created_at="2024-01-01T00:00:00Z",
         )
 
-        # validation requirements
-        assert "VALIDATION CHECKLIST" in prompt
-        assert "Include exactly ONE operation" in prompt
-        assert "No unescaped quotes" in prompt
-        assert "Use exact line numbers" in prompt
+        # validation requirements (condensed format)
+        assert "VALIDATION" in prompt
+        assert "ONE op" in prompt or "Exactly ONE" in prompt
+        assert "cur matches" in prompt.lower()
         assert "bounded embellishment only" in prompt
-        assert "replace_line operations contain NO \\n characters" in prompt
+        assert "t has no \\n" in prompt or "replace_line" in prompt
 
     # * Test user instruction content preservation
     def test_user_instruction_variants(self, sample_job_text, sample_resume_text):
@@ -753,3 +758,53 @@ class TestPromptOperationPrompt:
 
                 assert f'"model": "{model}"' in prompt
                 assert timestamp in prompt
+
+
+# * Test _is_latex_content() helper function
+class TestIsLatexContent:
+
+    # * Verify docx content returns false
+    def test_docx_content_returns_false(self):
+        # Plain text resume content should return False.
+        assert _is_latex_content("1\tJohn Doe\n2\tSoftware Engineer") is False
+
+    # * Verify documentclass at start returns true
+    def test_documentclass_at_start_returns_true(self):
+        # Content starting w/ \\documentclass should return True.
+        assert _is_latex_content("\\documentclass{article}\n\\begin{document}") is True
+
+    # * Verify documentclass w/ whitespace returns true
+    def test_documentclass_with_whitespace_returns_true(self):
+        # Content w/ leading whitespace before \\documentclass should return True.
+        assert _is_latex_content("  \\documentclass{article}") is True
+
+    # * Verify begin document anywhere returns true
+    def test_begin_document_anywhere_returns_true(self):
+        # Content containing \\begin{document} anywhere should return True.
+        assert _is_latex_content("some preamble\n\\begin{document}") is True
+
+    # * Verify empty string returns false
+    def test_empty_string_returns_false(self):
+        # Empty string should return False.
+        assert _is_latex_content("") is False
+
+    # * Verify whitespace only returns false
+    def test_whitespace_only_returns_false(self):
+        # Whitespace-only content should return False.
+        assert _is_latex_content("   \n\t  ") is False
+
+    # * Verify partial markers return false
+    def test_partial_markers_return_false(self):
+        # Partial LaTeX markers should return False.
+        assert _is_latex_content("document class article") is False
+        assert _is_latex_content("begin document") is False
+
+    # * Verify numbered lines latex returns true
+    def test_numbered_lines_latex_returns_true(self):
+        # Numbered LaTeX resume lines should return True.
+        content = (
+            "1\t\\documentclass[11pt]{article}\n"
+            "2\t\\usepackage{geometry}\n"
+            "3\t\\begin{document}"
+        )
+        assert _is_latex_content(content) is True

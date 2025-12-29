@@ -1,0 +1,24 @@
+DevOps Engineer
+
+About Us:
+Fast-growing startup seeking a DevOps engineer to help scale our infrastructure.
+
+Requirements:
+- 2+ years experience with AWS or Azure
+- Strong Linux/Unix administration skills
+- Experience with Terraform or Ansible
+- Proficiency with Docker and Kubernetes
+- Experience with CI/CD tools (Jenkins, GitHub Actions, CircleCI)
+
+Nice to Have:
+- Experience with monitoring tools (Prometheus, Grafana)
+- Knowledge of Python or Go for automation
+- Familiarity with security best practices
+- Experience with infrastructure as code
+
+What You'll Do:
+- Build and maintain CI/CD pipelines
+- Manage cloud infrastructure on AWS
+- Implement monitoring and alerting solutions
+- Automate deployment and operational tasks
+- Collaborate with development teams on DevOps practices

@@ -11,11 +11,10 @@ from src.core.pipeline import (
     diff_lines,
     process_prompt_operation,
     process_modify_operation,
+    get_operation_line,
 )
-from src.loom_io import number_lines
-from src.core.edit_helpers import get_operation_line
+from src.core.types import Lines, number_lines
 from src.core.exceptions import EditError, AIError, JSONParsingError
-from src.loom_io.types import Lines
 
 
 # * Fixtures for pipeline testing
@@ -360,7 +359,7 @@ class TestDebugFallbacks:
 
     # * Test that debug functions don't crash when debug module missing
     def test_debug_functions_handle_import_errors(self, sample_lines_dict):
-        # this simulates the ImportError handling in _debug_ai and _debug_error
+        # this simulates the ImportError handling in _debug_ai & _debug_error
 
         # mock the debug module import to fail
         with patch("src.core.pipeline.run_generate") as mock_run_generate:
@@ -457,7 +456,7 @@ class TestGenerateEditsExtended:
         assert "missing required fields: ops" in str(exc_info.value)
 
     @patch("src.core.pipeline.run_generate")
-    # * Test corrected edits JSON error with raw_text (covers lines 98-99)
+    # * Test corrected edits JSON error w/ raw_text (covers lines 98-99)
     def test_generate_corrected_edits_with_raw_text_error(
         self, mock_run_generate, sample_lines_dict
     ):
@@ -593,6 +592,7 @@ class TestProcessPromptOperation:
 
     # * Test successful prompt operation processing
     @patch("src.core.pipeline.run_generate")
+    # * Verify process prompt operation success
     def test_process_prompt_operation_success(
         self,
         mock_run_generate,
@@ -635,6 +635,7 @@ class TestProcessPromptOperation:
 
     # * Test AI failure handling (API-level failures raise AIError)
     @patch("src.core.pipeline.run_generate")
+    # * Verify process prompt operation ai failure
     def test_process_prompt_operation_ai_failure(
         self,
         mock_run_generate,
@@ -660,6 +661,7 @@ class TestProcessPromptOperation:
 
     # * Test invalid JSON response handling
     @patch("src.core.pipeline.run_generate")
+    # * Verify process prompt operation invalid json
     def test_process_prompt_operation_invalid_json(
         self,
         mock_run_generate,
@@ -686,6 +688,7 @@ class TestProcessPromptOperation:
 
     # * Test missing version validation
     @patch("src.core.pipeline.run_generate")
+    # * Verify process prompt operation missing version
     def test_process_prompt_operation_missing_version(
         self,
         mock_run_generate,
@@ -716,6 +719,7 @@ class TestProcessPromptOperation:
 
     # * Test missing ops array validation
     @patch("src.core.pipeline.run_generate")
+    # * Verify process prompt operation missing ops
     def test_process_prompt_operation_missing_ops(
         self,
         mock_run_generate,
@@ -748,6 +752,7 @@ class TestProcessPromptOperation:
 
     # * Test multiple operations validation (should be exactly one)
     @patch("src.core.pipeline.run_generate")
+    # * Verify process prompt operation multiple ops
     def test_process_prompt_operation_multiple_ops(
         self,
         mock_run_generate,
@@ -782,6 +787,7 @@ class TestProcessPromptOperation:
 
     # * Test empty ops array
     @patch("src.core.pipeline.run_generate")
+    # * Verify process prompt operation empty ops
     def test_process_prompt_operation_empty_ops(
         self,
         mock_run_generate,
@@ -812,6 +818,7 @@ class TestProcessPromptOperation:
 
     # * Test optional fields handling (confidence, why)
     @patch("src.core.pipeline.run_generate")
+    # * Verify process prompt operation optional fields
     def test_process_prompt_operation_optional_fields(
         self,
         mock_run_generate,
@@ -853,6 +860,7 @@ class TestProcessPromptOperation:
 
     # * Test sections_json parameter handling
     @patch("src.core.pipeline.run_generate")
+    # * Verify process prompt operation with sections
     def test_process_prompt_operation_with_sections(
         self,
         mock_run_generate,
@@ -883,6 +891,7 @@ class TestProcessPromptOperation:
 
     # * Test different operation types
     @patch("src.core.pipeline.run_generate")
+    # * Verify process prompt operation different types
     def test_process_prompt_operation_different_types(
         self, mock_run_generate, sample_resume_lines, sample_job_text
     ):

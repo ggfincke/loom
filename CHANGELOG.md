@@ -5,6 +5,164 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2025-12-29
+
+### Added
+- **Typst file format support**: Complete .typ resume support w/ template detection, section analysis & bundled SWE template
+- **Bulk processing system**: `loom bulk` command for multi-job processing w/ parallel execution, comparison matrix & fit scoring
+- **ATS analysis system**: `loom ats` command w/ scoring engine for Applicant Tracking System compatibility reporting
+- **Unified handler architecture**: BaseDocumentHandler abstract class w/ registry pattern (`get_handler()`) for format-agnostic processing
+- **Response caching**: AI cache w/ TTL, LRU eviction & thread-local disable for improved performance
+- **Watch mode & cache management**: Auto-recompilation workflow support & CLI commands for cache control
+- **Shared utilities**: Template loading, semantic matchers & document types (`template_io`, `shared_patterns`, `types`)
+- **ValidationResult type**: Pure data class for validation outcomes & settings cache invalidation
+
+### Changed
+- **Architecture refactoring**: Unified handler API, CLI decorators extracted to `cli/decorators.py`, validation strategies moved to CLI layer
+- **Layer purity improvements**: Move I/O from ai/ to CLI (`ensure_valid_model` → `model_helpers`), `Lines` type to `core/types.py`
+- **Type safety & formatting**: Runtime assertions for required paths, mypy compliance fixes, black formatting across codebase
+- **AI system enhancements**: Consolidate `response_cache.py` into `cache.py`, token-efficient prompt keys & normalization
+- **Settings & output**: Standardize access via `get_settings(ctx)` helper, unified output management w/ registry pattern
+- **Exception hierarchy**: Expand w/ TypstError & richer context fields across all exception classes
+- **Code style**: Convert all docstrings to single-line comments per project style guide
+- **Theme system**: Automatic initialization at startup, enhanced engine w/ styled helpers
+- **Documentation**: Enhanced layer purity rules & command authoring patterns in contributing guide
+
+### Infrastructure
+- **Test coverage**: Comprehensive unit & integration tests for Typst, bulk processing, ATS analysis & caching features
+- **Bulk I/O infrastructure**: Job discovery from directories/manifests/globs, output layout & metadata persistence
+
+<details>
+<summary>1.3.x nightly releases (click to expand)</summary>
+
+## [1.3.9-nightly.20251229] - 2025-12-29
+
+### Changed
+- **Type safety improvements**: Add runtime assertions for required paths in CLI runner & bulk runner
+- **Ollama client refactor**: Remove debug logging & singleton pattern for cleaner architecture
+- **Type hints**: Fix mypy compliance across CLI params, validation, & UI modules
+- **Import organization**: Add Click Group type guard, improve UI module exports & diff resolution init
+
+### Removed
+- **Debug logging**: Remove excessive debug output from OllamaClient API calls
+
+---
+
+## [1.3.8-nightly.20251229] - 2025-12-29
+
+### Added
+- **Unified handler architecture**: BaseDocumentHandler abstract class w/ registry pattern for format-agnostic processing
+- **Shared utilities**: Template loading, semantic matchers & document types (`template_io`, `shared_patterns`, `types`)
+- **CLI helpers**: Model validation module & `HelpOpt()` param factory for standardized help flags
+- **ValidationResult type**: Pure data class for validation outcomes & settings cache invalidation
+
+### Changed
+- **Handler refactor**: LaTeX/Typst handlers migrated to OO API w/ `get_handler()` registry & backward-compatible legacy API
+- **Layer purity**: Move I/O operations from ai/ to CLI layer (`ensure_valid_model` → `model_helpers`)
+- **Code formatting**: Apply black formatting across codebase
+- **Documentation**: Enhanced layer purity rules & command authoring patterns
+
+---
+
+## [1.3.7-nightly.20251228] - 2025-12-28
+
+### Changed
+- **Core types module**: Move `Lines` type & `number_lines` to `core/types.py` for architectural purity
+- **Output system**: Add unified output management w/ registry pattern separating core from CLI
+- **CLI decorators**: Extract `handle_loom_error`, `require_dev_mode`, `run_with_watch` to `cli/decorators.py`
+- **Validation handlers**: Move validation strategies from core to CLI layer
+- **Exception hierarchy**: Expand exception classes w/ richer context fields
+- **AI cache**: Consolidate `response_cache.py` into `cache.py`
+- **Settings access**: Standardize via `get_settings(ctx)` helper w/ context chain search
+
+### Added
+- **Command authoring docs**: Add patterns section to `docs/contributing.md`
+
+---
+
+## [1.3.6-nightly.20251227] - 2025-12-27
+
+### Added
+- **Section mapping**: Edit analysis w/ sections.json integration
+- **Cache LRU eviction**: Max entries & size limits w/ thread-local disable
+- **Typst validation**: Compiler availability checks & inline-only descriptor fallback
+
+---
+
+## [1.3.5-nightly.20251227] - 2025-12-27
+
+### Added
+- **Bulk processing system**: Multi-job processing w/ parallel execution, retry logic & fail-fast support
+- **Comparison matrix engine**: Fit scoring, keyword extraction/coverage, validation aggregation & stuffing detection
+- **`loom bulk` command**: Process resume against multiple jobs w/ ranked results & matrix output (JSON/markdown)
+
+### Changed
+- **Bulk I/O infrastructure**: Job discovery from directories/manifests/globs, output layout & metadata persistence
+- **CLI integration**: Registered bulk command w/ full ArgResolver & exported bulk I/O functions
+- **Test coverage**: Comprehensive unit tests for bulk types, scoring & I/O operations (900 lines)
+
+---
+
+## [1.3.4-nightly.20251227] - 2025-12-27
+
+### Added
+- **Typst file format support**: Complete .typ resume support w/ template detection & section analysis
+- **Typst handler & patterns**: Syntax recognition, safe edit filtering & I/O infrastructure
+- **SWE Typst template**: Bundled template w/ metadata & example resume fixture
+
+### Changed
+- **CLI integration**: Full Typst workflow support in sectionize, tailor, generate & apply commands
+- **Edit filtering**: Generalized safety checks for both LaTeX & Typst formats
+- **Test coverage**: Comprehensive unit & integration tests for Typst functionality
+
+---
+
+## [1.3.3-nightly.20251227] - 2025-12-27
+
+### Added
+- **ATS analysis system**: Applicant Tracking System analysis command & scoring engine
+- **Response caching**: AI response caching system for improved performance
+- **Watch mode**: Auto-recompilation workflow support
+- **Cache management**: CLI command for cache control operations
+- **Verbose mode**: Enhanced verbose logging support across core modules
+
+### Changed
+- **Test coverage**: Enhanced test suite for ATS & caching features
+- **Integration tests**: Updated prompt/modify operation tests
+- **CLI extensibility**: Improved runner & logic for new feature support
+
+---
+
+## [1.3.2-nightly.20251226] - 2025-12-26
+
+### Added
+- **Base client architecture**: Template class w/ registry pattern for AI providers
+- **Provider validation**: Environment & provider validation modules
+- **Testing utilities**: AI client mocking & testing support infrastructure
+
+### Changed
+- **AI client migration**: Unified base class architecture for all providers
+- **Models catalog**: Simplified catalog & streamlined client API
+- **Diff resolution**: Consolidated logic & removed ai_processor module
+- **CLI validation**: Updated commands to use new validation API
+- **LaTeX handling**: Enhanced pattern extraction & processing
+
+---
+
+## [1.3.1-nightly.20251226] - 2025-12-26
+
+### Changed
+- **Prompt optimization**: Token-efficient keys & normalization system
+- **Diff display**: Modularized into state, renderer & display components
+- **Theme system**: Automatic initialization at startup & enhanced engine
+- **File operations**: Consolidated utilities in loom_io module
+- **Help system**: Added option introspection capabilities
+- **Code cleanup**: Removed deprecated edit_helpers module
+
+</details>
+
+---
+
 ## [1.3.0] - 2025-12-20
 
 ### Added
@@ -26,7 +184,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Test coverage**: 809 tests at 88% coverage with pytest-socket network isolation
 - **Build system**: Package data support for template distribution
 
----
+<details>
+<summary>1.2.x releases (click to expand)</summary>
 
 ## [1.2.11] - 2025-12-20
 
@@ -158,6 +317,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Git hooks for automated versioning**: Install script and pre-commit/pre-push hooks to automatically version nightly releases and ensure changelog consistency
 
+</details>
+
 ---
 
 ## [1.2.0] - 2025-09-01
@@ -186,7 +347,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Interactive UI**: Improved responsiveness and loading displays
 - **Test reliability**: Enhanced mocking and environment detection
 
----
+<details>
+<summary>1.1.x releases (click to expand)</summary>
 
 ## [1.1.7-nightly.20250901] - 2025-09-01
 
@@ -315,6 +477,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Note: most of this release is UI implementation work; the operations are not fully wired up and remain non-functional.
 
+</details>
+
 ---
 
 ## [1.1.0] - 2025-08-19
@@ -337,7 +501,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Testing
 - **Comprehensive test coverage**: Added full test suite for interactive diff workflow and related components.
 
----
+<details>
+<summary>1.0.x releases (click to expand)</summary>
 
 ## [1.0.1-nightly.20250819] - 2025-08-19
 
@@ -347,6 +512,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **UI module restructuring**: Organized subpackages for better maintainability and separation of concerns.
+
+</details>
 
 ---
 
@@ -381,7 +548,8 @@ First stable release. Graduates the 0.x nightlies into a cohesive, production-re
 - Unit, integration, E2E, smoke, and stress tests (including document I/O and CLI orchestration).
 - Coverage gates and deterministic mocks for model/AI client behavior.
 
----
+<details>
+<summary>0.x releases (click to expand)</summary>
 
 ## [0.9.0-nightly.20250816] - 2025-08-16
 ### Added
@@ -563,3 +731,5 @@ First stable release. Graduates the 0.x nightlies into a cohesive, production-re
 ## [0.0.1-nightly.20250807] - 2025-08-07
 ### Added
 - Initial commit.
+
+</details>

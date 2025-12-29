@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import typer
 from ..core.constants import RiskLevel, ValidationPolicy
 
@@ -49,10 +51,10 @@ def _normalize_validation_policy(value: str | None) -> ValidationPolicy:
         )
 
 
-def ResumeArg() -> typer.Argument:
+def ResumeArg() -> Any:
     return typer.Argument(
         None,
-        help="Path to resume (.docx or .tex)",
+        help="Path to resume (.docx, .tex, or .typ)",
         exists=True,
         file_okay=True,
         dir_okay=False,
@@ -61,7 +63,7 @@ def ResumeArg() -> typer.Argument:
     )
 
 
-def JobArg() -> typer.Argument:
+def JobArg() -> Any:
     return typer.Argument(
         None,
         help="Path to job description",
@@ -73,7 +75,7 @@ def JobArg() -> typer.Argument:
     )
 
 
-def ModelOpt() -> typer.Option:
+def ModelOpt() -> Any:
     return typer.Option(
         None,
         "--model",
@@ -82,7 +84,7 @@ def ModelOpt() -> typer.Option:
     )
 
 
-def RiskOpt() -> typer.Option:
+def RiskOpt() -> Any:
     return typer.Option(
         None,
         "--risk",
@@ -91,7 +93,7 @@ def RiskOpt() -> typer.Option:
     )
 
 
-def OnErrorOpt() -> typer.Option:
+def OnErrorOpt() -> Any:
     return typer.Option(
         None,
         "--on-error",
@@ -100,19 +102,19 @@ def OnErrorOpt() -> typer.Option:
     )
 
 
-def ConfigKeyArg() -> typer.Argument:
+def ConfigKeyArg() -> Any:
     return typer.Argument(
         help="Configuration setting name",
     )
 
 
-def ConfigValueArg() -> typer.Argument:
+def ConfigValueArg() -> Any:
     return typer.Argument(
         help="New value to assign to the setting",
     )
 
 
-def EditsJsonOpt() -> typer.Option:
+def EditsJsonOpt() -> Any:
     return typer.Option(
         None,
         "--edits-json",
@@ -122,7 +124,7 @@ def EditsJsonOpt() -> typer.Option:
     )
 
 
-def SectionsPathOpt() -> typer.Option:
+def SectionsPathOpt() -> Any:
     return typer.Option(
         None,
         "--sections-path",
@@ -132,7 +134,7 @@ def SectionsPathOpt() -> typer.Option:
     )
 
 
-def PlanOpt() -> typer.Option:
+def PlanOpt() -> Any:
     return typer.Option(
         None,
         "--plan",
@@ -140,7 +142,7 @@ def PlanOpt() -> typer.Option:
     )
 
 
-def PreserveFormattingOpt() -> typer.Option:
+def PreserveFormattingOpt() -> Any:
     return typer.Option(
         True,
         "--preserve-formatting/--no-preserve-formatting",
@@ -149,7 +151,7 @@ def PreserveFormattingOpt() -> typer.Option:
     )
 
 
-def PreserveModeOpt() -> typer.Option:
+def PreserveModeOpt() -> Any:
     return typer.Option(
         "in_place",
         "--preserve-mode",
@@ -161,7 +163,7 @@ def PreserveModeOpt() -> typer.Option:
     )
 
 
-def OutJsonOpt() -> typer.Option:
+def OutJsonOpt() -> Any:
     return typer.Option(
         None,
         "--out-json",
@@ -171,17 +173,17 @@ def OutJsonOpt() -> typer.Option:
     )
 
 
-def OutputResumeOpt() -> typer.Option:
+def OutputResumeOpt() -> Any:
     return typer.Option(
         None,
         "--output-resume",
         "-r",
-        help="Path to write tailored resume (.docx or .tex); defaults to <output_dir>/tailored_resume.docx",
+        help="Path to write tailored resume (.docx, .tex, or .typ); defaults to <output_dir>/tailored_resume.<ext>",
         resolve_path=True,
     )
 
 
-def AutoOpt() -> typer.Option:
+def AutoOpt() -> Any:
     return typer.Option(
         False,
         "--auto",
@@ -189,11 +191,64 @@ def AutoOpt() -> typer.Option:
     )
 
 
-def OutputEditsOpt() -> typer.Option:
+def OutputEditsOpt() -> Any:
     return typer.Option(
         None,
         "--output-edits",
         "-o",
         help="Path to write processed edits.json; defaults to input edits_json",
         resolve_path=True,
+    )
+
+
+def UserPromptOpt() -> Any:
+    return typer.Option(
+        None,
+        "--prompt",
+        "-p",
+        help="Custom instructions for the AI to prioritize during tailoring",
+    )
+
+
+def VerboseOpt() -> Any:
+    return typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Enable verbose logging for debugging & troubleshooting",
+    )
+
+
+def LogFileOpt() -> Any:
+    return typer.Option(
+        None,
+        "--log-file",
+        help="Write verbose logs to file (enables verbose mode automatically)",
+        resolve_path=True,
+    )
+
+
+def NoCacheOpt() -> Any:
+    return typer.Option(
+        False,
+        "--no-cache",
+        help="Bypass AI response cache for this invocation",
+    )
+
+
+def WatchOpt() -> Any:
+    return typer.Option(
+        False,
+        "--watch",
+        "-w",
+        help="Watch input files for changes & re-run automatically",
+    )
+
+
+def HelpOpt() -> Any:
+    return typer.Option(
+        False,
+        "--help",
+        "-h",
+        help="Show help message & exit.",
     )

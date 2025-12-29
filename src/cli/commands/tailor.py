@@ -8,12 +8,11 @@ from typing import Optional
 import typer
 
 from ...core.constants import RiskLevel, ValidationPolicy
-from ...core.exceptions import handle_loom_error
 
 from ..app import app
-from ..helpers import is_test_environment
-from ..logic import ArgResolver
-from ..runner import TailoringMode, TailoringRunner, build_tailoring_context
+from ..decorators import handle_loom_error, run_with_watch
+from ..helpers import handle_help_flag, is_test_environment, run_tailoring_command
+from ..runner import TailoringMode
 from ..params import (
     JobArg,
     ResumeArg,
@@ -26,6 +25,10 @@ from ..params import (
     PreserveFormattingOpt,
     PreserveModeOpt,
     AutoOpt,
+    UserPromptOpt,
+    NoCacheOpt,
+    WatchOpt,
+    HelpOpt,
 )
 from ...ui.help.help_data import command_help
 from ...config.settings import get_settings
@@ -48,6 +51,8 @@ from ...config.settings import get_settings
         "loom tailor job.txt resume.docx --edits-only",
         "loom tailor resume.docx --apply --output-resume tailored.docx",
         "loom tailor job.txt resume.docx --no-preserve-formatting",
+        'loom tailor job.txt resume.docx --prompt "Emphasize leadership experience"',
+        "loom tailor job.txt resume.docx --watch",
     ],
     see_also=["sectionize", "plan"],
 )
@@ -74,23 +79,27 @@ def tailor(
         False, "--apply", help="Apply existing edits JSON to resume"
     ),
     auto: bool = AutoOpt(),
-    help: bool = typer.Option(False, "--help", "-h", help="Show help message & exit."),
+    user_prompt: Optional[str] = UserPromptOpt(),
+    no_cache: bool = NoCacheOpt(),
+    watch: bool = WatchOpt(),
+    help: bool = HelpOpt(),
 ) -> None:
-    # detect help flag & display custom help
-    if help:
-        from .help import show_command_help
+    handle_help_flag(ctx, help, "tailor")
 
-        show_command_help("tailor")
-        ctx.exit()
+    # Disable cache if --no-cache flag is set
+    if no_cache:
+        from ...ai.cache import disable_cache_for_invocation
 
-    # validate mutually exclusive flags
+        disable_cache_for_invocation()
+
+    # Validate mutually exclusive flags
     if edits_only and apply:
         from ...loom_io.console import console
 
         console.print("[red]Error: --edits-only & --apply are mutually exclusive[/]")
         ctx.exit(1)
 
-    # determine mode
+    # Determine mode
     if apply:
         mode = TailoringMode.APPLY
     elif edits_only:
@@ -98,15 +107,40 @@ def tailor(
     else:
         mode = TailoringMode.TAILOR
 
+    # Determine interactive mode: use interactive setting unless --auto or in test env
+    # Watch mode implies auto (no interactive prompts on each re-run)
     settings = get_settings(ctx)
-    resolver = ArgResolver(settings)
-
-    # determine interactive mode: use interactive setting unless --auto flag specified or in test env
+    if watch:
+        auto = True
     interactive_mode = settings.interactive and not auto and not is_test_environment()
 
-    tailoring_ctx = build_tailoring_context(
-        settings,
-        resolver,
+    # Watch mode: wrap execution in file watcher
+    if watch:
+        run_with_watch(
+            paths=[resume, job, sections_path],
+            run_func=lambda: run_tailoring_command(
+                ctx,
+                mode,
+                resume=resume,
+                job=job,
+                model=model,
+                sections_path=sections_path,
+                edits_json=edits_json,
+                output_resume=output_resume,
+                risk=risk,
+                on_error=on_error,
+                preserve_formatting=preserve_formatting,
+                preserve_mode=preserve_mode,
+                interactive=False,
+                user_prompt=user_prompt,
+            ),
+            debounce=settings.watch_debounce,
+        )
+        return
+
+    run_tailoring_command(
+        ctx,
+        mode,
         resume=resume,
         job=job,
         model=model,
@@ -118,7 +152,5 @@ def tailor(
         preserve_formatting=preserve_formatting,
         preserve_mode=preserve_mode,
         interactive=interactive_mode,
+        user_prompt=user_prompt,
     )
-
-    runner = TailoringRunner(mode, tailoring_ctx)
-    runner.run()

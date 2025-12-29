@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Union
 import json
 
-from .types import Lines
+from ..core.verbose import vlog_file_read, vlog_file_write
 
 
 def ensure_parent(path: Union[Path, str]) -> None:
@@ -18,7 +18,9 @@ def ensure_parent(path: Union[Path, str]) -> None:
 def write_json_safe(obj: dict[str, Any], path: Path) -> None:
     # write JSON safely & create parent dirs
     ensure_parent(path)
-    path.write_text(json.dumps(obj, indent=2), encoding="utf-8")
+    content = json.dumps(obj, indent=2)
+    path.write_text(content, encoding="utf-8")
+    vlog_file_write(path, len(content))
 
 
 # read JSON w/ UTF-8 encoding, return dict
@@ -26,6 +28,7 @@ def read_json_safe(path: Path) -> dict[str, Any]:
     from ..core.exceptions import JSONParsingError
 
     text = Path(path).read_text(encoding="utf-8")
+    vlog_file_read(path, len(text))
     try:
         return json.loads(text)
     except json.JSONDecodeError as e:
@@ -56,9 +59,3 @@ def exit_with_error(msg: str, code: int = 1) -> None:
 
     typer.echo(msg, err=True)
     raise typer.Exit(code)
-
-
-# * Format resume lines w/ right-aligned 4-char line numbers
-def number_lines(resume: Lines) -> str:
-    """Format resume lines with right-aligned 4-char line numbers."""
-    return "\n".join(f"{i:>4} {text}" for i, text in sorted(resume.items()))

@@ -3,35 +3,70 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from ..core.rich_components import Theme, Text
 from .theme_definitions import THEMES
 
 # lazy import to avoid circular dependency
-_settings_manager = None
+_settings_manager: Any = None
+_import_attempted = False
 
 
-def _get_settings_manager():
-    global _settings_manager
-    if _settings_manager is None:
+def _get_settings_manager() -> Any:
+    global _settings_manager, _import_attempted
+    if not _import_attempted:
+        _import_attempted = True
         try:
             from ...config.settings import settings_manager
 
             _settings_manager = settings_manager
         except ImportError:
-            _settings_manager = False  # mark as failed to avoid retrying
-    return _settings_manager if _settings_manager is not False else None
+            _settings_manager = None
+    return _settings_manager
 
 
-# * load active theme colors from settings
-def get_active_theme() -> list[str]:
+def _get_theme_colors() -> list[str]:
+    # internal: get raw theme color list; use LoomColors for external access
     settings_manager = _get_settings_manager()
     if settings_manager:
         settings = settings_manager.load()
         theme_name = getattr(settings, "theme", "deep_blue")
         return THEMES.get(theme_name, THEMES["deep_blue"])
-    else:
-        # fallback if settings not available
-        return THEMES["deep_blue"]
+    return THEMES["deep_blue"]
+
+
+# * Public alias for backward compatibility (prefer LoomColors for new code)
+def get_active_theme() -> list[str]:
+    return _get_theme_colors()
+
+
+# * get current theme name for cache invalidation
+def _get_current_theme_name() -> str:
+    sm = _get_settings_manager()
+    if sm:
+        settings = sm.load()
+        return getattr(settings, "theme", "deep_blue")
+    return "deep_blue"
+
+
+# descriptor that lazily fetches color from active theme; caches color value & invalidates when theme changes; used by LoomColors to defer color evaluation until first access
+class _LazyColorDescriptor:
+    def __init__(self, index: int) -> None:
+        self._index = index
+        self._cached_theme: str | None = None
+        self._cached_value: str | None = None
+
+    def __get__(self, obj: object, objtype: type | None = None) -> str:
+        current = _get_current_theme_name()
+        if self._cached_theme != current:
+            self._cached_value = _get_theme_colors()[self._index]
+            self._cached_theme = current
+        return self._cached_value  # type: ignore[return-value]
+
+    def reset(self) -> None:
+        self._cached_theme = None
+        self._cached_value = None
 
 
 # * RGB color interpolation helper functions for natural gradients
@@ -57,14 +92,17 @@ def _lerp_color(a_hex: str, b_hex: str, t: float) -> str:
     return _rgb_to_hex((cr, cg, cb))
 
 
-# semantic color mappings for consistent theming
+# * LoomColors provides color constants w/ lazy-loaded theme-aware colors.
+# * Dynamic colors (ACCENT_*, ARROW) are deferred until first access & cache-invalidate on theme change.
+# * Static colors (SUCCESS_*, WARNING, etc.) are plain class attributes.
 class LoomColors:
-    # theme-aware accent colors (loaded once at import)
-    _colors = get_active_theme()
-    ACCENT_PRIMARY = _colors[0]
-    ACCENT_SECONDARY = _colors[2]
-    ACCENT_DEEP = _colors[4]
-    ARROW = _colors[2]
+    # theme-aware accent colors (lazy-loaded, cache-invalidated on theme change)
+    ACCENT_PRIMARY = _LazyColorDescriptor(0)
+    ACCENT_LIGHT = _LazyColorDescriptor(1)
+    ACCENT_SECONDARY = _LazyColorDescriptor(2)
+    ACCENT_MEDIUM = _LazyColorDescriptor(3)
+    ACCENT_DEEP = _LazyColorDescriptor(4)
+    ARROW = _LazyColorDescriptor(2)
 
     # success gradient (complementary green works w/ all themes)
     SUCCESS_BRIGHT = "#10b981"  # emerald green
@@ -80,13 +118,37 @@ class LoomColors:
 
     # special effects
     CHECKMARK = SUCCESS_BRIGHT
-    ARROW = ACCENT_SECONDARY
+
+    @classmethod
+    def gradient(cls) -> list[str]:
+        # Accent colors in gradient order (primary to deep).
+        return [
+            cls.ACCENT_PRIMARY,
+            cls.ACCENT_LIGHT,
+            cls.ACCENT_SECONDARY,
+            cls.ACCENT_MEDIUM,
+            cls.ACCENT_DEEP,
+        ]
+
+
+def reset_color_cache() -> None:
+    for attr in (
+        "ACCENT_PRIMARY",
+        "ACCENT_LIGHT",
+        "ACCENT_SECONDARY",
+        "ACCENT_MEDIUM",
+        "ACCENT_DEEP",
+        "ARROW",
+    ):
+        desc = LoomColors.__dict__.get(attr)
+        if isinstance(desc, _LazyColorDescriptor):
+            desc.reset()
 
 
 # * create natural gradient text w/ smooth RGB color interpolation
 def natural_gradient(text: str, colors: list[str] | None = None) -> Text:
     if colors is None:
-        colors = get_active_theme()
+        colors = LoomColors.gradient()
 
     if not text or not colors:
         return Text(text)
@@ -132,13 +194,18 @@ def success_gradient(text: str) -> Text:
 
 # create gradient effect for accent text
 def accent_gradient(text: str) -> Text:
-    colors = get_active_theme()
-    return natural_gradient(text, [colors[0], colors[2], colors[4]])
+    return natural_gradient(
+        text,
+        [
+            LoomColors.ACCENT_PRIMARY,
+            LoomColors.ACCENT_SECONDARY,
+            LoomColors.ACCENT_DEEP,
+        ],
+    )
 
 
 # * generate Rich theme configuration w/ current colors
 def get_loom_theme() -> Theme:
-    colors = get_active_theme()
     return Theme(
         {
             # standard semantic colors
@@ -149,37 +216,33 @@ def get_loom_theme() -> Theme:
             "dim": LoomColors.DIM,
             "debug": LoomColors.DEBUG,
             # loom-specific colors (dynamic)
-            "loom.accent": colors[0],
-            "loom.accent2": colors[2],
-            "loom.accent_deep": colors[4],
+            "loom.accent": LoomColors.ACCENT_PRIMARY,
+            "loom.accent2": LoomColors.ACCENT_SECONDARY,
+            "loom.accent_deep": LoomColors.ACCENT_DEEP,
             "loom.checkmark": LoomColors.CHECKMARK,
-            "loom.arrow": colors[2],
+            "loom.arrow": LoomColors.ACCENT_SECONDARY,
             # progress styling (brighter, more legible)
-            "progress.description": colors[2],
-            "progress.elapsed": colors[1],
-            "progress.percentage": colors[0],
-            "progress.remaining": colors[2],
-            "progress.path": colors[0],
-            "progress.timer": colors[1],
+            "progress.description": LoomColors.ACCENT_SECONDARY,
+            "progress.elapsed": LoomColors.ACCENT_LIGHT,
+            "progress.percentage": LoomColors.ACCENT_PRIMARY,
+            "progress.remaining": LoomColors.ACCENT_SECONDARY,
+            "progress.path": LoomColors.ACCENT_PRIMARY,
+            "progress.timer": LoomColors.ACCENT_LIGHT,
             # help styling
-            "help.command": colors[0],
-            "help.option": colors[2],
-            "help.switch": colors[4],
+            "help.command": LoomColors.ACCENT_PRIMARY,
+            "help.option": LoomColors.ACCENT_SECONDARY,
+            "help.switch": LoomColors.ACCENT_DEEP,
             # help section headers & structure
-            "help.header": colors[1],
-            "help.usage": colors[0],
-            "help.commands": colors[2],
-            "help.options": colors[1],
-            "option": colors[2],
-            "switch": colors[4],
-            "metavar": colors[1],
-            "usage": colors[0],
+            "help.header": LoomColors.ACCENT_LIGHT,
+            "help.usage": LoomColors.ACCENT_PRIMARY,
+            "help.commands": LoomColors.ACCENT_SECONDARY,
+            "help.options": LoomColors.ACCENT_LIGHT,
+            "option": LoomColors.ACCENT_SECONDARY,
+            "switch": LoomColors.ACCENT_DEEP,
+            "metavar": LoomColors.ACCENT_LIGHT,
+            "usage": LoomColors.ACCENT_PRIMARY,
         }
     )
-
-
-# default theme (updated dynamically)
-LOOM_THEME = get_loom_theme()
 
 
 # style helpers for common CLI patterns

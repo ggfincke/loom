@@ -17,17 +17,19 @@ from src.cli.runner import (
 from src.cli.logic import ArgResolver
 from src.config.settings import LoomSettings
 from src.core.constants import RiskLevel, ValidationPolicy
-from src.loom_io.types import Lines
+from src.core.types import Lines
 
 
 # * Test TailoringMode enum values
 class TestTailoringMode:
+    # * Verify mode values
     def test_mode_values(self):
         assert TailoringMode.GENERATE.value == "generate"
         assert TailoringMode.APPLY.value == "apply"
         assert TailoringMode.TAILOR.value == "tailor"
         assert TailoringMode.PLAN.value == "plan"
 
+    # * Verify mode iteration
     def test_mode_iteration(self):
         modes = list(TailoringMode)
         assert len(modes) == 4
@@ -43,6 +45,7 @@ class TestTailoringContext:
             base_dir=str(tmp_path / ".loom"),
         )
 
+    # * Verify context defaults
     def test_context_defaults(self, mock_settings):
         ctx = TailoringContext(settings=mock_settings)
         assert ctx.resume is None
@@ -57,18 +60,22 @@ class TestTailoringContext:
         assert ctx.preserve_mode == "in_place"
         assert ctx.interactive is True
 
+    # * Verify is latex property tex
     def test_is_latex_property_tex(self, mock_settings):
         ctx = TailoringContext(settings=mock_settings, resume=Path("resume.tex"))
         assert ctx.is_latex is True
 
+    # * Verify is latex property tex uppercase
     def test_is_latex_property_tex_uppercase(self, mock_settings):
         ctx = TailoringContext(settings=mock_settings, resume=Path("resume.TEX"))
         assert ctx.is_latex is True
 
+    # * Verify is latex property docx
     def test_is_latex_property_docx(self, mock_settings):
         ctx = TailoringContext(settings=mock_settings, resume=Path("resume.docx"))
         assert ctx.is_latex is False
 
+    # * Verify is latex property none
     def test_is_latex_property_none(self, mock_settings):
         ctx = TailoringContext(settings=mock_settings, resume=None)
         assert ctx.is_latex is False
@@ -77,6 +84,7 @@ class TestTailoringContext:
 # * Test ResumeContext dataclass
 class TestResumeContext:
 
+    # * Verify resume context defaults
     def test_resume_context_defaults(self):
         lines: Lines = {1: "line 1", 2: "line 2"}
         ctx = ResumeContext(lines=lines)
@@ -87,6 +95,7 @@ class TestResumeContext:
         assert ctx.template_notes == []
         assert ctx.sections_json_str is None
 
+    # * Verify resume context full
     def test_resume_context_full(self):
         lines: Lines = {1: "line 1"}
         ctx = ResumeContext(
@@ -104,6 +113,7 @@ class TestResumeContext:
 
 # * Test VALIDATION_REQUIREMENTS mapping
 class TestValidationRequirements:
+    # * Verify generate requirements
     def test_generate_requirements(self):
         reqs = VALIDATION_REQUIREMENTS[TailoringMode.GENERATE]
         assert "resume" in reqs
@@ -112,6 +122,7 @@ class TestValidationRequirements:
         assert "output_resume" not in reqs
         assert "edits_json" not in reqs
 
+    # * Verify apply requirements
     def test_apply_requirements(self):
         reqs = VALIDATION_REQUIREMENTS[TailoringMode.APPLY]
         assert "resume" in reqs
@@ -120,6 +131,7 @@ class TestValidationRequirements:
         assert "job" not in reqs
         assert "model" not in reqs
 
+    # * Verify tailor requirements
     def test_tailor_requirements(self):
         reqs = VALIDATION_REQUIREMENTS[TailoringMode.TAILOR]
         assert "resume" in reqs
@@ -127,6 +139,7 @@ class TestValidationRequirements:
         assert "model" in reqs
         assert "output_resume" in reqs
 
+    # * Verify plan requirements
     def test_plan_requirements(self):
         reqs = VALIDATION_REQUIREMENTS[TailoringMode.PLAN]
         assert "resume" in reqs
@@ -146,6 +159,7 @@ class TestBuildTailoringContext:
             model="default-model",
         )
 
+    # * Verify build context w/ provided args
     def test_build_context_with_provided_args(self, mock_settings):
         resolver = ArgResolver(mock_settings)
         ctx = build_tailoring_context(
@@ -172,6 +186,7 @@ class TestBuildTailoringContext:
         assert ctx.preserve_mode == "rebuild"
         assert ctx.interactive is False
 
+    # * Verify build context w/ defaults
     def test_build_context_with_defaults(self, mock_settings):
         resolver = ArgResolver(mock_settings)
         ctx = build_tailoring_context(mock_settings, resolver)
@@ -195,6 +210,7 @@ class TestTailoringRunnerValidation:
             base_dir=str(tmp_path / ".loom"),
         )
 
+    # * Verify validate generate mode success
     def test_validate_generate_mode_success(self, mock_settings):
         ctx = TailoringContext(
             settings=mock_settings,
@@ -206,6 +222,7 @@ class TestTailoringRunnerValidation:
         # should not raise
         runner.validate()
 
+    # * Verify validate generate mode missing resume
     def test_validate_generate_mode_missing_resume(self, mock_settings):
         import typer
 
@@ -219,6 +236,7 @@ class TestTailoringRunnerValidation:
         with pytest.raises(typer.BadParameter, match="Resume path is required"):
             runner.validate()
 
+    # * Verify validate apply mode success
     def test_validate_apply_mode_success(self, mock_settings):
         ctx = TailoringContext(
             settings=mock_settings,
@@ -229,6 +247,7 @@ class TestTailoringRunnerValidation:
         runner = TailoringRunner(TailoringMode.APPLY, ctx)
         runner.validate()
 
+    # * Verify validate apply mode missing edits
     def test_validate_apply_mode_missing_edits(self, mock_settings):
         import typer
 
@@ -242,6 +261,7 @@ class TestTailoringRunnerValidation:
         with pytest.raises(typer.BadParameter, match="Edits path is required"):
             runner.validate()
 
+    # * Verify validate tailor mode success
     def test_validate_tailor_mode_success(self, mock_settings):
         ctx = TailoringContext(
             settings=mock_settings,
@@ -253,6 +273,7 @@ class TestTailoringRunnerValidation:
         runner = TailoringRunner(TailoringMode.TAILOR, ctx)
         runner.validate()
 
+    # * Verify validate plan mode success
     def test_validate_plan_mode_success(self, mock_settings):
         ctx = TailoringContext(
             settings=mock_settings,
@@ -274,6 +295,7 @@ class TestTailoringRunnerStepCalculation:
             base_dir=str(tmp_path / ".loom"),
         )
 
+    # * Verify calculate steps generate base
     def test_calculate_steps_generate_base(self, mock_settings):
         ctx = TailoringContext(
             settings=mock_settings,
@@ -284,6 +306,7 @@ class TestTailoringRunnerStepCalculation:
         runner = TailoringRunner(TailoringMode.GENERATE, ctx)
         assert runner.calculate_total_steps() == 4
 
+    # * Verify calculate steps generate w/ sections
     def test_calculate_steps_generate_with_sections(self, mock_settings):
         ctx = TailoringContext(
             settings=mock_settings,
@@ -295,6 +318,7 @@ class TestTailoringRunnerStepCalculation:
         runner = TailoringRunner(TailoringMode.GENERATE, ctx)
         assert runner.calculate_total_steps() == 5  # 4 + 1 for sections
 
+    # * Verify calculate steps apply base
     def test_calculate_steps_apply_base(self, mock_settings):
         ctx = TailoringContext(
             settings=mock_settings,
@@ -305,6 +329,7 @@ class TestTailoringRunnerStepCalculation:
         runner = TailoringRunner(TailoringMode.APPLY, ctx)
         assert runner.calculate_total_steps() == 5
 
+    # * Verify calculate steps apply w/ latex
     def test_calculate_steps_apply_with_latex(self, mock_settings):
         ctx = TailoringContext(
             settings=mock_settings,
@@ -315,6 +340,7 @@ class TestTailoringRunnerStepCalculation:
         runner = TailoringRunner(TailoringMode.APPLY, ctx)
         assert runner.calculate_total_steps() == 6  # 5 + 1 for LaTeX
 
+    # * Verify calculate steps apply w/ job
     def test_calculate_steps_apply_with_job(self, mock_settings):
         ctx = TailoringContext(
             settings=mock_settings,
@@ -326,6 +352,7 @@ class TestTailoringRunnerStepCalculation:
         runner = TailoringRunner(TailoringMode.APPLY, ctx)
         assert runner.calculate_total_steps() == 6  # 5 + 1 for optional job
 
+    # * Verify calculate steps apply full
     def test_calculate_steps_apply_full(self, mock_settings):
         ctx = TailoringContext(
             settings=mock_settings,
@@ -338,6 +365,7 @@ class TestTailoringRunnerStepCalculation:
         runner = TailoringRunner(TailoringMode.APPLY, ctx)
         assert runner.calculate_total_steps() == 8  # 5 + 1 LaTeX + 1 job + 1 sections
 
+    # * Verify calculate steps tailor base
     def test_calculate_steps_tailor_base(self, mock_settings):
         ctx = TailoringContext(
             settings=mock_settings,
@@ -349,6 +377,7 @@ class TestTailoringRunnerStepCalculation:
         runner = TailoringRunner(TailoringMode.TAILOR, ctx)
         assert runner.calculate_total_steps() == 7
 
+    # * Verify calculate steps tailor w/ latex
     def test_calculate_steps_tailor_with_latex(self, mock_settings):
         ctx = TailoringContext(
             settings=mock_settings,
@@ -360,6 +389,7 @@ class TestTailoringRunnerStepCalculation:
         runner = TailoringRunner(TailoringMode.TAILOR, ctx)
         assert runner.calculate_total_steps() == 8  # 7 + 1 for LaTeX
 
+    # * Verify calculate steps plan base
     def test_calculate_steps_plan_base(self, mock_settings):
         ctx = TailoringContext(
             settings=mock_settings,
@@ -393,8 +423,14 @@ class TestPrepareResumeContext:
 
     @patch("src.cli.runner.load_resume_and_job")
     @patch("src.cli.runner.load_sections")
+    # * Verify prepare context w/ job
     def test_prepare_context_with_job(
-        self, mock_load_sections, mock_load_resume_and_job, mock_settings, mock_ui, mock_progress
+        self,
+        mock_load_sections,
+        mock_load_resume_and_job,
+        mock_settings,
+        mock_ui,
+        mock_progress,
     ):
         progress, task = mock_progress
         mock_load_resume_and_job.return_value = ({1: "line 1"}, "job text")
@@ -414,8 +450,14 @@ class TestPrepareResumeContext:
 
     @patch("src.cli.runner.read_resume")
     @patch("src.cli.runner.load_sections")
+    # * Verify prepare context without job
     def test_prepare_context_without_job(
-        self, mock_load_sections, mock_read_resume, mock_settings, mock_ui, mock_progress
+        self,
+        mock_load_sections,
+        mock_read_resume,
+        mock_settings,
+        mock_ui,
+        mock_progress,
     ):
         progress, task = mock_progress
         mock_read_resume.return_value = {1: "line 1"}
@@ -434,21 +476,40 @@ class TestPrepareResumeContext:
         mock_read_resume.assert_called_once()
 
     @patch("src.cli.runner.read_resume")
-    @patch("src.cli.runner.build_latex_context")
+    @patch("src.cli.runner.get_handler")
     @patch("src.cli.runner.load_sections")
+    # * Verify prepare context latex detection
     def test_prepare_context_latex_detection(
-        self, mock_load_sections, mock_build_latex, mock_read_resume, mock_settings, mock_ui, mock_progress
+        self,
+        mock_load_sections,
+        mock_get_handler,
+        mock_read_resume,
+        mock_settings,
+        mock_ui,
+        mock_progress,
+        tmp_path,
     ):
         progress, task = mock_progress
         mock_read_resume.return_value = {1: "\\documentclass"}
+        mock_load_sections.return_value = None
+
+        # Create a real temp file (needed for ctx.resume.read_text())
+        tex_file = tmp_path / "resume.tex"
+        tex_file.write_text("\\documentclass{article}")
+
+        # Mock the handler
+        mock_handler = Mock()
         mock_descriptor = Mock()
         mock_descriptor.id = "moderncv"
-        mock_build_latex.return_value = (mock_descriptor, '{"sections": []}', ["note1"])
-        mock_load_sections.return_value = None
+        mock_analysis = Mock()
+        mock_analysis.notes = ["note1"]
+        mock_handler.build_context.return_value = (mock_descriptor, mock_analysis)
+        mock_handler.sections_to_payload.return_value = {"sections": []}
+        mock_get_handler.return_value = mock_handler
 
         ctx = TailoringContext(
             settings=mock_settings,
-            resume=Path("resume.tex"),
+            resume=tex_file,
             job=None,
         )
 
@@ -457,14 +518,21 @@ class TestPrepareResumeContext:
         assert result.descriptor == mock_descriptor
         assert result.auto_sections_json == '{"sections": []}'
         assert result.template_notes == ["note1"]
-        mock_build_latex.assert_called_once()
+        mock_get_handler.assert_called_once()
+        mock_handler.build_context.assert_called_once()
         # verify LaTeX info was displayed
         mock_ui.print.assert_called()
 
     @patch("src.cli.runner.read_resume")
     @patch("src.cli.runner.load_sections")
+    # * Verify prepare context explicit sections
     def test_prepare_context_explicit_sections(
-        self, mock_load_sections, mock_read_resume, mock_settings, mock_ui, mock_progress
+        self,
+        mock_load_sections,
+        mock_read_resume,
+        mock_settings,
+        mock_ui,
+        mock_progress,
     ):
         progress, task = mock_progress
         mock_read_resume.return_value = {1: "line 1"}
@@ -501,6 +569,7 @@ class TestTailoringRunnerExecution:
     @patch("src.cli.runner.generate_edits_core")
     @patch("src.cli.runner.persist_edits_json")
     @patch("src.cli.runner.report_result")
+    # * Verify run generate mode
     def test_run_generate_mode(
         self,
         mock_report,
@@ -545,6 +614,7 @@ class TestTailoringRunnerExecution:
     @patch("src.cli.runner.apply_edits_core")
     @patch("src.cli.runner.write_output_with_diff")
     @patch("src.cli.runner.report_result")
+    # * Verify run apply mode
     def test_run_apply_mode(
         self,
         mock_report,
@@ -590,6 +660,7 @@ class TestTailoringRunnerExecution:
     @patch("src.cli.runner.apply_edits_core")
     @patch("src.cli.runner.write_output_with_diff")
     @patch("src.cli.runner.report_result")
+    # * Verify run tailor mode
     def test_run_tailor_mode(
         self,
         mock_report,
@@ -640,6 +711,7 @@ class TestTailoringRunnerExecution:
     @patch("src.cli.runner.persist_edits_json")
     @patch("src.cli.runner.ensure_parent")
     @patch("src.cli.runner.report_result")
+    # * Verify run plan mode
     def test_run_plan_mode(
         self,
         mock_report,
@@ -685,6 +757,7 @@ class TestTailoringRunnerExecution:
     @patch("src.cli.runner.setup_ui_with_progress")
     @patch("src.cli.runner.prepare_resume_context")
     @patch("src.cli.runner.generate_edits_core")
+    # * Verify run generate mode failure
     def test_run_generate_mode_failure(
         self, mock_generate, mock_prepare, mock_setup, mock_settings
     ):

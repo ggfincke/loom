@@ -3,22 +3,48 @@
 
 # This module provides a single Console instance that all other modules import to ensure consistent output formatting, theming, & progress coordination.
 #
+# Architecture notes:
+# - Console is created as a bare Console() at import time (lightweight, no theme loading)
+# - Theme initialization happens explicitly in app.py:main_callback() via auto_initialize_theme()
+# - The _ConsoleProxy pattern allows reconfiguring/resetting without breaking module-level references
+#
 # Usage patterns:
 # - For modules w/ UI instance: Use `ui.print()` for progress-aware output
 # - For modules without UI: Use `console.print()` directly
-# - Tests: Mock only `src.loom_io.console.console` to intercept all output
+# - Tests: Use reset_console() for isolation; mock `src.loom_io.console.console` to intercept output
 
 from __future__ import annotations
-from typing import Optional
+from typing import Optional, Any
 from rich.console import Console
 
-# single console instance used by all modules for consistent output & progress coordination
-console = Console()
+
+# proxy delegating to underlying Console instance; allows reconfiguring/resetting console w/out breaking module-level references; all Console methods forwarded via __getattr__
+class _ConsoleProxy:
+    __slots__ = ("_console",)
+
+    def __init__(self) -> None:
+        self._console = Console()
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._console, name)
+
+    def _set_console(self, new_console: Console) -> None:
+        self._console = new_console
+
+    def _get_console(self) -> Console:
+        return self._console
 
 
-# * Get the global console instance (ensures initialization)
+# single proxy instance used by all modules for consistent output & progress coordination
+console = _ConsoleProxy()
+
+
+# * Get the underlying Console instance
 def get_console() -> Console:
-    return console
+    # handle both proxy & direct Console (e.g., when patched in tests)
+    if hasattr(console, "_get_console"):
+        return console._get_console()
+    return console  # type: ignore[return-value]
 
 
 # * Configure console w/ specific settings (useful for tests & CLI modes)
@@ -28,8 +54,7 @@ def configure_console(
     force_terminal: Optional[bool] = None,
     record: bool = False,
 ) -> Console:
-    global console
-    kwargs = {}
+    kwargs: dict[str, Any] = {}
     if width is not None:
         kwargs["width"] = width
     if height is not None:
@@ -40,18 +65,19 @@ def configure_console(
         kwargs["record"] = True
 
     if kwargs:  # only recreate if settings provided
-        console = Console(**kwargs)
-    return console
+        console._set_console(Console(**kwargs))
+    return console._get_console()
 
 
 # * Reset console to default configuration (useful for tests)
 def reset_console() -> Console:
-    global console
-    console = Console()
-    return console
+    console._set_console(Console())
+    return console._get_console()
 
 
-# * Refresh console theme w/ current settings
+# * Refresh console theme w/ current settings.
+# * Theme initialization happens explicitly in app.py:main_callback() via auto_initialize_theme().
+# * Call this function after settings changes (e.g., theme selection) to apply new theme.
 def refresh_theme() -> None:
     # ! import here to avoid circular dependency w/ ui module
     try:
@@ -60,16 +86,6 @@ def refresh_theme() -> None:
         _refresh_theme()
     except ImportError:
         pass
-
-
-# ! import here to avoid circular dependency w/ ui module
-try:
-    from ..ui.theming.console_theme import auto_initialize_theme
-
-    auto_initialize_theme()
-except ImportError:
-    # theme will be set later when ui module is available
-    pass
 
 
 # export main console instance for direct import

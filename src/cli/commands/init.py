@@ -8,8 +8,8 @@ from typing import Optional
 import shutil
 import typer
 
-from ...core.exceptions import handle_loom_error
 from ...loom_io.console import console
+from ..decorators import handle_loom_error
 from ..app import app
 from ...ui.help.help_data import command_help
 from .templates import discover_templates

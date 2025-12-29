@@ -16,38 +16,42 @@ from src.loom_io.console import (
 
 class TestConsoleModule:
 
-    # * Test global console instance exists
+    # * Test global console proxy exists & forwards Console methods
     def test_console_instance_exists(self):
         assert console is not None
-        assert isinstance(console, Console)
+        # console is now a proxy; verify it has Console-like behavior
+        assert hasattr(console, "print")
+        assert hasattr(console, "capture")
+        assert callable(console.print)
 
-    # * Test get_console returns global instance
-    def test_get_console_returns_global_instance(self):
+    # * Test get_console returns underlying Console instance
+    def test_get_console_returns_console_instance(self):
         result = get_console()
-        assert result is console
         assert isinstance(result, Console)
+        # get_console returns the underlying Console, not the proxy
+        assert result is console._get_console()
 
-    # * Test reset_console creates new instance
+    # * Test reset_console creates new underlying instance
     def test_reset_console_creates_new_instance(self):
-        original_console = console
+        original_underlying = console._get_console()
 
         new_console = reset_console()
 
         # should return new Console instance
         assert isinstance(new_console, Console)
-        # the global console reference should be updated
-        from src.loom_io.console import console as updated_console
+        # the underlying console should be different
+        assert new_console is not original_underlying
+        # the proxy's underlying console should be updated
+        assert console._get_console() is new_console
 
-        assert updated_console is new_console
-
-    # * Test configure_console with default parameters
+    # * Test configure_console w/ default parameters
     def test_configure_console_no_parameters(self):
         result = configure_console()
 
         # should return a console instance when no parameters provided
         assert isinstance(result, Console)
 
-    # * Test configure_console with width parameter
+    # * Test configure_console w/ width parameter
     def test_configure_console_with_width(self):
         result = configure_console(width=100)
 
@@ -55,7 +59,7 @@ class TestConsoleModule:
         # verify the console has the configured width
         assert result.size.width == 100
 
-    # * Test configure_console with height parameter
+    # * Test configure_console w/ height parameter
     def test_configure_console_with_height(self):
         result = configure_console(height=50)
 
@@ -63,7 +67,7 @@ class TestConsoleModule:
         # verify the console has the configured height
         assert result.size.height == 50
 
-    # * Test configure_console with force_terminal parameter
+    # * Test configure_console w/ force_terminal parameter
     def test_configure_console_with_force_terminal(self):
         result = configure_console(force_terminal=True)
 
@@ -71,7 +75,7 @@ class TestConsoleModule:
         # verify force_terminal was set
         assert hasattr(result, "_force_terminal")
 
-    # * Test configure_console with record parameter
+    # * Test configure_console w/ record parameter
     def test_configure_console_with_record(self):
         result = configure_console(record=True)
 
@@ -79,7 +83,7 @@ class TestConsoleModule:
         # verify recording functionality exists (internal implementation may vary)
         assert hasattr(result, "record") or hasattr(result, "_record_buffer")
 
-    # * Test configure_console with multiple parameters
+    # * Test configure_console w/ multiple parameters
     def test_configure_console_with_multiple_parameters(self):
         result = configure_console(
             width=120, height=40, force_terminal=False, record=True
@@ -89,14 +93,15 @@ class TestConsoleModule:
         assert result.size.width == 120
         assert result.size.height == 40
 
-    # * Test refresh_theme with successful import
+    # * Test refresh_theme w/ successful import
     @patch("src.ui.theming.console_theme.refresh_theme")
+    # * Verify refresh theme success
     def test_refresh_theme_success(self, mock_refresh_theme):
         # should call the ui refresh_theme function
         refresh_theme()
         mock_refresh_theme.assert_called_once()
 
-    # * Test refresh_theme with import error
+    # * Test refresh_theme w/ import error
     def test_refresh_theme_import_error(self):
         # should not raise exception when import fails
         with patch("builtins.__import__", side_effect=ImportError):
@@ -104,7 +109,7 @@ class TestConsoleModule:
 
     # * Test refresh_theme function is available
     def test_refresh_theme_function_exists(self):
-        # verify the function exists and can be called
+        # verify the function exists & can be called
         assert callable(refresh_theme)
 
         # should not raise exception
@@ -112,7 +117,7 @@ class TestConsoleModule:
 
     # * Test console configuration persistence
     def test_console_configuration_persistence(self):
-        # configure console with specific settings
+        # configure console w/ specific settings
         configured_console = configure_console(width=80, record=True)
 
         # verify the global console has been updated
@@ -121,7 +126,7 @@ class TestConsoleModule:
 
     # * Test reset restores default behavior
     def test_reset_restores_defaults(self):
-        # first configure with custom settings
+        # first configure w/ custom settings
         configure_console(width=200, height=100)
 
         # then reset to defaults
@@ -154,14 +159,14 @@ class TestConsoleModule:
         assert hasattr(test_console, "print")
         assert callable(test_console.print)
 
-        # test basic print functionality with capture
+        # test basic print functionality w/ capture
         with test_console.capture() as capture:
             test_console.print("test message")
 
         output = capture.get()
         assert "test message" in output
 
-    # * Test console configuration with invalid parameters
+    # * Test console configuration w/ invalid parameters
     def test_configure_console_with_none_values(self):
         # passing None values should not create new console
         result = configure_console(
@@ -206,7 +211,7 @@ class TestConsoleInitialization:
     # * Test auto initialization attempts
     def test_auto_initialization_attempts(self):
         # The module should handle missing ui module gracefully
-        # Just verify that refresh_theme doesn't crash with ImportError
+        # Just verify that refresh_theme doesn't crash w/ ImportError
         with patch(
             "src.ui.theming.console_theme.refresh_theme", side_effect=ImportError
         ):
@@ -231,13 +236,13 @@ class TestConsoleInitialization:
 
 class TestConsoleEdgeCases:
 
-    # * Test configure_console with edge case values
+    # * Test configure_console w/ edge case values
     def test_configure_console_edge_cases(self):
-        # test with very small dimensions
+        # test w/ very small dimensions
         result = configure_console(width=1, height=1)
         assert isinstance(result, Console)
 
-        # test with very large dimensions
+        # test w/ very large dimensions
         result = configure_console(width=10000, height=10000)
         assert isinstance(result, Console)
 
@@ -267,12 +272,13 @@ class TestConsoleEdgeCases:
         # then configure
         configured = configure_console(width=150, record=True)
 
-        # should have both reset behavior and configuration
+        # should have both reset behavior & configuration
         assert isinstance(configured, Console)
         assert configured.size.width == 150
 
-    # * Test refresh_theme with partial import success
+    # * Test refresh_theme w/ partial import success
     @patch("src.ui.theming.console_theme.refresh_theme")
+    # * Verify refresh theme partial import
     def test_refresh_theme_partial_import(self, mock_refresh_theme):
         # simulate scenario where import succeeds but function fails
         mock_refresh_theme.side_effect = Exception("Theme error")

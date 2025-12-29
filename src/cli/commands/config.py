@@ -15,12 +15,16 @@ from ...ui.theming.theme_definitions import THEMES
 from ...ui.theming.theme_engine import (
     styled_checkmark,
     success_gradient,
-    LoomColors,
     accent_gradient,
-    styled_bullet,
-    styled_arrow,
+)
+from ...ui.theming.styled_helpers import (
+    styled_setting_line,
+    format_setting_value,
+    styled_success_line,
 )
 from ..app import app
+from ..helpers import handle_help_flag
+from ..params import HelpOpt
 from ...ui.theming.theme_selector import interactive_theme_selector
 from ...ui.display.ascii_art import show_loom_art
 from ...ui.help.help_data import command_help
@@ -86,23 +90,8 @@ def _print_current_settings() -> None:
 
     # display each setting w/ styled formatting
     for key, value in data.items():
-        # format value based on type
-        if isinstance(value, str):
-            formatted_value = f'[loom.accent2]"{value}"[/]'
-        elif isinstance(value, bool):
-            formatted_value = f"[loom.accent2]{str(value).lower()}[/]"
-        elif isinstance(value, (int, float)):
-            formatted_value = f"[loom.accent2]{value}[/]"
-        else:
-            formatted_value = f"[loom.accent2]{json.dumps(value)}[/]"
-
-        # display setting w/ bullet & arrow styling
-        console.print(
-            styled_bullet(),
-            f"[bold white]{key}[/]",
-            "[loom.accent2]->",
-            formatted_value,
-        )
+        formatted_value = format_setting_value(value)
+        console.print(*styled_setting_line(key, formatted_value))
 
     # add help usage note
     console.print()
@@ -114,16 +103,9 @@ def _print_current_settings() -> None:
 @config_app.callback(invoke_without_command=True)
 def config_callback(
     ctx: typer.Context,
-    help: bool = typer.Option(
-        False, "--help", "-h", help="Show help message and exit."
-    ),
+    help: bool = HelpOpt(),
 ) -> None:
-    # detect help flag & show custom help
-    if help:
-        from .help import show_command_help
-
-        show_command_help("config")
-        ctx.exit()
+    handle_help_flag(ctx, help, "config")
 
     if ctx.invoked_subcommand is None:
         _print_current_settings()
@@ -165,10 +147,7 @@ def set_cmd(key: str, value: str) -> None:
     except Exception as e:
         raise typer.BadParameter(str(e))
     console.print(
-        styled_checkmark(),
-        success_gradient(f"Set {key}"),
-        "->",
-        f"[loom.accent2]{json.dumps(coerced)}[/]",
+        *styled_success_line(f"Set {key}", f"[loom.accent2]{json.dumps(coerced)}[/]")
     )
 
 
@@ -187,7 +166,8 @@ def path() -> None:
 
 # * Explicit 'list' command to show current settings
 @config_app.command()
-def list() -> None:  # noqa: A003 - allow command name 'list'
+# noqa: A003 - allow command name 'list'
+def list() -> None:
     _print_current_settings()
 
 
@@ -204,8 +184,9 @@ def themes() -> None:
 
         refresh_theme()
 
+        console.print()
         console.print(
-            f"\n{styled_checkmark()} {success_gradient(f'Theme set to')} [loom.accent2]{selected_theme}[/]"
+            *styled_success_line("Theme set to", f"[loom.accent2]{selected_theme}[/]")
         )
 
         # show banner w/ new theme

@@ -55,4 +55,57 @@ Thanks for your interest in improving Loom! This guide outlines the workflow and
 - **Data**: Sample inputs in `data/`; generated artifacts in `output/` (git-ignored).
 - **Config**: Local settings at `~/.loom/config.json`; environment variables via `.env`.
 
+## Command Authoring
+
+When creating CLI commands, use these patterns from `cli/decorators.py` and `cli/params.py`:
+
+### Standard Command Structure
+
+```python
+from ..decorators import handle_loom_error, run_with_watch
+from ..helpers import handle_help_flag
+from ..params import ResumeArg, WatchOpt, HelpOpt
+from ...config.settings import get_settings
+
+@app.command(help="Description")
+@handle_loom_error
+def my_command(
+    ctx: typer.Context,
+    resume: Path = ResumeArg(),
+    watch: bool = WatchOpt(),
+    help: bool = HelpOpt(),
+) -> None:
+    handle_help_flag(ctx, help, "my_command")
+    settings = get_settings(ctx)
+    
+    if watch:
+        run_with_watch(
+            paths=[resume],
+            run_func=lambda: _do_work(settings, resume),
+            debounce=settings.watch_debounce,
+        )
+        return
+    
+    _do_work(settings, resume)
+```
+
+### Param Factories
+
+Use param factories from `cli/params.py` for consistent argument definitions:
+
+- `ResumeArg()`, `JobArg()` - Standard path arguments
+- `ModelOpt()`, `RiskOpt()`, `OnErrorOpt()` - Common options
+- `WatchOpt()` - File watching support
+- `HelpOpt()` - Standard help flag (`--help`, `-h`)
+
+### Decorators
+
+- `@handle_loom_error` - Catches `LoomError` subclasses, formats output, exits cleanly
+- `@require_dev_mode` - Restricts command to dev mode (for development-only commands)
+- `run_with_watch(paths, run_func, debounce)` - File watching helper for auto-rerun
+
+### Settings Access
+
+Always use `get_settings(ctx)` for context-aware settings retrieval. This searches the Typer context chain & falls back to disk. For mutations, use `settings_manager.set()`. After mutations, call `invalidate_settings_cache()` if cached settings may be stale.
+
 Appreciate your contributions!
