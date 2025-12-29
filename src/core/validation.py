@@ -25,7 +25,7 @@ class ValidationResult:
 
 # * Integer type & bounds validation
 def validate_line_number(
-    line: any, op_index: Optional[int] = None
+    line: Any, op_index: Optional[int] = None
 ) -> tuple[bool, Optional[str]]:
     if not isinstance(line, int):
         prefix = f"Op {op_index}: " if op_index is not None else ""
@@ -40,7 +40,7 @@ def validate_line_number(
 
 # * Range bounds validation
 def validate_range_bounds(
-    start: any, end: any, op_index: Optional[int] = None
+    start: Any, end: Any, op_index: Optional[int] = None
 ) -> tuple[bool, Optional[str]]:
     prefix = f"Op {op_index}: " if op_index is not None else ""
 
@@ -69,7 +69,7 @@ def validate_required_fields(
 
 # * Text type validation
 def validate_text_field(
-    text: any, allow_newlines: bool = True, op_index: Optional[int] = None
+    text: Any, allow_newlines: bool = True, op_index: Optional[int] = None
 ) -> tuple[bool, Optional[str]]:
     prefix = f"Op {op_index}: " if op_index is not None else ""
 
@@ -187,20 +187,20 @@ def validate_edits(
             is_valid, error = validate_required_fields(
                 op, ["line", "text"], "replace_line", i
             )
-            if not is_valid:
+            if not is_valid and error is not None:
                 warnings.append(error)
                 continue
 
             line = op["line"]
             is_valid, error = validate_line_number(line, i)
-            if not is_valid:
+            if not is_valid and error is not None:
                 warnings.append(error)
                 continue
 
             is_valid, error = validate_text_field(
                 op["text"], allow_newlines=False, op_index=i
             )
-            if not is_valid:
+            if not is_valid and error is not None:
                 warnings.append(error)
                 continue
 
@@ -216,20 +216,20 @@ def validate_edits(
             is_valid, error = validate_required_fields(
                 op, ["start", "end", "text"], "replace_range", i
             )
-            if not is_valid:
+            if not is_valid and error is not None:
                 warnings.append(error)
                 continue
 
             start, end = op["start"], op["end"]
             is_valid, error = validate_range_bounds(start, end, i)
-            if not is_valid:
+            if not is_valid and error is not None:
                 warnings.append(error)
                 continue
 
             is_valid, error = validate_text_field(
                 op["text"], allow_newlines=True, op_index=i
             )
-            if not is_valid:
+            if not is_valid and error is not None:
                 warnings.append(error)
                 continue
 
@@ -254,20 +254,20 @@ def validate_edits(
             is_valid, error = validate_required_fields(
                 op, ["line", "text"], "insert_after", i
             )
-            if not is_valid:
+            if not is_valid and error is not None:
                 warnings.append(error)
                 continue
 
             line = op["line"]
             is_valid, error = validate_line_number(line, i)
-            if not is_valid:
+            if not is_valid and error is not None:
                 warnings.append(error)
                 continue
 
             is_valid, error = validate_text_field(
                 op["text"], allow_newlines=True, op_index=i
             )
-            if not is_valid:
+            if not is_valid and error is not None:
                 warnings.append(error)
                 continue
 
@@ -279,13 +279,13 @@ def validate_edits(
             is_valid, error = validate_required_fields(
                 op, ["start", "end"], "delete_range", i
             )
-            if not is_valid:
+            if not is_valid and error is not None:
                 warnings.append(error)
                 continue
 
             start, end = op["start"], op["end"]
             is_valid, error = validate_range_bounds(start, end, i)
-            if not is_valid:
+            if not is_valid and error is not None:
                 warnings.append(error)
                 continue
 
