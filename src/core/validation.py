@@ -1,7 +1,7 @@
 # src/core/validation.py
 # Pure validation logic for edit operations (no I/O)
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Any, Optional
 from .constants import (
     RiskLevel,
@@ -13,6 +13,14 @@ from .constants import (
 
 from .types import Lines
 from .edit_helpers import check_line_exists, check_range_exists, count_text_lines
+
+
+# * Standard result type for validation operations (pure data, no I/O)
+@dataclass
+class ValidationResult:
+    is_valid: bool
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
 
 # * Integer type & bounds validation

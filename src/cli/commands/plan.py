@@ -22,6 +22,7 @@ from ..params import (
     OnErrorOpt,
     ModelOpt,
     SectionsPathOpt,
+    HelpOpt,
 )
 from ...ui.help.help_data import command_help
 
@@ -55,9 +56,7 @@ def plan(
     on_error: Optional[ValidationPolicy] = OnErrorOpt(),
     model: Optional[str] = ModelOpt(),
     sections_path: Optional[Path] = SectionsPathOpt(),
-    help: bool = typer.Option(
-        False, "--help", "-h", help="Show help message and exit."
-    ),
+    help: bool = HelpOpt(),
 ) -> None:
     handle_help_flag(ctx, help, "plan")
 

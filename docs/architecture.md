@@ -253,6 +253,26 @@ Line dictionaries are copied, not modified in place; operations return new state
 ### 6. Modular UI Architecture
 Focused modules for theming, help, progress, reporting, & interactive elements.
 
+### 7. Layer Purity Rules
+
+The codebase enforces strict layer separation to maintain testability and architectural clarity:
+
+| Layer | Purpose | I/O Allowed | Imports From |
+|-------|---------|-------------|--------------|
+| `core/` | Pure business logic | No | Only stdlib, dataclasses |
+| `ai/` | Provider integrations | Network only | core/, stdlib |
+| `cli/` | User interaction | Yes | All layers |
+| `loom_io/` | File & format I/O | Yes | core/, stdlib |
+| `ui/` | Display & theming | Yes | core/, loom_io/, stdlib |
+| `config/` | Settings persistence | Yes | core/, stdlib |
+
+**Key rules:**
+- `core/` must be pure: no `print()`, `typer.echo()`, `sys.stdin`, `console.*`, or file operations
+- `core/` exceptions are pure class definitions only (no I/O in `__init__` or methods)
+- I/O decorators (`handle_loom_error`, `require_dev_mode`) belong in `cli/decorators.py`
+- Validation strategies that prompt users belong in `cli/validation_handlers.py`
+- Model validation with error display belongs in `cli/model_helpers.py`
+
 ## AI Integration Strategy
 
 ### Structured Output

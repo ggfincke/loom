@@ -29,7 +29,7 @@ from ..helpers import handle_help_flag, validate_required_args
 from ...ui.core.progress import setup_ui_with_progress
 from ...ui.display.ats_report import render_ats_report, render_ats_summary
 from ..logic import ArgResolver
-from ..params import ResumeArg, OutJsonOpt, ModelOpt
+from ..params import ResumeArg, OutJsonOpt, ModelOpt, HelpOpt
 from ...ui.help.help_data import command_help
 from ...config.settings import get_settings
 
@@ -162,7 +162,7 @@ def ats(
         "--fail-on",
         help="Exit non-zero if issues at level: critical|warning",
     ),
-    help: bool = typer.Option(False, "--help", "-h", help="Show help message & exit."),
+    help: bool = HelpOpt(),
 ) -> None:
     handle_help_flag(ctx, help, "ats")
     settings = get_settings(ctx)

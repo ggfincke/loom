@@ -25,6 +25,7 @@ from ..params import (
     ModelOpt,
     SectionsPathOpt,
     WatchOpt,
+    HelpOpt,
 )
 from ...config.settings import get_settings
 from ...ui.help.help_data import command_help
@@ -63,7 +64,7 @@ def apply(
     model: Optional[str] = ModelOpt(),
     sections_path: Optional[Path] = SectionsPathOpt(),
     watch: bool = WatchOpt(),
-    help: bool = typer.Option(False, "--help", "-h", help="Show help message & exit."),
+    help: bool = HelpOpt(),
 ) -> None:
     handle_help_flag(ctx, help, "apply")
 

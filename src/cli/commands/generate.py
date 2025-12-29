@@ -23,6 +23,7 @@ from ..params import (
     OnErrorOpt,
     UserPromptOpt,
     WatchOpt,
+    HelpOpt,
 )
 from ...config.settings import get_settings
 from ...ui.help.help_data import command_help
@@ -62,9 +63,7 @@ def generate(
     on_error: Optional[ValidationPolicy] = OnErrorOpt(),
     user_prompt: Optional[str] = UserPromptOpt(),
     watch: bool = WatchOpt(),
-    help: bool = typer.Option(
-        False, "--help", "-h", help="Show help message and exit."
-    ),
+    help: bool = HelpOpt(),
 ) -> None:
     handle_help_flag(ctx, help, "generate")
 

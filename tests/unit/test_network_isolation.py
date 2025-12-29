@@ -5,12 +5,15 @@ import pytest
 import socket
 from unittest.mock import patch
 
+# Skip tests that depend on pytest-socket if not installed
+pytest_socket = pytest.importorskip(
+    "pytest_socket", reason="pytest-socket not installed"
+)
+
 
 # * Verify that network calls are blocked by pytest-socket
 def test_network_blocked_by_default():
-    from pytest_socket import SocketBlockedError
-
-    with pytest.raises(SocketBlockedError):
+    with pytest.raises(pytest_socket.SocketBlockedError):
         # attempt to make a network connection should fail
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -18,9 +21,8 @@ def test_network_blocked_by_default():
 # * Verify HTTP requests are blocked
 def test_http_requests_blocked():
     import urllib.request
-    from pytest_socket import SocketBlockedError
 
-    with pytest.raises(SocketBlockedError):
+    with pytest.raises(pytest_socket.SocketBlockedError):
         urllib.request.urlopen("http://httpbin.org/get")
 
 

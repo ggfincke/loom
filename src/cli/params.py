@@ -241,3 +241,12 @@ def WatchOpt() -> typer.Option:
         "-w",
         help="Watch input files for changes & re-run automatically",
     )
+
+
+def HelpOpt() -> typer.Option:
+    return typer.Option(
+        False,
+        "--help",
+        "-h",
+        help="Show help message & exit.",
+    )

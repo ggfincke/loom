@@ -28,6 +28,7 @@ from ..params import (
     UserPromptOpt,
     NoCacheOpt,
     WatchOpt,
+    HelpOpt,
 )
 from ...ui.help.help_data import command_help
 from ...config.settings import get_settings
@@ -81,7 +82,7 @@ def tailor(
     user_prompt: Optional[str] = UserPromptOpt(),
     no_cache: bool = NoCacheOpt(),
     watch: bool = WatchOpt(),
-    help: bool = typer.Option(False, "--help", "-h", help="Show help message & exit."),
+    help: bool = HelpOpt(),
 ) -> None:
     handle_help_flag(ctx, help, "tailor")
 

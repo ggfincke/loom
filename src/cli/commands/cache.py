@@ -15,6 +15,7 @@ from ...ui.theming.theme_engine import (
 from ...ui.theming.styled_helpers import styled_setting_line, styled_success_line
 from ..app import app
 from ..helpers import handle_help_flag
+from ..params import HelpOpt
 from ...ui.help.help_data import command_help
 
 
@@ -74,9 +75,7 @@ def _print_cache_stats() -> None:
 @cache_app.callback(invoke_without_command=True)
 def cache_callback(
     ctx: typer.Context,
-    help: bool = typer.Option(
-        False, "--help", "-h", help="Show help message and exit."
-    ),
+    help: bool = HelpOpt(),
 ) -> None:
     handle_help_flag(ctx, help, "cache")
 

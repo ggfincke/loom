@@ -24,6 +24,7 @@ from ...ui.theming.styled_helpers import (
 )
 from ..app import app
 from ..helpers import handle_help_flag
+from ..params import HelpOpt
 from ...ui.theming.theme_selector import interactive_theme_selector
 from ...ui.display.ascii_art import show_loom_art
 from ...ui.help.help_data import command_help
@@ -102,9 +103,7 @@ def _print_current_settings() -> None:
 @config_app.callback(invoke_without_command=True)
 def config_callback(
     ctx: typer.Context,
-    help: bool = typer.Option(
-        False, "--help", "-h", help="Show help message and exit."
-    ),
+    help: bool = HelpOpt(),
 ) -> None:
     handle_help_flag(ctx, help, "config")
 

@@ -266,6 +266,11 @@ class SettingsManager:
 settings_manager = SettingsManager()
 
 
+# * Invalidate cached settings to force reload on next access
+def invalidate_settings_cache() -> None:
+    settings_manager._settings = None
+
+
 # * Retrieve settings preferring injected object from Typer context
 def get_settings(
     ctx: typer.Context, provided: Optional[LoomSettings] = None

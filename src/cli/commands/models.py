@@ -14,6 +14,7 @@ from ...ui.theming.theme_engine import styled_checkmark, accent_gradient, styled
 from ...ui.theming.styled_helpers import styled_provider_line
 from ..app import app
 from ..helpers import handle_help_flag
+from ..params import HelpOpt
 from ...ui.help.help_data import command_help
 
 # * Sub-app for models commands; registered on root app
@@ -43,9 +44,7 @@ app.add_typer(models_app, name="models")
 @models_app.callback(invoke_without_command=True)
 def models_callback(
     ctx: typer.Context,
-    help: bool = typer.Option(
-        False, "--help", "-h", help="Show help message and exit."
-    ),
+    help: bool = HelpOpt(),
 ) -> None:
     handle_help_flag(ctx, help, "models")
 
