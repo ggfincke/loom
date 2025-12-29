@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2025-12-29
+
+### Added
+- **Typst file format support**: Complete .typ resume support w/ template detection, section analysis & bundled SWE template
+- **Bulk processing system**: `loom bulk` command for multi-job processing w/ parallel execution, comparison matrix & fit scoring
+- **ATS analysis system**: `loom ats` command w/ scoring engine for Applicant Tracking System compatibility reporting
+- **Unified handler architecture**: BaseDocumentHandler abstract class w/ registry pattern (`get_handler()`) for format-agnostic processing
+- **Response caching**: AI cache w/ TTL, LRU eviction & thread-local disable for improved performance
+- **Watch mode & cache management**: Auto-recompilation workflow support & CLI commands for cache control
+- **Shared utilities**: Template loading, semantic matchers & document types (`template_io`, `shared_patterns`, `types`)
+- **ValidationResult type**: Pure data class for validation outcomes & settings cache invalidation
+
+### Changed
+- **Architecture refactoring**: Unified handler API, CLI decorators extracted to `cli/decorators.py`, validation strategies moved to CLI layer
+- **Layer purity improvements**: Move I/O from ai/ to CLI (`ensure_valid_model` → `model_helpers`), `Lines` type to `core/types.py`
+- **Type safety & formatting**: Runtime assertions for required paths, mypy compliance fixes, black formatting across codebase
+- **AI system enhancements**: Consolidate `response_cache.py` into `cache.py`, token-efficient prompt keys & normalization
+- **Settings & output**: Standardize access via `get_settings(ctx)` helper, unified output management w/ registry pattern
+- **Exception hierarchy**: Expand w/ TypstError & richer context fields across all exception classes
+- **Code style**: Convert all docstrings to single-line comments per project style guide
+- **Theme system**: Automatic initialization at startup, enhanced engine w/ styled helpers
+- **Documentation**: Enhanced layer purity rules & command authoring patterns in contributing guide
+
+### Infrastructure
+- **Test coverage**: Comprehensive unit & integration tests for Typst, bulk processing, ATS analysis & caching features
+- **Bulk I/O infrastructure**: Job discovery from directories/manifests/globs, output layout & metadata persistence
+
+<details>
+<summary>1.3.x nightly releases (click to expand)</summary>
+
 ## [1.3.9-nightly.20251229] - 2025-12-29
 
 ### Changed
@@ -129,6 +159,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Help system**: Added option introspection capabilities
 - **Code cleanup**: Removed deprecated edit_helpers module
 
+</details>
+
 ---
 
 ## [1.3.0] - 2025-12-20
@@ -152,7 +184,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Test coverage**: 809 tests at 88% coverage with pytest-socket network isolation
 - **Build system**: Package data support for template distribution
 
----
+<details>
+<summary>1.2.x releases (click to expand)</summary>
 
 ## [1.2.11] - 2025-12-20
 
@@ -284,6 +317,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Git hooks for automated versioning**: Install script and pre-commit/pre-push hooks to automatically version nightly releases and ensure changelog consistency
 
+</details>
+
 ---
 
 ## [1.2.0] - 2025-09-01
@@ -312,7 +347,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Interactive UI**: Improved responsiveness and loading displays
 - **Test reliability**: Enhanced mocking and environment detection
 
----
+<details>
+<summary>1.1.x releases (click to expand)</summary>
 
 ## [1.1.7-nightly.20250901] - 2025-09-01
 
@@ -441,6 +477,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Note: most of this release is UI implementation work; the operations are not fully wired up and remain non-functional.
 
+</details>
+
 ---
 
 ## [1.1.0] - 2025-08-19
@@ -463,7 +501,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Testing
 - **Comprehensive test coverage**: Added full test suite for interactive diff workflow and related components.
 
----
+<details>
+<summary>1.0.x releases (click to expand)</summary>
 
 ## [1.0.1-nightly.20250819] - 2025-08-19
 
@@ -473,6 +512,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **UI module restructuring**: Organized subpackages for better maintainability and separation of concerns.
+
+</details>
 
 ---
 
@@ -507,7 +548,8 @@ First stable release. Graduates the 0.x nightlies into a cohesive, production-re
 - Unit, integration, E2E, smoke, and stress tests (including document I/O and CLI orchestration).
 - Coverage gates and deterministic mocks for model/AI client behavior.
 
----
+<details>
+<summary>0.x releases (click to expand)</summary>
 
 ## [0.9.0-nightly.20250816] - 2025-08-16
 ### Added
@@ -689,3 +731,5 @@ First stable release. Graduates the 0.x nightlies into a cohesive, production-re
 ## [0.0.1-nightly.20250807] - 2025-08-07
 ### Added
 - Initial commit.
+
+</details>

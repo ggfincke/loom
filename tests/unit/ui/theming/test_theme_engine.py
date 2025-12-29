@@ -138,7 +138,7 @@ class TestThemeChangeInvalidation:
             return_value="different_theme",
         ):
             with patch(
-                "src.ui.theming.theme_engine.get_active_theme",
+                "src.ui.theming.theme_engine._get_theme_colors",
                 return_value=["#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF"],
             ):
                 # access again - should re-fetch due to theme change
