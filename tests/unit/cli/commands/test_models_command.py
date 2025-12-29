@@ -217,7 +217,7 @@ class TestModelsTestCommand:
         return CliRunner()
 
     # * Test models test command success path
-    @patch("src.ai.clients.ollama_client.run_generate")
+    @patch("src.ai.clients.run_generate")
     @patch("src.cli.commands.models.get_available_models_with_error")
     @patch("src.cli.commands.models.check_ollama_with_error")
     @patch("src.cli.commands.models.console")
@@ -322,7 +322,7 @@ class TestModelsTestCommand:
         assert install_message
 
     # * Test models test command w/ API call failure
-    @patch("src.ai.clients.ollama_client.run_generate")
+    @patch("src.ai.clients.run_generate")
     @patch("src.cli.commands.models.get_available_models_with_error")
     @patch("src.cli.commands.models.check_ollama_with_error")
     @patch("src.cli.commands.models.console")
@@ -407,7 +407,7 @@ class TestModelsIntegration:
         mock_get_models.assert_called_once_with()
 
     # * Test integration w/ Ollama client functions
-    @patch("src.ai.clients.ollama_client.run_generate")
+    @patch("src.ai.clients.run_generate")
     @patch("src.cli.commands.models.get_available_models_with_error")
     @patch("src.cli.commands.models.check_ollama_with_error")
     @patch("src.cli.commands.models.console")

@@ -3,12 +3,9 @@
 
 from __future__ import annotations
 
-from functools import lru_cache
-
 from .base import BaseClient
 from ..cache import AICache
-from ..models import get_default_model
-from ..types import GenerateResult, OllamaStatus
+from ..types import OllamaStatus
 from ..utils import APICallContext
 from ...config.settings import settings_manager
 from ...core.exceptions import AIError, ProviderError
@@ -48,15 +45,6 @@ class OllamaClient(BaseClient):
         import ollama  # type: ignore
 
         settings = settings_manager.load()
-        output = get_output_manager()
-
-        output.debug(
-            f"Ollama API call - Model: {model}, Prompt: {len(prompt)} chars", "API"
-        )
-        output.debug(
-            f"Making Ollama API call with model: {model}, temperature: {settings.temperature}",
-            "AI",
-        )
 
         try:
             response = ollama.chat(
@@ -75,18 +63,12 @@ class OllamaClient(BaseClient):
             )
 
             raw_text = response.get("message", {}).get("content", "")
-            output.debug(
-                f"Received response from Ollama: {len(raw_text)} characters", "AI"
-            )
 
             return APICallContext(
                 raw_text=raw_text, provider_name="ollama", model=model
             )
 
         except Exception as e:
-            output.debug(
-                f"Ollama API call - Exception: {type(e).__name__}: {str(e)}", "ERROR"
-            )
             # Check for ResponseError (Ollama's main error type)
             if hasattr(ollama, "ResponseError") and isinstance(e, ollama.ResponseError):
                 raise ProviderError(
@@ -148,21 +130,9 @@ class OllamaClient(BaseClient):
             return OllamaStatus(available=False, models=[], error=error_msg)
 
 
-# get lazily-initialized singleton client
-@lru_cache(maxsize=1)
-def _get_client() -> OllamaClient:
-    return OllamaClient()
-
-
-# * Generate JSON response using Ollama API
-def run_generate(prompt: str, model: str | None = None) -> GenerateResult:
-    resolved_model = model or get_default_model("ollama")
-    return _get_client().run_generate(prompt, resolved_model)
-
-
 # check Ollama server status (cached)
 def check_ollama_status(*, with_debug: bool = False) -> OllamaStatus:
-    return _get_client()._check_ollama_status(with_debug=with_debug)
+    return OllamaClient()._check_ollama_status(with_debug=with_debug)
 
 
 # check if Ollama server is running & return detailed error if not

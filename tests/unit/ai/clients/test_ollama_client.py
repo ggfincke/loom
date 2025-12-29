@@ -13,18 +13,14 @@ if "ollama" not in sys.modules:
     setattr(ollama_module, "chat", None)
     sys.modules["ollama"] = ollama_module
 
-from src.ai.clients.ollama_client import (
-    run_generate,
-    OllamaClient,
-    _get_client,
-)
+from src.ai.clients.ollama_client import OllamaClient
 from src.ai.cache import AICache
 from src.core.exceptions import AIError
 
 
-def _reset_ollama_state() -> None:
-    AICache.invalidate_provider("ollama")
-    _get_client.cache_clear()
+# call OllamaClient.run_generate directly, bypassing factory validation
+def _run_generate_direct(prompt: str, model: str):
+    return OllamaClient().run_generate(prompt, model)
 
 
 class _FakeModel:
@@ -40,10 +36,8 @@ class _ListResponse:
 @pytest.fixture(autouse=True)
 def reset_ollama_cache():
     # Reset cache before each test to avoid stale data
-    _reset_ollama_state()
     AICache.invalidate_all()
     yield
-    _reset_ollama_state()
     AICache.invalidate_all()
 
 
@@ -58,7 +52,7 @@ def test_run_generate_success_with_code_fence(monkeypatch):
 
     monkeypatch.setattr("ollama.chat", _chat)
 
-    result = run_generate("Parse this resume", model="llama3.2")
+    result = _run_generate_direct("Parse this resume", model="llama3.2")
     assert result.success is True
     assert result.data == {"sections": [{"name": "SUMMARY"}]}
     # Code fence stripped
@@ -70,7 +64,7 @@ def test_run_generate_model_not_found_lists_available(monkeypatch):
     # Model requested is not in available list
     monkeypatch.setattr("ollama.list", lambda: _ListResponse([_FakeModel("llama3.1")]))
 
-    result = run_generate("Prompt", model="llama3.2")
+    result = _run_generate_direct("Prompt", model="llama3.2")
 
     assert result.success is False
     error_msg = result.error.lower()
@@ -85,7 +79,7 @@ def test_run_generate_network_error_on_availability_check(monkeypatch):
 
     monkeypatch.setattr("ollama.list", _raise)
 
-    result = run_generate("Prompt", model="llama3.2")
+    result = _run_generate_direct("Prompt", model="llama3.2")
 
     assert result.success is False
     error_msg = result.error.lower()
@@ -102,7 +96,7 @@ def test_run_generate_strips_thinking_tokens(monkeypatch):
 
     monkeypatch.setattr("ollama.chat", _chat)
 
-    result = run_generate("Prompt", model="llama3.2")
+    result = _run_generate_direct("Prompt", model="llama3.2")
     assert result.success is True
     # Ensure thinking tokens removed in json_text but present in raw_text
     assert "<think>" not in result.json_text
@@ -119,7 +113,7 @@ def test_run_generate_api_error_during_chat(monkeypatch):
 
     monkeypatch.setattr("ollama.chat", _chat)
 
-    result = run_generate("Prompt", model="llama3.2")
+    result = _run_generate_direct("Prompt", model="llama3.2")
 
     assert result.success is False
     assert "Ollama API error" in result.error

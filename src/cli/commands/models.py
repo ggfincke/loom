@@ -25,7 +25,7 @@ models_app = typer.Typer(
 app.add_typer(models_app, name="models")
 
 
-# * default callback: show all available models by provider when no subcommand provided
+# * Default callback: show all available models by provider when no subcommand provided
 @command_help(
     name="models",
     description="List available AI models by provider",
@@ -52,13 +52,13 @@ def models_callback(
         _show_models_list()
 
 
-# * explicit list command (same as default callback)
+# * Explicit list command (same as default callback)
 @models_app.command()
 def list() -> None:
     _show_models_list()
 
 
-# * helper function to display models by provider
+# * Helper function to display models by provider
 def _show_models_list() -> None:
     providers = get_models_by_provider()
 
@@ -113,7 +113,7 @@ def _show_models_list() -> None:
     )
 
 
-# * test command to check Ollama connectivity & model availability
+# * Test command to check Ollama connectivity & model availability
 @models_app.command()
 def test(
     model: str = typer.Argument(help="Model name to test (e.g., deepseek-r1:14b)"),
@@ -155,7 +155,7 @@ def test(
 
     # test basic API call
     console.print("4. Testing basic API call...")
-    from ...ai.clients.ollama_client import run_generate
+    from ...ai.clients import run_generate
 
     test_prompt = "Please respond with valid JSON containing a single field 'test' with value 'success': "
     result = run_generate(test_prompt, model)

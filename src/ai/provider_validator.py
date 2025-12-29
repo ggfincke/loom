@@ -1,9 +1,10 @@
 # src/ai/provider_validator.py
-# Provider validation logic for AI models w/ caching & error message generation
+# Runtime provider validation - checks environmental availability (API keys, servers)
 #
-# ! DEPRECATION NOTICE: This module is being consolidated into ModelRegistry
-# ! For static model validation (OpenAI/Anthropic), use ModelRegistry.validate_static()
-# ! This module remains for Ollama validation (requires server check) & backward compatibility
+# * This module complements ModelRegistry (static model metadata) w/ runtime checks:
+# *   - ModelRegistry: "Is gpt-4o a valid model string?" (static, intrinsic)
+# *   - provider_validator: "Can we call OpenAI right now?" (runtime, environmental)
+# * Responsibilities: API key presence, Ollama server availability, error message generation
 
 from __future__ import annotations
 
@@ -19,6 +20,7 @@ from .models import (
 from ..config.env_validator import validate_provider_env
 
 
+# check OpenAI API key availability w/ caching
 def check_openai_api_key() -> bool:
     cached = AICache.get_provider_available("openai")
     if cached is not None:
@@ -29,6 +31,7 @@ def check_openai_api_key() -> bool:
     return available
 
 
+# check Anthropic API key availability w/ caching
 def check_anthropic_api_key() -> bool:
     cached = AICache.get_provider_available("anthropic")
     if cached is not None:
@@ -39,6 +42,7 @@ def check_anthropic_api_key() -> bool:
     return available
 
 
+# get cached Ollama models list (returns empty if not cached)
 def get_ollama_models() -> list[str]:
     cached = AICache.get_ollama_models()
     if cached is not None:
@@ -47,6 +51,7 @@ def get_ollama_models() -> list[str]:
     return []
 
 
+# check if Ollama server is available via cache
 def is_ollama_available() -> bool:
     cached = AICache.get_provider_available("ollama")
     return cached is True
